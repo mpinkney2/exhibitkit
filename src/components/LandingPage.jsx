@@ -38,20 +38,23 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
           borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
           paddingBottom: '20px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)',
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 10px rgba(99, 102, 241, 0.3)'
-            }}>
-              <ShieldCheck size={18} color="#fff" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)',
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 10px rgba(99, 102, 241, 0.3)'
+              }}>
+                <ShieldCheck size={18} color="#fff" />
+              </div>
+              <span style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '-0.5px' }}>ExhibitKIT</span>
             </div>
-            <span style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '-0.5px' }}>ExhibitKIT</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', paddingLeft: '48px', marginTop: '-4px', fontWeight: '500', letterSpacing: '0.2px' }}>A product of PatentPreppers</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -326,7 +329,7 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
             ExhibitKIT is a standalone desktop litigation support tool published by <strong>PatentPreppers</strong>.
           </p>
           <p>
-            Contact support team at <a href="mailto:support@exhibitkit.app" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>support@exhibitkit.app</a>
+            Contact support team at <a href="mailto:support@patentpreppers.com" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>support@patentpreppers.com</a>
           </p>
         </div>
       </div>

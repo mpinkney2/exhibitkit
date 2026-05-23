@@ -877,3 +877,173 @@ table.exhibit-table tr.has-error {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.mobile-hamburger-btn {
+  display: none;
+}
+
+/* Premium Mobile Responsive System */
+@media (max-width: 768px) {
+  .mobile-hamburger-btn {
+    display: inline-flex !important;
+  }
+  .app-container {
+    flex-direction: column;
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 290px;
+    min-width: 290px;
+    max-width: 290px;
+    height: 100vh;
+    z-index: 1500;
+    transition: left var(--transition-normal);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.55);
+    background: var(--bg-secondary);
+  }
+  
+  .sidebar.mobile-open {
+    left: 0;
+  }
+  
+  /* Mobile Sidebar Drawer Overlay background */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 7, 12, 0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1400;
+    animation: fadeIn 0.2s ease;
+  }
+  
+  .main-content {
+    height: auto;
+    overflow: visible;
+  }
+  
+  .top-bar {
+    height: auto;
+    min-height: auto;
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .top-bar > div {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .workspace-view {
+    padding: 16px 12px;
+    overflow: visible;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+  
+  .stat-card {
+    padding: 12px 14px;
+  }
+  
+  .stat-val {
+    font-size: 16px;
+  }
+  
+  .table-panel {
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .table-header-bar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+  
+  .table-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .table-actions button, .table-actions select {
+    flex: 1;
+    min-width: 100px;
+  }
+  
+  .action-bar {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  
+  .action-buttons button, .action-buttons > div {
+    width: 100% !important;
+  }
+  
+  .action-buttons .btn-success {
+    order: -1; /* Highlight execute primary trigger at the top */
+  }
+
+  /* Landing Page Mobile */
+  .landing-container {
+    padding: 24px 16px !important;
+  }
+  
+  .landing-container h1 {
+    font-size: 28px !important;
+    letter-spacing: -0.8px !important;
+    line-height: 1.2 !important;
+  }
+  
+  .landing-container .glass-panel {
+    grid-template-columns: 1fr !important;
+    padding: 24px !important;
+  }
+  
+  .landing-container div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  .landing-container .dropzone-btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .landing-container .dropzone-btn-group button, 
+  .landing-container .dropzone-btn-group label {
+    width: 100%;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

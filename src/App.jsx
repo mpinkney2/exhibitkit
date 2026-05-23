@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock } from 'lucide-react';
+import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock, Menu } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
 import PreviewTable from './components/PreviewTable';
@@ -27,6 +27,7 @@ import {
 export default function App() {
   // Application Mode Routing: 'landing' | 'workspace' | 'stripe_success' | 'stripe_cancel'
   const [appRoute, setAppRoute] = useState('landing');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Workspace Tier States
   const [isPro, setIsPro] = useState(() => hasProAccess());
@@ -665,7 +666,7 @@ export default function App() {
           </form>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11.5px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-            <span>📧 Technical issues or license recovery? Contact <a href="mailto:support@exhibitkit.app" style={{ color: 'var(--text-secondary)' }}>support@exhibitkit.app</a></span>
+            <span>📧 Technical issues or license recovery? Contact <a href="mailto:support@patentpreppers.com" style={{ color: 'var(--text-secondary)' }}>support@patentpreppers.com</a></span>
           </div>
 
           <button className="btn btn-secondary" onClick={() => setAppRoute('workspace')} style={{ width: '100%', fontSize: '13px' }}>
@@ -728,7 +729,13 @@ export default function App() {
         onApplySettings={handleApplyProfileSettings}
         onOpenModal={(type) => setActiveModal(type)}
         onShowNotification={showNotification}
+        className={isMobileSidebarOpen ? 'mobile-open' : ''}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
+
+      {isMobileSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsMobileSidebarOpen(false)}></div>
+      )}
 
       {/* Main Workspace */}
       <div className="main-content">
@@ -736,6 +743,23 @@ export default function App() {
         <div className="top-bar">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button 
+                className="mobile-hamburger-btn"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: 'var(--text-primary)', 
+                  cursor: 'pointer', 
+                  padding: '4px', 
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '2px'
+                }}
+                title="Open Settings"
+              >
+                <Menu size={20} />
+              </button>
               <h2 style={{ fontSize: '18px', fontWeight: '600' }}>ExhibitKIT Workspace</h2>
               {isPro ? (
                 <span className="badge badge-success" style={{ fontSize: '10.5px' }}>Pro</span>
@@ -791,6 +815,22 @@ export default function App() {
               onClick={() => setActiveModal('how')}
             >
               <Info size={10} /> How to Use
+            </button>
+
+            <button 
+              className="badge badge-warning" 
+              style={{ 
+                cursor: 'pointer', 
+                border: 'none', 
+                background: 'rgba(245, 158, 11, 0.1)', 
+                color: 'var(--status-warning)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '4px' 
+              }}
+              onClick={() => setActiveModal('feedback')}
+            >
+              💬 Feedback
             </button>
           </div>
         </div>

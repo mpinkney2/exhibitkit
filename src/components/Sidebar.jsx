@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, RefreshCw, FileText, ToggleLeft, HelpCircle } from 'lucide-react';
+import { Settings, RefreshCw, FileText, ToggleLeft, HelpCircle, X } from 'lucide-react';
 import MatterProfiles from './MatterProfiles';
 import { APP_VERSION } from '../utils/license';
 
@@ -22,7 +22,9 @@ export default function Sidebar({
   isPro,
   onApplySettings,
   onOpenModal,
-  onShowNotification
+  onShowNotification,
+  className = '',
+  onCloseMobile
 }) {
   const currentSettings = {
     preset,
@@ -35,12 +37,32 @@ export default function Sidebar({
   };
 
   return (
-    <div className="sidebar">
-      <div className="sidebar-header">
-        <div className="sidebar-logo">
-          <FileText size={20} color="#fff" />
+    <div className={`sidebar ${className}`}>
+      <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="sidebar-logo">
+            <FileText size={20} color="#fff" />
+          </div>
+          <h1 className="sidebar-title">ExhibitKIT</h1>
         </div>
-        <h1 className="sidebar-title">ExhibitKIT</h1>
+        {onCloseMobile && (
+          <button 
+            onClick={onCloseMobile} 
+            style={{ 
+              padding: '6px', 
+              color: 'var(--text-secondary)', 
+              background: 'transparent', 
+              border: 'none', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Close Settings Panel"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       <div className="sidebar-content">
