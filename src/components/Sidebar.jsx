@@ -1,5 +1,7 @@
 import React from 'react';
 import { Settings, RefreshCw, FileText, ToggleLeft, HelpCircle } from 'lucide-react';
+import MatterProfiles from './MatterProfiles';
+import { APP_VERSION } from '../utils/license';
 
 export default function Sidebar({
   preset,
@@ -16,8 +18,22 @@ export default function Sidebar({
   setCustomTemplate,
   cleanDesc,
   setCleanDesc,
-  onReset
+  onReset,
+  isPro,
+  onApplySettings,
+  onOpenModal,
+  onShowNotification
 }) {
+  const currentSettings = {
+    preset,
+    prefix,
+    startNumber,
+    padLength,
+    caseStyle,
+    cleanDesc,
+    customTemplate
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -150,8 +166,16 @@ export default function Sidebar({
           </div>
         )}
 
+        {/* Pro Gated Saved Matter Profiles */}
+        <MatterProfiles
+          isPro={isPro}
+          currentSettings={currentSettings}
+          onApplySettings={onApplySettings}
+          onShowNotification={onShowNotification}
+        />
+
         {/* Reset & Quick Presets Info */}
-        <div style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
           {preset === 'oncue' && (
             <div style={{
               background: 'rgba(99, 102, 241, 0.05)',
@@ -161,7 +185,7 @@ export default function Sidebar({
               fontSize: '11.5px',
               color: 'var(--text-secondary)',
               lineHeight: '1.4',
-              marginBottom: '16px'
+              marginBottom: '12px'
             }}>
               <strong>OnCue Guideline:</strong> Prefers no dashes in the ID, e.g. <code style={{ fontSize: '10px', color: '#fff' }}>PX001 Memo.pdf</code>.
               The first space separates the ID and Name.
@@ -176,16 +200,43 @@ export default function Sidebar({
               fontSize: '11.5px',
               color: 'var(--text-secondary)',
               lineHeight: '1.4',
-              marginBottom: '16px'
+              marginBottom: '12px'
             }}>
               <strong>TrialDirector Guideline:</strong> Emphasizes leading zero padding (e.g. <code style={{ fontSize: '10px', color: '#fff' }}>PX-0001 - Memo.pdf</code>) for clean alphabetical sorting.
             </div>
           )}
           
-          <button className="btn btn-secondary" onClick={onReset} style={{ width: '100%' }}>
-            <RefreshCw size={14} />
+          <button className="btn btn-secondary" onClick={onReset} style={{ width: '100%', marginBottom: '16px' }}>
+            <RefreshCw size={12} />
             Reset Naming Rules
           </button>
+
+          {/* Legal / Operational support footer links */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px 12px',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            justifyContent: 'center',
+            marginBottom: '12px',
+            lineHeight: '1.4'
+          }}>
+            <button onClick={() => onOpenModal('terms')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">Terms of Use</button>
+            <button onClick={() => onOpenModal('privacy')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">Privacy Notice</button>
+            <button onClick={() => onOpenModal('support')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">Contact Support</button>
+            <button onClick={() => onOpenModal('how')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">How to Use</button>
+          </div>
+
+          {/* Workstation signature / Version tag */}
+          <div style={{
+            textAlign: 'center',
+            fontSize: '10px',
+            color: 'var(--text-muted)',
+            fontFamily: 'var(--font-mono)'
+          }}>
+            ExhibitKIT {APP_VERSION} | Build: local-first-preview
+          </div>
         </div>
       </div>
     </div>
