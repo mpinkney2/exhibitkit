@@ -191,11 +191,12 @@ export default function App() {
     setDirectoryName("Mock Legal Exhibits Dataset");
 
     const sampleFiles = [
-      { name: "1981 - Letter to OSHA - TD Authenticated.pdf" },
-      { name: "Abelmann-2018.pdf" },
-      { name: "Carbone-2025.pdf" },
-      { name: "Merewether 1935 - BEST COPY.pdf" },
-      { name: "Mobil Oil Corporation - 1972a.pdf" }
+      { name: "PX-1 - Contract.pdf" },
+      { name: "DX_2_Invoice.pdf" },
+      { name: "DEP Jones Exhibit 3.pdf" },
+      { name: "DOD - 12 - 2012 - Smith - Report.pdf" },
+      { name: "04 - Jones Photo.pdf" },
+      { name: "Unstructured Document.pdf" }
     ];
 
     const parsedSamples = sampleFiles.map(file => {
