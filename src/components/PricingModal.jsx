@@ -99,8 +99,8 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
 
         {/* Main Offer Card */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
+          background: 'var(--bg-tertiary)',
+          border: '1px solid var(--border-color)',
           borderRadius: '12px',
           padding: '24px',
           display: 'flex',
@@ -117,7 +117,7 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
             Get lifetime access to the full, courtroom-ready ExhibitKIT professional toolset. Prepare and rename exhibits directly on your local system with absolute confidentiality.
           </p>
 
-          <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
+          <div style={{ width: '100%', height: '1px', background: 'var(--border-color)' }}></div>
 
           {/* Benefits list */}
           <div style={{
@@ -179,9 +179,9 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
 
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }}></div>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
           <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Or Activate License</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }}></div>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
         </div>
 
         {/* License Key Activation Form */}

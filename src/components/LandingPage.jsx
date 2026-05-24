@@ -35,7 +35,7 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+          borderBottom: '1px solid var(--border-color)',
           paddingBottom: '20px'
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -71,7 +71,7 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
               style={{ 
                 cursor: 'pointer', 
                 border: 'none', 
-                background: 'rgba(255, 255, 255, 0.08)', 
+                background: theme === 'light' ? 'var(--bg-tertiary)' : 'rgba(255, 255, 255, 0.08)', 
                 color: 'var(--text-primary)', 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -101,13 +101,13 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            background: 'rgba(99, 102, 241, 0.08)',
-            border: '1px solid rgba(99, 102, 241, 0.2)',
+            background: theme === 'light' ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.08)',
+            border: theme === 'light' ? '1px solid rgba(79, 70, 229, 0.2)' : '1px solid rgba(99, 102, 241, 0.2)',
             borderRadius: '20px',
             padding: '6px 16px',
             fontSize: '12.5px',
             fontWeight: '500',
-            color: '#a5b4fc'
+            color: theme === 'light' ? 'var(--accent-primary)' : '#a5b4fc'
           }}>
             <Sparkles size={12} />
             Courtroom-Ready Legal Exhibit Preparation
@@ -118,7 +118,9 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
             fontWeight: '800',
             lineHeight: '1.15',
             letterSpacing: '-1.5px',
-            background: 'linear-gradient(135deg, #ffffff 40%, #c7d2fe 100%)',
+            background: theme === 'light' 
+              ? 'linear-gradient(135deg, var(--text-primary) 0%, var(--accent-primary) 100%)' 
+              : 'linear-gradient(135deg, #ffffff 40%, #c7d2fe 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             margin: 0
@@ -280,8 +282,8 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
           gap: '32px',
           padding: '40px',
           alignItems: 'center',
-          background: 'rgba(17, 24, 39, 0.55)',
-          border: '1px solid rgba(99, 102, 241, 0.15)'
+          background: theme === 'light' ? 'var(--bg-secondary)' : 'rgba(17, 24, 39, 0.55)',
+          border: theme === 'light' ? '1px solid var(--border-color)' : '1px solid rgba(99, 102, 241, 0.15)'
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h2 style={{ fontSize: '24px', fontWeight: '700', letterSpacing: '-0.5px' }}>
@@ -308,8 +310,8 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
           </div>
 
           <div style={{
-            background: 'rgba(10, 14, 23, 0.5)',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
+            background: theme === 'light' ? 'var(--bg-tertiary)' : 'rgba(10, 14, 23, 0.5)',
+            border: theme === 'light' ? '1px solid var(--border-color)' : '1px solid rgba(255, 255, 255, 0.05)',
             borderRadius: '12px',
             padding: '32px',
             display: 'flex',
@@ -339,7 +341,7 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
           textAlign: 'center',
           fontSize: '12px',
           color: 'var(--text-muted)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+          borderTop: '1px solid var(--border-color)',
           paddingTop: '24px',
           display: 'flex',
           flexDirection: 'column',

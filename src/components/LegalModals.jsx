@@ -32,7 +32,7 @@ export default function LegalModals({ activeModal, onClose }) {
       case 'terms':
         return (
           <>
-            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', marginBottom: '16px' }}>
+            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '16px' }}>
               <FileText className="modal-icon text-primary" size={24} style={{ color: 'var(--accent-primary)' }} />
               <h3 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>Terms of Use</h3>
             </div>
@@ -70,7 +70,7 @@ export default function LegalModals({ activeModal, onClose }) {
       case 'privacy':
         return (
           <>
-            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', marginBottom: '16px' }}>
+            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '16px' }}>
               <Shield className="modal-icon text-success" size={24} style={{ color: 'var(--status-success)' }} />
               <h3 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>Privacy Notice</h3>
             </div>
@@ -103,7 +103,7 @@ export default function LegalModals({ activeModal, onClose }) {
       case 'support':
         return (
           <>
-            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', marginBottom: '16px' }}>
+            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '16px' }}>
               <Mail className="modal-icon text-info" size={24} style={{ color: '#3b82f6' }} />
               <h3 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>Contact Technical Support</h3>
             </div>
@@ -144,7 +144,7 @@ export default function LegalModals({ activeModal, onClose }) {
       case 'how':
         return (
           <>
-            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', marginBottom: '16px' }}>
+            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '16px' }}>
               <HelpCircle className="modal-icon text-primary" size={24} style={{ color: 'var(--accent-primary)' }} />
               <h3 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>Litigation Guidelines & How to Use</h3>
             </div>
@@ -358,7 +358,7 @@ export default function LegalModals({ activeModal, onClose }) {
                 </button>
               </div>
 
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <Shield size={14} className="text-info" />
                 <span>Diagnostics: Submitting will include a secure, anonymized workstation signature.</span>
               </div>
@@ -392,7 +392,7 @@ export default function LegalModals({ activeModal, onClose }) {
         maxHeight: '85vh',
         padding: '32px',
         position: 'relative',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        border: '1px solid var(--border-color)',
         boxShadow: 'var(--shadow-lg)',
         display: 'flex',
         flexDirection: 'column',
@@ -426,7 +426,7 @@ export default function LegalModals({ activeModal, onClose }) {
           display: 'flex',
           justifyContent: 'flex-end',
           paddingTop: '16px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+          borderTop: '1px solid var(--border-color)'
         }}>
           <button className="btn btn-secondary" onClick={onClose} style={{ padding: '8px 16px', fontSize: '13px' }}>
             Close Window

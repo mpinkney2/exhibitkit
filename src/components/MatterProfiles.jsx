@@ -5,7 +5,8 @@ export default function MatterProfiles({
   isPro,
   currentSettings,
   onApplySettings,
-  onShowNotification
+  onShowNotification,
+  theme
 }) {
   const [profiles, setProfiles] = useState([]);
   const [newProfileName, setNewProfileName] = useState('');
@@ -64,8 +65,8 @@ export default function MatterProfiles({
     return (
       <div className="sidebar-section" style={{
         position: 'relative',
-        background: 'rgba(255, 255, 255, 0.01)',
-        border: '1px dashed rgba(255, 255, 255, 0.06)',
+        background: 'var(--bg-tertiary)',
+        border: '1px dashed var(--border-color)',
         borderRadius: '8px',
         padding: '16px',
         marginTop: '12px'
@@ -76,7 +77,7 @@ export default function MatterProfiles({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(10, 14, 23, 0.85)',
+          background: theme === 'light' ? 'rgba(241, 245, 249, 0.95)' : 'rgba(10, 14, 23, 0.85)',
           backdropFilter: 'blur(3px)',
           borderRadius: '8px',
           display: 'flex',
@@ -116,7 +117,7 @@ export default function MatterProfiles({
 
   return (
     <div className="sidebar-section" style={{
-      background: 'rgba(255, 255, 255, 0.02)',
+      background: 'var(--bg-tertiary)',
       border: '1px solid var(--border-color)',
       borderRadius: '8px',
       padding: '16px',
@@ -159,8 +160,8 @@ export default function MatterProfiles({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '6px 10px',
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.04)',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '6px',
                 transition: 'all var(--transition-fast)'
               }}

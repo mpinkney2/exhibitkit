@@ -24,7 +24,8 @@ export default function Sidebar({
   onOpenModal,
   onShowNotification,
   className = '',
-  onCloseMobile
+  onCloseMobile,
+  theme
 }) {
   const currentSettings = {
     preset,
@@ -194,10 +195,11 @@ export default function Sidebar({
           currentSettings={currentSettings}
           onApplySettings={onApplySettings}
           onShowNotification={onShowNotification}
+          theme={theme}
         />
 
         {/* Reset & Quick Presets Info */}
-        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
           {preset === 'oncue' && (
             <div style={{
               background: 'rgba(99, 102, 241, 0.05)',

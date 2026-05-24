@@ -754,7 +754,7 @@ export default function App() {
     return (
       <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
             <Info size={24} />
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Checkout Canceled</h2>
@@ -804,6 +804,7 @@ export default function App() {
         onShowNotification={showNotification}
         className={isMobileSidebarOpen ? 'mobile-open' : ''}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        theme={theme}
       />
 
       {isMobileSidebarOpen && (
@@ -911,7 +912,7 @@ export default function App() {
               style={{ 
                 cursor: 'pointer', 
                 border: 'none', 
-                background: 'rgba(255, 255, 255, 0.08)', 
+                background: theme === 'light' ? 'var(--bg-tertiary)' : 'rgba(255, 255, 255, 0.08)', 
                 color: 'var(--text-primary)', 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -983,7 +984,7 @@ export default function App() {
               Bulk renaming modifies files directly on your local system. Before executing, you must confirm that you have secure duplicates of your original exhibits.
             </p>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', background: 'var(--bg-tertiary)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
               <input 
                 type="checkbox" 
                 id="backup-confirm-checkbox"
@@ -1015,7 +1016,7 @@ export default function App() {
       {/* Animated Success Status Popup Modal */}
       {showSuccessModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 7, 12, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5000, animation: 'fadeIn 0.25s ease' }}>
-          <div className="glass-panel" style={{ maxWidth: '480px', width: '90%', padding: '36px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'center', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative' }}>
+          <div className="glass-panel" style={{ maxWidth: '480px', width: '90%', padding: '36px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'center', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative' }}>
             {/* Big green Checkmark icon */}
             <div style={{ 
               width: '64px', 
@@ -1044,12 +1045,12 @@ export default function App() {
             </div>
 
             {/* Statistics grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', width: '100%', background: 'rgba(255,255,255,0.02)', padding: '20px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', marginTop: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', width: '100%', background: 'var(--bg-tertiary)', padding: '20px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', marginTop: '8px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: '#10b981' }}>{renameStats.count}</span>
                 <span style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Renamed</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: renameStats.conflicts > 0 ? 'var(--status-warning)' : 'var(--text-secondary)' }}>{renameStats.conflicts}</span>
                 <span style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Conflicts</span>
               </div>
