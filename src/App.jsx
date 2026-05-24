@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock, Menu } from 'lucide-react';
+import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock, Menu, Sun, Moon } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
 import PreviewTable from './components/PreviewTable';
@@ -31,6 +31,7 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [renameStats, setRenameStats] = useState({ count: 0, conflicts: 0, time: "0.0s" });
+  const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'dark');
   
   // Workspace Tier States
   const [isPro, setIsPro] = useState(() => hasProAccess());
@@ -94,6 +95,16 @@ export default function App() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
+
+  // Apply theme class to document body
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+    localStorage.setItem('exhibitkit_theme', theme);
+  }, [theme]);
 
   const handleActivateLicense = (key) => {
     const success = activateLicense(key);
@@ -682,6 +693,8 @@ export default function App() {
         onLaunchDemo={handleLaunchDemoMode}
         onLaunchTrial={handleLaunchTrialMode}
         onOpenPricing={() => setIsPricingOpen(true)}
+        theme={theme}
+        onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
       />
     );
   }
@@ -891,6 +904,24 @@ export default function App() {
               onClick={() => setActiveModal('feedback')}
             >
               💬 Feedback
+            </button>
+
+            <button 
+              className="badge" 
+              style={{ 
+                cursor: 'pointer', 
+                border: 'none', 
+                background: 'rgba(255, 255, 255, 0.08)', 
+                color: 'var(--text-primary)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '4px' 
+              }}
+              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+              title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+            >
+              {theme === 'light' ? <Moon size={10} /> : <Sun size={10} />}
+              <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
             </button>
           </div>
         </div>

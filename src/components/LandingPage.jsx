@@ -1,8 +1,8 @@
 import React from 'react';
-import { Sparkles, Shield, HardDrive, ShieldCheck, Zap, ArrowRight, RefreshCcw, HelpCircle } from 'lucide-react';
+import { Sparkles, Shield, HardDrive, ShieldCheck, Zap, ArrowRight, RefreshCcw, HelpCircle, Sun, Moon } from 'lucide-react';
 import { hasTrialAvailable } from '../utils/license';
 
-export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing }) {
+export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing, theme, onToggleTheme }) {
   const trialAvailable = hasTrialAvailable();
 
   return (
@@ -61,8 +61,28 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
             <span className="badge badge-success" style={{ padding: '6px 12px', fontSize: '11px' }}>
               🔒 CONFIDENTIAL LOCAL MODE
             </span>
+            
             <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '12px' }} onClick={() => onLaunchDemo()}>
               Quick Demo
+            </button>
+
+            <button 
+              className="badge" 
+              style={{ 
+                cursor: 'pointer', 
+                border: 'none', 
+                background: 'rgba(255, 255, 255, 0.08)', 
+                color: 'var(--text-primary)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                padding: '8px',
+                borderRadius: '6px'
+              }}
+              onClick={onToggleTheme}
+              title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+            >
+              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
             </button>
           </div>
         </div>
