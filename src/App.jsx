@@ -28,6 +28,8 @@ export default function App() {
   // Application Mode Routing: 'landing' | 'workspace' | 'stripe_success' | 'stripe_cancel'
   const [appRoute, setAppRoute] = useState('landing');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [renameStats, setRenameStats] = useState({ count: 0, conflicts: 0, time: "0.0s" });
   
   // Workspace Tier States
   const [isPro, setIsPro] = useState(() => hasProAccess());
@@ -389,6 +391,9 @@ export default function App() {
     // Freeze preview state before renaming to block mid-operation changes
     setIsPreviewFreezed(true);
 
+    const conflictCount = items.filter(item => item.hasConflict || item.status === 'conflict').length;
+    const startTime = performance.now();
+
     if (!directoryHandle) {
       // Fallback: Individual downloads since there is no local folder handle
       try {
@@ -404,6 +409,9 @@ export default function App() {
           URL.revokeObjectURL(url);
         }
 
+        const endTime = performance.now();
+        const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
+
         // Consume Trial if in Trial Mode
         if (isTrialMode) {
           markTrialUsed();
@@ -415,6 +423,14 @@ export default function App() {
         } else {
           showNotification("✨ Successfully exported/downloaded all prepared exhibits!", "success");
         }
+
+        // Trigger Success Stats Popup
+        setRenameStats({
+          count: items.length,
+          conflicts: conflictCount,
+          time: `${elapsedSeconds}s`
+        });
+        setShowSuccessModal(true);
       } catch (err) {
         showNotification("❌ Batch download failed: " + err.message, "danger");
       } finally {
@@ -466,6 +482,9 @@ export default function App() {
       setItems(updateProposedNames(updatedItems));
       setLastRenameHistory(history);
 
+      const endTime = performance.now();
+      const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
+
       // Consume Trial if in Trial Mode
       if (isTrialMode) {
         markTrialUsed();
@@ -477,6 +496,14 @@ export default function App() {
       } else {
         showNotification(`✨ Successfully renamed ${history.length} exhibits directly inside "${directoryName}"!`, "success");
       }
+
+      // Trigger Success Stats Popup
+      setRenameStats({
+        count: updatedItems.length,
+        conflicts: conflictCount,
+        time: `${elapsedSeconds}s`
+      });
+      setShowSuccessModal(true);
     } catch (err) {
       showNotification("❌ Renaming operation failed: " + err.message, "danger");
       console.error(err);
@@ -918,6 +945,63 @@ export default function App() {
                 Proceed to Rename
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Animated Success Status Popup Modal */}
+      {showSuccessModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 7, 12, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5000, animation: 'fadeIn 0.25s ease' }}>
+          <div className="glass-panel" style={{ maxWidth: '480px', width: '90%', padding: '36px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'center', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative' }}>
+            {/* Big green Checkmark icon */}
+            <div style={{ 
+              width: '64px', 
+              height: '64px', 
+              borderRadius: '16px', 
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+              color: '#fff', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              fontSize: '32px',
+              boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+              fontWeight: 'bold',
+              animation: 'slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            }}>
+              ✓
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h3 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                {renameStats.count} Exhibits Renamed Successfully
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                Files are ready for import into TrialDirector & OnCue.
+              </p>
+            </div>
+
+            {/* Statistics grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', width: '100%', background: 'rgba(255,255,255,0.02)', padding: '20px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)', marginTop: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '24px', fontWeight: '800', color: '#10b981' }}>{renameStats.count}</span>
+                <span style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Renamed</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+                <span style={{ fontSize: '24px', fontWeight: '800', color: renameStats.conflicts > 0 ? 'var(--status-warning)' : 'var(--text-secondary)' }}>{renameStats.conflicts}</span>
+                <span style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Conflicts</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '24px', fontWeight: '800', color: '#10b981' }}>{renameStats.time}</span>
+                <span style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Time</span>
+              </div>
+            </div>
+
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setShowSuccessModal(false)}
+              style={{ width: '100%', padding: '12px', fontSize: '13.5px', fontWeight: '600', marginTop: '4px' }}
+            >
+              Done & Close
+            </button>
           </div>
         </div>
       )}
