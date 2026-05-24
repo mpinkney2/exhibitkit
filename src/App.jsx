@@ -7,6 +7,7 @@ import ActionPanel from './components/ActionPanel';
 import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
+import JSZip from 'jszip';
 import { 
   hasProAccess, 
   hasTrialAvailable, 
@@ -395,19 +396,34 @@ export default function App() {
     const startTime = performance.now();
 
     if (!directoryHandle) {
-      // Fallback: Individual downloads since there is no local folder handle
+      // Fallback: Zipped batch download since there is no local folder handle
       try {
+        const zip = new JSZip();
+        
+        // Add all renamed PDF files to the zip archive
         for (const item of items) {
           if (!item.file) continue;
-          const url = URL.createObjectURL(item.file);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = item.proposedName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          zip.file(item.proposedName, item.file);
         }
+
+        // Add CSV Rename Report to the zip archive
+        const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
+        const rows = items.map(item => {
+          const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+          return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        }).join("\n");
+        zip.file("exhibit_rename_report.csv", headers + rows);
+
+        // Compress and trigger a single download package
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `exhibit_batch_prepared.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
         const endTime = performance.now();
         const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
@@ -421,7 +437,7 @@ export default function App() {
           showNotification("✨ Free trial batch completed! Upgrade to Pro for unlimited local renames.", "success");
           setIsPricingOpen(true);
         } else {
-          showNotification("✨ Successfully exported/downloaded all prepared exhibits!", "success");
+          showNotification("✨ Successfully exported prepared exhibits folder ZIP!", "success");
         }
 
         // Trigger Success Stats Popup
@@ -432,7 +448,7 @@ export default function App() {
         });
         setShowSuccessModal(true);
       } catch (err) {
-        showNotification("❌ Batch download failed: " + err.message, "danger");
+        showNotification("❌ Zipped batch download failed: " + err.message, "danger");
       } finally {
         setIsPreviewFreezed(false);
       }
@@ -477,6 +493,23 @@ export default function App() {
           originalName: newName,
           handle: await directoryHandle.getFileHandle(newName)
         };
+      }
+
+      // Automatically write CSV Rename Report directly inside the local folder
+      try {
+        const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
+        const rows = updatedItems.map(item => {
+          const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+          return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        }).join("\n");
+        const reportContent = headers + rows;
+
+        const reportFileHandle = await directoryHandle.getFileHandle("_exhibit_rename_report.csv", { create: true });
+        const writableReport = await reportFileHandle.createWritable();
+        await writableReport.write(reportContent);
+        await writableReport.close();
+      } catch (reportErr) {
+        console.error("Failed to write local directory rename report", reportErr);
       }
 
       setItems(updateProposedNames(updatedItems));
