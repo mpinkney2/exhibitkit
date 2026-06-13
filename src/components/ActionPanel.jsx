@@ -26,21 +26,21 @@ export default function ActionPanel({
   const getModeBadge = () => {
     if (isPro) {
       return (
-        <span className="badge badge-success" style={{ padding: '6px 12px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-          🏆 PRO ACTIVE
+        <span className="badge-pro">
+          Pro
         </span>
       );
     }
     if (isTrial) {
       return (
         <span className="badge badge-warning" style={{ padding: '6px 12px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-          ⏳ FREE TRIAL BATCH
+          Free Trial Batch
         </span>
       );
     }
     return (
       <span className="badge badge-info" style={{ padding: '6px 12px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-        ⚙️ DEMO MODE
+        Demo Mode
       </span>
     );
   };
@@ -292,8 +292,8 @@ export default function ActionPanel({
             </span>
             {getModeBadge()}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            <span>🔒 CONFIDENTIAL LOCAL-FIRST OPERATIONS (NO DOCUMENT UPLOADS)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+            <span>🔒 All operations run locally — no document uploads</span>
           </div>
         </div>
 

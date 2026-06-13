@@ -71,7 +71,7 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
               background: 'var(--color-surface-1)'
             }}>
               <ShieldCheck size={12} style={{ color: 'var(--color-success)' }} />
-              Confidential Local Mode
+              No Cloud Uploads
             </span>
             
             <button 
@@ -80,7 +80,7 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
               style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--color-border)' }} 
               onClick={() => onLaunchDemo()}
             >
-              Quick Demo
+              See It in Action
             </button>
 
             <button 
@@ -193,7 +193,7 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
                   borderRadius: '6px'
                 }}
               >
-                Try One Free Batch
+                Try It Free
               </button>
             ) : (
               <button 
@@ -618,27 +618,6 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
               No recurring fees, seat limits, or subscriptions. Pay once and run ExhibitKIT locally on your workstation forever. Includes all lifetime updates.
             </p>
 
-            <button 
-              id="btn-purchase-pro-pricing"
-              className="btn btn-primary" 
-              onClick={onOpenPricing} 
-              style={{ 
-                width: '100%', 
-                padding: '12px 18px',
-                backgroundColor: 'var(--color-accent)',
-                color: '#ffffff',
-                fontWeight: '600',
-                fontSize: '14.5px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              Purchase License
-            </button>
-
-            <div style={{ width: '100%', height: '1px', background: 'var(--color-border)' }}></div>
-
             {/* Value propositions list */}
             <div style={{
               alignSelf: 'stretch',
@@ -670,6 +649,27 @@ export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing
                 <span>100% offline-ready (Your client records remain confidential)</span>
               </div>
             </div>
+
+            <div style={{ width: '100%', height: '1px', background: 'var(--color-border)' }}></div>
+
+            <button 
+              id="btn-purchase-pro-pricing"
+              className="btn btn-primary" 
+              onClick={onOpenPricing} 
+              style={{ 
+                width: '100%', 
+                padding: '12px 18px',
+                backgroundColor: 'var(--color-accent)',
+                color: '#ffffff',
+                fontWeight: '600',
+                fontSize: '14.5px',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Purchase License
+            </button>
           </div>
         </div>
 

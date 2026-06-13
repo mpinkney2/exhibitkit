@@ -72,10 +72,10 @@ export default function PreviewTable({
 
   const getProposedClass = (status) => {
     switch (status) {
-      case 'success': return 'cell-proposed success';
-      case 'warning': return 'cell-proposed warning';
-      case 'danger': return 'cell-proposed danger';
-      default: return 'cell-proposed';
+      case 'success': return 'proposed-filename-cell success';
+      case 'warning': return 'proposed-filename-cell warning';
+      case 'danger': return 'proposed-filename-cell danger';
+      default: return 'proposed-filename-cell';
     }
   };
 
@@ -214,45 +214,32 @@ export default function PreviewTable({
               >
                 <td>{getStatusBadge(item.status, item.message)}</td>
                 <td>
-                  <div className="cell-original" style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--color-text-secondary)' }} title={item.originalName}>
+                  <div className="original-filename-cell" title={item.originalName}>
                     {item.originalName}
                   </div>
                 </td>
                 <td>
-                  <div className="cell-editable cell-mono" style={{ display: 'flex', justifyContent: 'center' }}>
-                    <input 
-                      type="text" 
-                      value={item.number || ''} 
-                      placeholder="e.g. 101"
-                      onChange={(e) => onUpdateItem(index, 'number', e.target.value)} 
-                      style={{
-                        textAlign: 'center',
-                        fontSize: '13px',
-                        fontFamily: 'var(--font-sans)',
-                        fontWeight: '500',
-                        color: 'var(--color-text-primary)'
-                      }}
-                    />
-                  </div>
+                  <input 
+                    type="text" 
+                    className="table-input"
+                    value={item.number || ''} 
+                    placeholder="e.g. 101"
+                    onChange={(e) => onUpdateItem(index, 'number', e.target.value)} 
+                    style={{ textAlign: 'center', fontFamily: 'var(--font-mono)' }}
+                  />
                 </td>
                 <td>
-                  <div className="cell-editable">
-                    <input 
-                      type="text" 
-                      value={item.description || ''} 
-                      placeholder="Enter exhibit title/description"
-                      onChange={(e) => onUpdateItem(index, 'description', e.target.value)} 
-                      style={{
-                        fontSize: '14px',
-                        fontFamily: 'var(--font-sans)',
-                        fontWeight: '400',
-                        color: 'var(--color-text-primary)'
-                      }}
-                    />
-                  </div>
+                  <input 
+                    type="text" 
+                    className="table-input"
+                    value={item.description || ''} 
+                    placeholder="Enter exhibit title/description"
+                    title={item.description || "Enter exhibit title/description"}
+                    onChange={(e) => onUpdateItem(index, 'description', e.target.value)} 
+                  />
                 </td>
                 <td>
-                  <div className={getProposedClass(item.status)} style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--color-accent)' }} title={item.proposedName}>
+                  <div className={getProposedClass(item.status)} title={item.proposedName}>
                     {item.proposedName}
                   </div>
                 </td>

@@ -1136,3 +1136,81 @@ table.exhibit-table tr.has-error {
 .sidebar button:hover {
   color: var(--accent-primary) !important;
 }
+
+/* --- Pre-Launch Polish Styles --- */
+
+/* Filename word-wrap & ellipsis (Critical workspace bug fix) */
+.original-filename-cell {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+.proposed-filename-cell {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.proposed-filename-cell.warning {
+  color: var(--color-warning);
+}
+
+.proposed-filename-cell.danger {
+  color: var(--color-error);
+}
+
+/* Table inline inputs — rest state (replaces dashed outline) */
+.table-input {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+  text-overflow: ellipsis;
+}
+
+/* Show border on hover */
+.table-input:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-2);
+}
+
+/* Full active state on focus */
+.table-input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-surface-1);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Pro Badge in Action Panel */
+.badge-pro {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  background: rgba(37, 99, 235, 0.08);       /* responsive light blue tint */
+  color: var(--color-accent);                 /* responsive primary blue text */
+  border: 1px solid rgba(37, 99, 235, 0.2);  /* responsive blue border */
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+}
+
+/* Sidebar section breathing room spacing */
+.sidebar-section:not(:first-child) {
+  margin-top: 20px;
+}
+
