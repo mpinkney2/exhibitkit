@@ -65,52 +65,25 @@ export default function MatterProfiles({
     return (
       <div className="sidebar-section" style={{
         position: 'relative',
-        background: 'var(--bg-tertiary)',
-        border: '1px dashed var(--border-color)',
+        background: 'var(--color-surface-2)',
+        border: '1px dashed var(--color-border)',
         borderRadius: '8px',
         padding: '16px',
-        marginTop: '12px'
+        marginTop: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+        textAlign: 'center'
       }}>
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: theme === 'light' ? 'rgba(241, 245, 249, 0.95)' : 'rgba(10, 14, 23, 0.85)',
-          backdropFilter: 'blur(3px)',
-          borderRadius: '8px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          padding: '12px',
-          textAlign: 'center',
-          zIndex: 5
-        }}>
-          <Lock size={18} className="text-warning" />
-          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
-            Matter Profiles (Pro Only)
-          </span>
-          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-            Saved Matter Profiles are available in ExhibitKIT Pro.
-          </span>
-        </div>
-
-        {/* Dummy layout for visual aesthetics */}
-        <div style={{ opacity: 0.15, pointerEvents: 'none' }}>
-          <div className="sidebar-section-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <FolderHeart size={12} />
-            Saved Matter Profiles
-          </div>
-          <div className="form-group" style={{ marginBottom: '8px' }}>
-            <input type="text" placeholder="e.g., Jones Patent Trial" disabled />
-          </div>
-          <button className="btn btn-secondary" style={{ width: '100%', padding: '6px 12px' }} disabled>
-            Save Profile
-          </button>
-        </div>
+        <Lock size={14} style={{ color: 'var(--color-text-muted)' }} />
+        <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>
+          Matter Profiles (Pro Only)
+        </span>
+        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', lineHeight: '1.4' }}>
+          Saved settings profiles are available in ExhibitKIT Pro workstation tiers.
+        </span>
       </div>
     );
   }

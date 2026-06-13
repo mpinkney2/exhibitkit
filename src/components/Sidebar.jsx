@@ -41,10 +41,31 @@ export default function Sidebar({
     <div className={`sidebar ${className}`}>
       <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div className="sidebar-logo">
-            <FileText size={20} color="#fff" />
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '6px',
+            backgroundColor: 'var(--color-surface-2)',
+            color: 'var(--color-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            flexShrink: 0
+          }}>
+            ⚖
           </div>
-          <h1 className="sidebar-title">ExhibitKIT</h1>
+          <h1 style={{
+            fontSize: '15px',
+            fontWeight: '600',
+            color: 'var(--color-text-primary)',
+            fontFamily: 'var(--font-sans)',
+            margin: 0,
+            letterSpacing: '-0.3px'
+          }}>
+            ExhibitKIT
+          </h1>
         </div>
         {onCloseMobile && (
           <button 
@@ -70,30 +91,39 @@ export default function Sidebar({
         {/* Preset Selection */}
         <div className="sidebar-section">
           <div className="sidebar-section-title">Renaming Preset</div>
-          <div className="preset-selector">
-            <div 
-              className={`preset-card ${preset === 'oncue' ? 'active' : ''}`}
-              onClick={() => setPreset('oncue')}
-            >
-              <span className="preset-card-title">OnCue</span>
-              <span className="preset-card-desc">PX101 Memo</span>
-            </div>
-            
-            <div 
-              className={`preset-card ${preset === 'trialdirector' ? 'active' : ''}`}
-              onClick={() => setPreset('trialdirector')}
-            >
-              <span className="preset-card-title">TrialDirector</span>
-              <span className="preset-card-desc">PX-101 Memo</span>
-            </div>
-            
-            <div 
-              className={`preset-card ${preset === 'custom' ? 'active' : ''}`}
-              onClick={() => setPreset('custom')}
-            >
-              <span className="preset-card-title">Custom</span>
-              <span className="preset-card-desc">Template</span>
-            </div>
+          <div style={{
+            display: 'flex',
+            backgroundColor: 'var(--color-surface-2)',
+            borderRadius: '6px',
+            padding: '2px',
+            width: '100%',
+            marginBottom: '8px'
+          }}>
+            {['oncue', 'trialdirector', 'custom'].map((p) => {
+              const isActive = preset === p;
+              const label = p === 'oncue' ? 'OnCue' : p === 'trialdirector' ? 'TrialDirector' : 'Custom';
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPreset(p)}
+                  style={{
+                    flex: 1,
+                    padding: '6px 0',
+                    fontSize: '12px',
+                    fontWeight: isActive ? '600' : '400',
+                    color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                    backgroundColor: isActive ? 'var(--color-surface-1)' : 'transparent',
+                    borderRadius: '4px',
+                    border: 'none',
+                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -199,39 +229,55 @@ export default function Sidebar({
         />
 
         {/* Reset & Quick Presets Info */}
-        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
           {preset === 'oncue' && (
             <div style={{
-              background: 'rgba(99, 102, 241, 0.05)',
-              border: '1px solid rgba(99, 102, 241, 0.1)',
-              borderRadius: '8px',
-              padding: '12px',
-              fontSize: '11.5px',
-              color: 'var(--text-secondary)',
-              lineHeight: '1.4',
-              marginBottom: '12px'
+              background: '#EFF6FF',
+              borderLeft: '3px solid #BFDBFE',
+              borderRadius: '4px',
+              padding: '10px 12px',
+              fontSize: '12px',
+              color: 'var(--color-text-secondary)',
+              lineHeight: '1.5',
+              marginBottom: '12px',
+              fontFamily: 'var(--font-sans)'
             }}>
-              <strong>OnCue Guideline:</strong> Prefers no dashes in the ID, e.g. <code style={{ fontSize: '10px', color: '#fff' }}>PX001 Memo.pdf</code>.
+              <strong>OnCue Guideline:</strong> Prefers no dashes in the ID, e.g. <code style={{ fontSize: '10px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>PX001 Memo.pdf</code>.
               The first space separates the ID and Name.
             </div>
           )}
           {preset === 'trialdirector' && (
             <div style={{
-              background: 'rgba(139, 92, 246, 0.05)',
-              border: '1px solid rgba(139, 92, 246, 0.1)',
-              borderRadius: '8px',
-              padding: '12px',
-              fontSize: '11.5px',
-              color: 'var(--text-secondary)',
-              lineHeight: '1.4',
-              marginBottom: '12px'
+              background: '#EFF6FF',
+              borderLeft: '3px solid #BFDBFE',
+              borderRadius: '4px',
+              padding: '10px 12px',
+              fontSize: '12px',
+              color: 'var(--color-text-secondary)',
+              lineHeight: '1.5',
+              marginBottom: '12px',
+              fontFamily: 'var(--font-sans)'
             }}>
-              <strong>TrialDirector Guideline:</strong> Emphasizes leading zero padding (e.g. <code style={{ fontSize: '10px', color: '#fff' }}>PX-0001 - Memo.pdf</code>) for clean alphabetical sorting.
+              <strong>TrialDirector Guideline:</strong> Emphasizes leading zero padding (e.g. <code style={{ fontSize: '10px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>PX-0001 - Memo.pdf</code>) for clean alphabetical sorting.
             </div>
           )}
           
-          <button className="btn btn-secondary" onClick={onReset} style={{ width: '100%', marginBottom: '16px' }}>
-            <RefreshCw size={12} />
+          <button 
+            className="btn" 
+            onClick={onReset} 
+            style={{ 
+              width: '100%', 
+              marginBottom: '16px',
+              background: 'transparent',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-secondary)',
+              borderRadius: '6px',
+              fontSize: '13px',
+              padding: '8px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            <RefreshCw size={12} style={{ marginRight: '6px' }} />
             Reset Naming Rules
           </button>
 
@@ -239,17 +285,20 @@ export default function Sidebar({
           <div style={{
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '8px 12px',
+            gap: '4px 6px',
             fontSize: '11px',
-            color: 'var(--text-muted)',
+            color: 'var(--color-text-muted)',
             justifyContent: 'center',
             marginBottom: '12px',
             lineHeight: '1.4'
           }}>
-            <button onClick={() => onOpenModal('terms')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">Terms of Use</button>
-            <button onClick={() => onOpenModal('privacy')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">Privacy Notice</button>
-            <button onClick={() => onOpenModal('support')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">Contact Support</button>
-            <button onClick={() => onOpenModal('how')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }} className="hover:text-white">How to Use</button>
+            <button onClick={() => onOpenModal('terms')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)' }}>Terms</button>
+            <span>·</span>
+            <button onClick={() => onOpenModal('privacy')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)' }}>Privacy</button>
+            <span>·</span>
+            <button onClick={() => onOpenModal('support')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)' }}>Support</button>
+            <span>·</span>
+            <button onClick={() => onOpenModal('how')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)' }}>How to Use</button>
           </div>
 
           {/* Workstation signature / Version tag */}

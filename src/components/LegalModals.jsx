@@ -268,12 +268,12 @@ export default function LegalModals({ activeModal, onClose }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
                 borderRadius: '6px',
                 padding: '10px 14px',
                 fontSize: '11px',
-                color: 'var(--text-secondary)'
+                color: 'var(--color-text-secondary)'
               }}>
                 <Info size={14} style={{ flexShrink: 0 }} />
                 <span>
@@ -287,7 +287,7 @@ export default function LegalModals({ activeModal, onClose }) {
       case 'feedback':
         return (
           <>
-            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', marginBottom: '16px' }}>
+            <div className="modal-header-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--color-border)', paddingBottom: '16px', marginBottom: '16px' }}>
               <Star className="modal-icon text-primary" size={24} style={{ color: 'var(--accent-secondary)' }} />
               <h3 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>Submit Professional Feedback</h3>
             </div>
@@ -333,7 +333,7 @@ export default function LegalModals({ activeModal, onClose }) {
                   onChange={(e) => setFeedbackMsg(e.target.value)} 
                   placeholder="Tell us what you'd like to see, or report any issues..."
                   rows={4}
-                  style={{ width: '100%', background: 'rgba(5, 7, 12, 0.4)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: 'var(--text-primary)', padding: '10px', fontSize: '13px', resize: 'vertical' }}
+                  style={{ width: '100%', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '6px', color: 'var(--color-text-primary)', padding: '10px', fontSize: '13px', resize: 'vertical' }}
                 />
               </div>
 
@@ -358,7 +358,7 @@ export default function LegalModals({ activeModal, onClose }) {
                 </button>
               </div>
 
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-surface-2)', padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                 <Shield size={14} className="text-info" />
                 <span>Diagnostics: Submitting will include a secure, anonymized workstation signature.</span>
               </div>

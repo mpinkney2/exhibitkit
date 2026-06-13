@@ -198,79 +198,140 @@ export default function ActionPanel({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setShowExportMenu(false);
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Stats Cards */}
-      <div className="stats-grid">
-        <div className="stat-card glass-panel">
-          <div className="stat-icon primary">
-            <Files size={18} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-val">{totalCount}</span>
-            <span className="stat-label">Total Ingested</span>
-          </div>
+      {/* Stats bar */}
+      <div style={{
+        background: 'var(--color-surface-2)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '8px',
+        padding: '12px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        flexWrap: 'wrap'
+      }}>
+        {/* Ingested */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Files size={15} style={{ color: 'var(--color-text-muted)' }} />
+          <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>{totalCount}</span>
+          <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)' }}>Total Ingested</span>
         </div>
+        <span style={{ color: 'var(--color-border)', userSelect: 'none' }}>·</span>
 
-        <div className="stat-card glass-panel">
-          <div className="stat-icon success">
-            <CheckSquare size={18} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-val">{successCount}</span>
-            <span className="stat-label">Ready to Rename</span>
-          </div>
+        {/* Ready */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckSquare size={15} style={{ color: 'var(--color-success)' }} />
+          <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>{successCount}</span>
+          <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)' }}>Ready to Rename</span>
         </div>
+        <span style={{ color: 'var(--color-border)', userSelect: 'none' }}>·</span>
 
-        <div className="stat-card glass-panel">
-          <div className="stat-icon warning">
-            <AlertCircle size={18} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-val">{warningCount}</span>
-            <span className="stat-label">Conflicts</span>
-          </div>
+        {/* Conflicts */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          opacity: warningCount === 0 ? 0.5 : 1
+        }}>
+          <AlertCircle size={15} style={{ color: warningCount === 0 ? 'var(--color-text-muted)' : 'var(--color-warning)' }} />
+          <span style={{ 
+            fontSize: '16px', 
+            fontWeight: '600', 
+            color: warningCount === 0 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+            fontFamily: 'var(--font-sans)'
+          }}>{warningCount}</span>
+          <span style={{ 
+            fontSize: '13px', 
+            color: warningCount === 0 ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
+            fontFamily: 'var(--font-sans)' 
+          }}>Conflicts</span>
         </div>
+        <span style={{ color: 'var(--color-border)', userSelect: 'none' }}>·</span>
 
-        <div className="stat-card glass-panel">
-          <div className="stat-icon info" style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.12)' }}>
-            <Trash2 size={18} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-val">{errorCount}</span>
-            <span className="stat-label">Errors</span>
-          </div>
+        {/* Errors */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          opacity: errorCount === 0 ? 0.5 : 1
+        }}>
+          <AlertCircle size={15} style={{ color: errorCount === 0 ? 'var(--color-text-muted)' : 'var(--color-error)' }} />
+          <span style={{ 
+            fontSize: '16px', 
+            fontWeight: '600', 
+            color: errorCount === 0 ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+            fontFamily: 'var(--font-sans)'
+          }}>{errorCount}</span>
+          <span style={{ 
+            fontSize: '13px', 
+            color: errorCount === 0 ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
+            fontFamily: 'var(--font-sans)' 
+          }}>Errors</span>
         </div>
       </div>
 
       {/* Main Execution Actions */}
-      <div className="action-bar">
-        <div className="action-info" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="action-bar" style={{
+        background: 'var(--color-surface-1)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '8px',
+        padding: '16px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div className="action-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="action-title" style={{ fontSize: '15px', fontWeight: '600' }}>
-              Ready to Process {successCount} / {totalCount} Exhibits
+            <span className="action-title" style={{ fontSize: '14px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>
+              Ready to process <strong style={{ fontWeight: '700' }}>{successCount}/{totalCount}</strong> exhibits
             </span>
             {getModeBadge()}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-            <ShieldCheck size={14} className="text-success" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
             <span>🔒 CONFIDENTIAL LOCAL-FIRST OPERATIONS (NO DOCUMENT UPLOADS)</span>
           </div>
         </div>
 
-        <div className="action-buttons" style={{ position: 'relative' }}>
+        <div className="action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
+          {canUndo && (
+            <button 
+              className="btn" 
+              onClick={onUndo}
+              title="Revert the last batch of renamed files"
+              style={{ 
+                fontSize: '13px', 
+                padding: '8px 14px',
+                backgroundColor: 'var(--color-surface-1)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-error)'
+              }}
+            >
+              <RotateCcw size={13} style={{ marginRight: '4px' }} />
+              Undo Renames
+            </button>
+          )}
+
           <button 
-            className="btn btn-secondary" 
+            className="btn" 
             onClick={onClear} 
             disabled={!hasItems}
             title="Remove all loaded exhibits"
-            style={{ fontSize: '13px', padding: '8px 14px' }}
+            style={{ 
+              fontSize: '13px', 
+              padding: '8px 14px',
+              backgroundColor: 'var(--color-surface-1)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-error)',
+              opacity: !hasItems ? 0.5 : 1,
+              cursor: !hasItems ? 'not-allowed' : 'pointer'
+            }}
           >
-            <Trash2 size={13} />
+            <Trash2 size={13} style={{ marginRight: '4px' }} />
             Clear Ingestion
           </button>
 
@@ -278,18 +339,40 @@ export default function ActionPanel({
           {hasItems && (
             <div style={{ position: 'relative', display: 'inline-flex' }}>
               <button 
-                className="btn btn-secondary" 
+                className="btn" 
                 onClick={onExportCsv}
                 title="Download CSV layout mapping"
-                style={{ fontSize: '13px', padding: '8px 12px', borderRight: 'none', borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                style={{ 
+                  fontSize: '13px', 
+                  padding: '8px 12px', 
+                  background: 'var(--color-surface-1)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  borderRight: 'none', 
+                  borderTopRightRadius: 0, 
+                  borderBottomRightRadius: 0,
+                  borderTopLeftRadius: '6px',
+                  borderBottomLeftRadius: '6px'
+                }}
               >
-                <FileSpreadsheet size={13} />
-                Export CSV
+                <FileSpreadsheet size={13} style={{ marginRight: '4px' }} />
+                Export CSV ▾
               </button>
               <button 
-                className="btn btn-secondary" 
+                className="btn" 
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                style={{ fontSize: '13px', padding: '8px 8px', borderTopLeftRadius: 0, borderBottomLeftRadius: 0, minWidth: 0 }}
+                style={{ 
+                  fontSize: '13px', 
+                  padding: '8px 8px', 
+                  background: 'var(--color-surface-1)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  borderTopLeftRadius: 0, 
+                  borderBottomLeftRadius: 0, 
+                  borderTopRightRadius: '6px',
+                  borderBottomRightRadius: '6px',
+                  minWidth: 0 
+                }}
               >
                 <ChevronDown size={13} />
               </button>
@@ -300,10 +383,10 @@ export default function ActionPanel({
                   bottom: '100%',
                   right: 0,
                   marginBottom: '8px',
-                  backgroundColor: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--color-surface-1)',
+                  border: '1px solid var(--color-border)',
                   borderRadius: '8px',
-                  boxShadow: 'var(--shadow-lg)',
+                  boxShadow: 'var(--shadow-dropdown)',
                   display: 'flex',
                   flexDirection: 'column',
                   width: '210px',
@@ -319,16 +402,16 @@ export default function ActionPanel({
                       padding: '10px 14px',
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--text-primary)',
+                      color: 'var(--color-text-primary)',
                       fontSize: '12px',
                       textAlign: 'left',
                       cursor: 'pointer',
                       transition: 'background var(--transition-fast)'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-surface-2)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <Printer size={12} className="text-primary" />
+                    <Printer size={12} style={{ color: 'var(--color-accent)' }} />
                     Printable HTML Audit
                   </button>
                   <button 
@@ -340,16 +423,16 @@ export default function ActionPanel({
                       padding: '10px 14px',
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--text-primary)',
+                      color: 'var(--color-text-primary)',
                       fontSize: '12px',
                       textAlign: 'left',
                       cursor: 'pointer',
                       transition: 'background var(--transition-fast)'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-surface-2)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <FileText size={12} className="text-info" />
+                    <FileText size={12} style={{ color: 'var(--color-accent)' }} />
                     Export JSON Audit Log
                   </button>
                 </div>
@@ -357,29 +440,23 @@ export default function ActionPanel({
             </div>
           )}
 
-          {canUndo && (
-            <button 
-              className="btn btn-outline-danger" 
-              onClick={onUndo}
-              title="Revert the last batch of renamed files"
-              style={{ fontSize: '13px', padding: '8px 14px' }}
-            >
-              <RotateCcw size={13} />
-              Undo Renames
-            </button>
-          )}
-
           <button 
-            className="btn btn-success" 
+            className="btn" 
             onClick={onRenameExecute}
             disabled={!hasItems || hasErrors}
             style={{ 
-              padding: '10px 20px', 
+              padding: '10px 24px', 
               fontSize: '13.5px',
-              opacity: (!hasItems || hasErrors) ? 0.4 : 1 
+              fontWeight: '600',
+              backgroundColor: 'var(--color-accent)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              opacity: (!hasItems || hasErrors) ? 0.4 : 1,
+              cursor: (!hasItems || hasErrors) ? 'not-allowed' : 'pointer'
             }}
           >
-            <Play size={14} fill="currentColor" />
+            <Play size={13} fill="currentColor" style={{ marginRight: '4px' }} />
             Rename {totalCount} PDF Exhibits
           </button>
         </div>

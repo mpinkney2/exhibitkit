@@ -814,115 +814,194 @@ export default function App() {
       {/* Main Workspace */}
       <div className="main-content">
         {/* Top Header info bar */}
-        <div className="top-bar">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div className="top-bar" style={{
+          backgroundColor: 'var(--color-surface-1)',
+          borderBottom: '1px solid var(--color-border)',
+          height: '56px',
+          minHeight: '56px',
+          padding: '0 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 10
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className="mobile-hamburger-btn"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                color: 'var(--color-text-primary)', 
+                cursor: 'pointer', 
+                padding: '4px', 
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '2px'
+              }}
+              title="Open Settings"
+            >
+              <Menu size={20} />
+            </button>
+
+            {/* Logo Scales Icon */}
+            <div style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '6px',
+              backgroundColor: theme === 'light' ? '#EEF2F7' : 'rgba(255, 255, 255, 0.08)',
+              color: 'var(--color-accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              flexShrink: 0
+            }}>
+              ⚖
+            </div>
+
+            {/* Wordmark and Tier Badge */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button 
-                className="mobile-hamburger-btn"
-                onClick={() => setIsMobileSidebarOpen(true)}
-                style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  color: 'var(--text-primary)', 
-                  cursor: 'pointer', 
-                  padding: '4px', 
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '2px'
-                }}
-                title="Open Settings"
-              >
-                <Menu size={20} />
-              </button>
-              <h2 style={{ fontSize: '18px', fontWeight: '600' }}>ExhibitKIT Workspace</h2>
+              <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.3px' }}>
+                ExhibitKIT
+              </span>
               {isPro ? (
-                <span className="badge badge-success" style={{ fontSize: '10.5px' }}>Pro</span>
+                <span className="badge badge-success" style={{ fontSize: '10.5px', borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-sans)' }}>Pro</span>
               ) : isTrialMode ? (
-                <span className="badge badge-warning" style={{ fontSize: '10.5px' }}>Trial</span>
+                <span className="badge badge-warning" style={{ fontSize: '10.5px', borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-sans)' }}>Trial</span>
               ) : (
-                <span className="badge badge-info" style={{ fontSize: '10.5px' }}>Demo</span>
+                <span className="badge badge-info" style={{ fontSize: '10.5px', borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-sans)' }}>Demo</span>
               )}
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {directoryName 
-                ? `📂 Active Folder: ${directoryName} (In-place editing)` 
-                : "📂 Ingest files below or select folder for live renaming."
-              }
-            </span>
+            
+            {directoryName && (
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginLeft: '12px', fontFamily: 'var(--font-sans)', borderLeft: '1px solid var(--color-border)', paddingLeft: '12px' }}>
+                Active Folder: <strong>{directoryName}</strong>
+              </span>
+            )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Direct folder writing support indicator */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <FolderSync size={14} className={directoryHandle ? 'text-success' : 'text-warning'} />
-              <span>In-Place Mode: <strong>{directoryHandle ? "ON" : "OFF"}</strong></span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            {/* Labeled In-Place Mode Toggle Indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)' }}>
+              <span>In-Place Mode</span>
+              <div 
+                style={{
+                  width: '32px',
+                  height: '18px',
+                  borderRadius: '10px',
+                  backgroundColor: directoryHandle ? 'var(--color-success)' : 'var(--color-border)',
+                  position: 'relative',
+                  transition: 'background-color 0.2s ease',
+                  cursor: 'default'
+                }}
+                title={directoryHandle ? "Active directory connected" : "No active directory connected"}
+              >
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ffffff',
+                  position: 'absolute',
+                  top: '3px',
+                  left: directoryHandle ? '17px' : '3px',
+                  transition: 'left 0.2s ease'
+                }}></div>
+              </div>
             </div>
             
             {isPro ? (
               <span 
-                className="badge badge-success" 
-                style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ 
+                  padding: '4px 10px', 
+                  fontSize: '11px', 
+                  fontWeight: '500',
+                  backgroundColor: 'rgba(5, 150, 105, 0.08)',
+                  color: 'var(--color-success)',
+                  border: '1px solid rgba(5, 150, 105, 0.2)',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)'
+                }}
                 onClick={handleDeactivate}
                 title="Click to deactivate license on this workstation"
               >
-                🏆 Pro Active (Deactivate)
+                Pro Active
               </span>
             ) : (
               <button 
-                className="btn btn-primary" 
+                className="btn" 
                 style={{ 
-                  padding: '6px 12px', 
+                  padding: '6px 16px', 
                   fontSize: '12px', 
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
-                  boxShadow: '0 4px 10px rgba(245, 158, 11, 0.3)',
-                  border: 'none'
+                  fontWeight: '500',
+                  backgroundColor: 'var(--color-accent)', 
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)'
                 }}
                 onClick={() => setIsPricingOpen(true)}
               >
-                ⭐ Unlock Pro ($150)
+                Upgrade to Pro
               </button>
             )}
 
             <button 
-              className="badge badge-info" 
-              style={{ cursor: 'pointer', border: 'none' }}
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                padding: 0, 
+                fontSize: '13px', 
+                color: 'var(--color-text-secondary)', 
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontFamily: 'var(--font-sans)'
+              }}
               onClick={() => setActiveModal('how')}
+              className="text-link-hover"
             >
-              <Info size={10} /> How to Use
+              How to Use
             </button>
 
             <button 
-              className="badge badge-warning" 
               style={{ 
-                cursor: 'pointer', 
+                background: 'transparent', 
                 border: 'none', 
-                background: 'rgba(245, 158, 11, 0.1)', 
-                color: 'var(--status-warning)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '4px' 
+                padding: 0, 
+                fontSize: '13px', 
+                color: 'var(--color-text-secondary)', 
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontFamily: 'var(--font-sans)'
               }}
               onClick={() => setActiveModal('feedback')}
+              className="text-link-hover"
             >
-              💬 Feedback
+              Feedback
             </button>
 
             <button 
-              className="badge" 
               style={{ 
                 cursor: 'pointer', 
                 border: 'none', 
-                background: theme === 'light' ? 'var(--bg-tertiary)' : 'rgba(255, 255, 255, 0.08)', 
-                color: 'var(--text-primary)', 
+                background: 'transparent', 
+                color: 'var(--color-text-secondary)', 
                 display: 'flex', 
                 alignItems: 'center', 
-                gap: '4px' 
+                justifyContent: 'center',
+                padding: '4px',
+                width: '24px',
+                height: '24px',
+                borderRadius: '4px'
               }}
               onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
               title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
             >
-              {theme === 'light' ? <Moon size={10} /> : <Sun size={10} />}
-              <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+              {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
             </button>
           </div>
         </div>
@@ -937,9 +1016,21 @@ export default function App() {
                 isSupported={isDirectoryApiSupported}
               />
               {/* Quick load sample exhibits button in Demo mode */}
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button className="btn btn-secondary" onClick={handleLoadSampleData} style={{ padding: '10px 20px', border: '1px solid rgba(99, 102, 241, 0.3)', background: 'rgba(99, 102, 241, 0.05)' }}>
-                  📊 Load Sample exhibits (Demo)
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                <button 
+                  onClick={handleLoadSampleData} 
+                  style={{ 
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-accent)', 
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    padding: '4px 8px'
+                  }}
+                >
+                  Load Sample Exhibits (Demo)
                 </button>
               </div>
             </div>
@@ -1073,8 +1164,50 @@ export default function App() {
 
       {/* Notification Toast */}
       {notification.show && (
-        <div className={`notification ${notification.type === 'danger' ? 'warning' : 'success'}`}>
-          <div className="notification-message">{notification.message}</div>
+        <div 
+          className={`notification ${notification.type}`}
+          style={{
+            backgroundColor: theme === 'light' ? '#ffffff' : '#111827',
+            border: `1px solid ${theme === 'light' ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.08)'}`,
+            borderLeft: `4px solid ${
+              notification.type === 'danger' || notification.type === 'error' ? 'var(--status-danger)' :
+              notification.type === 'warning' ? 'var(--status-warning)' :
+              notification.type === 'info' ? 'var(--accent-primary)' :
+              'var(--status-success)'
+            }`,
+            boxShadow: theme === 'light' 
+              ? '0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.08)' 
+              : '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
+          }}
+        >
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            flexShrink: 0,
+            color: notification.type === 'danger' || notification.type === 'error' ? 'var(--status-danger)' :
+                   notification.type === 'warning' ? 'var(--status-warning)' :
+                   notification.type === 'info' ? 'var(--accent-primary)' :
+                   'var(--status-success)'
+          }}>
+            {notification.type === 'danger' || notification.type === 'error' ? (
+              <ShieldAlert size={16} />
+            ) : notification.type === 'warning' ? (
+              <AlertTriangle size={16} />
+            ) : notification.type === 'info' ? (
+              <Info size={16} />
+            ) : (
+              <ShieldCheck size={16} />
+            )}
+          </div>
+          <div 
+            className="notification-message"
+            style={{
+              color: theme === 'light' ? '#0f172a' : '#f3f4f6'
+            }}
+          >
+            {notification.message}
+          </div>
         </div>
       )}
 

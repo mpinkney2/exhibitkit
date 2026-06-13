@@ -42,70 +42,109 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
 
   return (
     <div 
-      className={`dropzone-container ${dragActive ? 'drag-active' : ''}`}
       onDragEnter={handleDrag}
       onDragOver={handleDrag}
       onDragLeave={handleDrag}
       onDrop={handleDrop}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+        width: '100%',
+        padding: '24px 0'
+      }}
     >
-      <div className="dropzone-icon">
-        <Upload size={32} />
-      </div>
-      
-      <h2 className="dropzone-title">Ingest PDF Exhibits</h2>
-      <p className="dropzone-desc">
-        Select a local folder to rename files directly on your hard drive (Chrome/Edge), 
-        or drag and drop a batch of PDF exhibits to parse and prepare them.
-      </p>
-
-      {/* Directory Access Mode warning/info */}
-      {!isSupported && (
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'var(--status-warning-bg)',
-          border: '1px solid var(--status-warning-border)',
-          borderRadius: '8px',
-          padding: '10px 16px',
-          marginBottom: '20px',
-          maxWidth: '500px',
-          textAlign: 'left',
-          fontSize: '13px',
-          color: 'var(--status-warning)'
-        }}>
-          <AlertCircle size={16} style={{ flexShrink: 0 }} />
-          <span>
-            <strong>Note:</strong> Direct folder renaming requires a chromium browser (Chrome, Edge). 
-            You can still drag and drop files below to preview and download renamed files individually.
-          </span>
+      <div style={{
+        maxWidth: '560px',
+        width: '100%',
+        backgroundColor: 'var(--color-surface-1)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '12px',
+        padding: '48px 40px',
+        boxShadow: 'var(--shadow-card)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center'
+      }}>
+        {/* Upload Icon: FolderOpen thin-stroke */}
+        <div style={{ color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+          <FolderOpen size={40} strokeWidth={1.2} />
         </div>
-      )}
-
-      <div className="dropzone-btn-group">
-        {isSupported && (
-          <button className="btn btn-primary" onClick={onDirectorySelect}>
-            <FolderOpen size={16} />
-            Select Local Folder
-          </button>
-        )}
         
-        <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
-          <Upload size={16} />
-          Select PDF Files
-          <input 
-            type="file" 
-            multiple 
-            accept=".pdf" 
-            onChange={handleFileInput} 
-            style={{ display: 'none' }} 
-          />
-        </label>
-      </div>
+        <h2 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--color-text-primary)', marginBottom: '12px', fontFamily: 'var(--font-sans)', letterSpacing: '-0.4px' }}>
+          Ingest PDF Exhibits
+        </h2>
+        
+        <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', maxWidth: '380px', margin: '0 auto 32px auto', lineHeight: '1.6', fontFamily: 'var(--font-sans)' }}>
+          Select a local folder to rename files directly on your hard drive, or select a batch of PDF exhibits to parse and prepare them.
+        </p>
 
-      <div style={{ marginTop: '32px', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-        <HelpCircle size={14} />
-        <span>TrialDirector & OnCue compatible formatting. All operations run locally.</span>
+        {/* Directory Access Mode warning/info */}
+        {!isSupported && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+            background: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '6px',
+            padding: '10px 14px',
+            marginBottom: '24px',
+            maxWidth: '100%',
+            textAlign: 'left',
+            fontSize: '12.5px',
+            color: 'var(--color-text-secondary)',
+            lineHeight: '1.5'
+          }}>
+            <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--color-warning)' }} />
+            <span>
+              Direct folder renaming requires a Chromium browser (Chrome, Edge). You can still select files below to prepare and download renamed exhibits.
+            </span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {isSupported && (
+            <button 
+              className="btn" 
+              onClick={onDirectorySelect}
+              style={{
+                backgroundColor: 'var(--color-accent)',
+                color: '#ffffff',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: '500',
+                fontSize: '14px',
+                borderRadius: '6px',
+                padding: '10px 20px',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Select Local Folder
+            </button>
+          )}
+          
+          <label 
+            className="btn btn-secondary" 
+            style={{ cursor: 'pointer' }}
+          >
+            Select PDF Files
+            <input 
+              type="file" 
+              multiple 
+              accept=".pdf" 
+              onChange={handleFileInput} 
+              style={{ display: 'none' }} 
+            />
+          </label>
+        </div>
+
+        <div style={{ marginTop: '24px', color: 'var(--color-text-muted)', fontSize: '12px', fontFamily: 'var(--font-sans)' }}>
+          🔒 TrialDirector & OnCue compatible. All operations run locally.
+        </div>
       </div>
     </div>
   );

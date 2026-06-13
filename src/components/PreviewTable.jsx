@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Wand2, Type, RefreshCcw, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Table } from 'lucide-react';
 
 export default function PreviewTable({
   items,
@@ -13,20 +13,56 @@ export default function PreviewTable({
     switch (status) {
       case 'success':
         return (
-          <span className="badge badge-success" title={message}>
-            <CheckCircle size={10} /> Valid
+          <span 
+            style={{ 
+              display: 'inline-flex',
+              padding: '2px 10px', 
+              fontSize: '11px', 
+              fontWeight: '500', 
+              color: '#15803D', 
+              backgroundColor: '#DCFCE7', 
+              borderRadius: '20px',
+              fontFamily: 'var(--font-sans)'
+            }} 
+            title={message}
+          >
+            Valid
           </span>
         );
       case 'warning':
         return (
-          <span className="badge badge-warning" title={message}>
-            <AlertTriangle size={10} /> Conflict
+          <span 
+            style={{ 
+              display: 'inline-flex',
+              padding: '2px 10px', 
+              fontSize: '11px', 
+              fontWeight: '500', 
+              color: '#D97706', 
+              backgroundColor: '#FEF3C7', 
+              borderRadius: '20px',
+              fontFamily: 'var(--font-sans)'
+            }} 
+            title={message}
+          >
+            Conflict
           </span>
         );
       case 'danger':
         return (
-          <span className="badge badge-danger" title={message}>
-            <XCircle size={10} /> Error
+          <span 
+            style={{ 
+              display: 'inline-flex',
+              padding: '2px 10px', 
+              fontSize: '11px', 
+              fontWeight: '500', 
+              color: '#DC2626', 
+              backgroundColor: '#FEE2E2', 
+              borderRadius: '20px',
+              fontFamily: 'var(--font-sans)'
+            }} 
+            title={message}
+          >
+            Error
           </span>
         );
       default:
@@ -44,61 +80,114 @@ export default function PreviewTable({
   };
 
   return (
-    <div className="glass-panel table-panel">
+    <div style={{
+      backgroundColor: 'var(--color-surface-1)',
+      border: '1px solid var(--color-border)',
+      borderRadius: '8px',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      flex: 1,
+      marginBottom: '20px'
+    }}>
       {/* Table Action Bar */}
-      <div className="table-header-bar">
-        <div className="table-title">
-          <Table size={16} color="var(--accent-primary)" />
+      <div style={{
+        padding: '12px 20px',
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'var(--color-surface-2)'
+      }}>
+        <div className="table-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--color-text-primary)' }}>
+          <Table size={15} style={{ color: 'var(--color-accent)' }} />
           <span>Interactive Renaming Preview Grid</span>
         </div>
 
-        <div className="table-actions">
-          <button 
-            className="btn btn-secondary" 
-            style={{ padding: '6px 12px', fontSize: '12px' }}
-            onClick={onAutoSequence}
-            title="Re-sequence exhibit numbers based on starting index"
-          >
-            <RefreshCcw size={12} />
-            Auto-Sequence
-          </button>
-          
-          <button 
-            className="btn btn-secondary" 
-            style={{ padding: '6px 12px', fontSize: '12px' }}
-            onClick={onResolveConflicts}
-            title="Automatically resolve duplicate filename conflicts"
-          >
-            <Wand2 size={12} />
-            Fix Conflicts
-          </button>
-
-          <div style={{ height: '16px', width: '1px', background: 'var(--border-color)' }}></div>
-
-          <button 
-            className="btn btn-secondary" 
-            style={{ padding: '6px 12px', fontSize: '12px' }}
-            onClick={onBulkClean}
-            title="Clean text descriptions on all files"
-          >
-            Clean Text
-          </button>
-
-          <select 
-            onChange={(e) => {
-              if (e.target.value) {
-                onBulkCaseChange(e.target.value);
-                e.target.value = ""; // Reset dropdown
-              }
-            }}
-            style={{ padding: '5px 10px', fontSize: '12px', width: 'auto', background: 'rgba(255,255,255,0.03)' }}
-            defaultValue=""
-          >
-            <option value="" disabled>Bulk Case...</option>
-            <option value="title">Title Case</option>
-            <option value="upper">UPPERCASE</option>
-            <option value="lower">lowercase</option>
-          </select>
+        <div className="table-actions" style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: '6px', overflow: 'hidden', backgroundColor: 'var(--color-surface-1)' }}>
+            <button 
+              onClick={onAutoSequence}
+              title="Re-sequence exhibit numbers based on starting index"
+              style={{
+                padding: '6px 12px',
+                fontSize: '13px',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: '500',
+                color: 'var(--color-text-secondary)',
+                background: 'transparent',
+                border: 'none',
+                borderRight: '1px solid var(--color-border)',
+                cursor: 'pointer',
+                borderRadius: 0
+              }}
+              className="toolbar-btn"
+            >
+              Auto-Sequence
+            </button>
+            <button 
+              onClick={onResolveConflicts}
+              title="Automatically resolve duplicate filename conflicts"
+              style={{
+                padding: '6px 12px',
+                fontSize: '13px',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: '500',
+                color: 'var(--color-text-secondary)',
+                background: 'transparent',
+                border: 'none',
+                borderRight: '1px solid var(--color-border)',
+                cursor: 'pointer',
+                borderRadius: 0
+              }}
+              className="toolbar-btn"
+            >
+              Fix Conflicts
+            </button>
+            <button 
+              onClick={onBulkClean}
+              title="Clean text descriptions on all files"
+              style={{
+                padding: '6px 12px',
+                fontSize: '13px',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: '500',
+                color: 'var(--color-text-secondary)',
+                background: 'transparent',
+                border: 'none',
+                borderRight: '1px solid var(--color-border)',
+                cursor: 'pointer',
+                borderRadius: 0
+              }}
+              className="toolbar-btn"
+            >
+              Clean Text
+            </button>
+            <select 
+              onChange={(e) => {
+                if (e.target.value) {
+                  onBulkCaseChange(e.target.value);
+                  e.target.value = ""; // Reset dropdown
+                }
+              }}
+              style={{ 
+                padding: '6px 12px', 
+                fontSize: '13px', 
+                fontFamily: 'var(--font-sans)',
+                color: 'var(--color-text-secondary)',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 0,
+                cursor: 'pointer',
+                width: 'auto'
+              }}
+            >
+              <option value="" disabled selected>Bulk Case...</option>
+              <option value="title">Title Case</option>
+              <option value="upper">UPPERCASE</option>
+              <option value="lower">lowercase</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -109,7 +198,7 @@ export default function PreviewTable({
             <tr>
               <th style={{ width: '90px' }}>Status</th>
               <th>Original Filename</th>
-              <th style={{ width: '110px' }}>Exhibit ID</th>
+              <th style={{ width: '110px', textAlign: 'center' }}>Exhibit ID</th>
               <th>Document Description</th>
               <th>Proposed Output Filename</th>
             </tr>
@@ -125,17 +214,24 @@ export default function PreviewTable({
               >
                 <td>{getStatusBadge(item.status, item.message)}</td>
                 <td>
-                  <div className="cell-original" title={item.originalName}>
+                  <div className="cell-original" style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--color-text-secondary)' }} title={item.originalName}>
                     {item.originalName}
                   </div>
                 </td>
                 <td>
-                  <div className="cell-editable cell-mono">
+                  <div className="cell-editable cell-mono" style={{ display: 'flex', justifyContent: 'center' }}>
                     <input 
                       type="text" 
                       value={item.number || ''} 
                       placeholder="e.g. 101"
                       onChange={(e) => onUpdateItem(index, 'number', e.target.value)} 
+                      style={{
+                        textAlign: 'center',
+                        fontSize: '13px',
+                        fontFamily: 'var(--font-sans)',
+                        fontWeight: '500',
+                        color: 'var(--color-text-primary)'
+                      }}
                     />
                   </div>
                 </td>
@@ -146,11 +242,17 @@ export default function PreviewTable({
                       value={item.description || ''} 
                       placeholder="Enter exhibit title/description"
                       onChange={(e) => onUpdateItem(index, 'description', e.target.value)} 
+                      style={{
+                        fontSize: '14px',
+                        fontFamily: 'var(--font-sans)',
+                        fontWeight: '400',
+                        color: 'var(--color-text-primary)'
+                      }}
                     />
                   </div>
                 </td>
                 <td>
-                  <div className={getProposedClass(item.status)} title={item.proposedName}>
+                  <div className={getProposedClass(item.status)} style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--color-accent)' }} title={item.proposedName}>
                     {item.proposedName}
                   </div>
                 </td>

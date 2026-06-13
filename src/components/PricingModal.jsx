@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, ShieldCheck, Zap, Sparkles, X, Key, AlertCircle, HardDrive } from 'lucide-react';
+import { CreditCard, X, AlertCircle } from 'lucide-react';
 import { validateKeyFormat, isDevMode, DEV_TEST_KEY } from '../utils/license';
 
 export default function PricingModal({ isOpen, onClose, onActivate, stripeLink = "https://buy.stripe.com/cNicN59My1tC6VN0ayg7e00" }) {
@@ -12,19 +12,15 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
     e.preventDefault();
     const cleanKey = licenseKey.trim().toUpperCase();
 
-    // Secure License Activation using centralized service layer.
-    // Future expansion: hook into desktop verification or HTTPS cloud seats.
     if (validateKeyFormat(cleanKey)) {
       onActivate(cleanKey);
       setError('');
       setLicenseKey('');
     } else {
-      // In production, this key must be completely ignored as a valid key.
-      // The error message must only guide towards real key formats in production.
       if (isDevMode()) {
-        setError(`❌ Invalid license key. Please check your purchase email or use the developer test key for local validation: ${DEV_TEST_KEY}`);
+        setError(`Invalid license key format. Please use the developer test key for local validation: ${DEV_TEST_KEY}`);
       } else {
-        setError('❌ Invalid license key. Please confirm you entered the key exactly as it appears in your purchase email (Format: EKIT-XXXX-XXXX-XXXX).');
+        setError('Invalid license key format. Please check your purchase email (Format: EKIT-XXXX-XXXX-XXXX).');
       }
     }
   };
@@ -49,8 +45,10 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
         maxWidth: '95%',
         padding: '32px',
         position: 'relative',
-        border: '1px solid rgba(99, 102, 241, 0.3)',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(99, 102, 241, 0.15)',
+        backgroundColor: 'var(--color-surface-1)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '12px',
+        boxShadow: 'var(--shadow-modal)',
         display: 'flex',
         flexDirection: 'column',
         gap: '24px'
@@ -64,7 +62,7 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
             right: '18px',
             background: 'transparent',
             border: 'none',
-            color: 'var(--text-secondary)',
+            color: 'var(--color-text-secondary)',
             cursor: 'pointer',
             padding: '4px',
             zIndex: 10
@@ -79,45 +77,48 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: 'rgba(99, 102, 241, 0.12)',
-            color: 'var(--accent-primary)',
-            margin: '0 auto 8px auto'
+            width: '32px',
+            height: '32px',
+            borderRadius: '6px',
+            backgroundColor: 'var(--color-surface-2)',
+            color: 'var(--color-primary)',
+            margin: '0 auto 8px auto',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            flexShrink: 0
           }}>
-            <Sparkles size={22} />
+            ⚖
           </div>
           
-          <h2 style={{ fontSize: '22px', fontWeight: '700', letterSpacing: '-0.5px' }}>
-            Unlock ExhibitKIT Pro
+          <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--color-text-primary)', margin: 0, fontFamily: 'var(--font-sans)', letterSpacing: '-0.4px' }}>
+            Upgrade to ExhibitKIT Pro
           </h2>
-          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+          <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)' }}>
             Professional Legal Exhibit Preparation by PatentPreppers
           </span>
         </div>
 
         {/* Main Offer Card */}
         <div style={{
-          background: 'var(--bg-tertiary)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          padding: '24px',
+          background: 'var(--color-surface-2)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '8px',
+          padding: '20px 24px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: '16px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-            <span style={{ fontSize: '32px', fontWeight: '800', color: 'var(--text-primary)' }}>$150</span>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>USD / one-time</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+            <span style={{ fontSize: '36px', fontWeight: '700', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)' }}>$150</span>
+            <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)', fontWeight: '500', fontFamily: 'var(--font-sans)' }}>USD / one-time</span>
           </div>
 
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: '1.5', margin: 0 }}>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', textAlign: 'center', lineHeight: '1.6', margin: 0, fontFamily: 'var(--font-sans)' }}>
             Get lifetime access to the full, courtroom-ready ExhibitKIT professional toolset. Prepare and rename exhibits directly on your local system with absolute confidentiality.
           </p>
 
-          <div style={{ width: '100%', height: '1px', background: 'var(--border-color)' }}></div>
+          <div style={{ width: '100%', height: '1px', background: 'var(--color-border)' }}></div>
 
           {/* Benefits list */}
           <div style={{
@@ -125,27 +126,28 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
-            fontSize: '12.5px',
-            color: 'var(--text-primary)'
+            fontSize: '14px',
+            color: 'var(--color-text-primary)',
+            fontFamily: 'var(--font-sans)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ShieldCheck size={15} color="var(--status-success)" style={{ flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
               <span>Direct, in-place local folder exhibit renaming</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ShieldCheck size={15} color="var(--status-success)" style={{ flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
               <span>Unlimited PDF exhibits and batches (No file limit)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <HardDrive size={15} color="var(--status-success)" style={{ flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
               <span>OnCue & TrialDirector presets + Custom formatting template</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Zap size={15} color="var(--status-success)" style={{ flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
               <span>Saved Matter Profiles & Full Session Audit Log exports</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Zap size={15} color="var(--status-success)" style={{ flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
               <span>Local-first processing (No document uploads, zero cloud logs)</span>
             </div>
           </div>
@@ -156,13 +158,22 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
           href={stripeLink} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="btn btn-primary"
+          className="btn"
           style={{ 
             textDecoration: 'none', 
             padding: '12px 18px', 
-            fontSize: '14.5px', 
+            fontSize: '15px', 
             fontWeight: '600',
-            boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)'
+            backgroundColor: 'var(--color-accent)',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            borderRadius: '6px',
+            border: 'none',
+            fontFamily: 'var(--font-sans)',
+            cursor: 'pointer'
           }}
         >
           <CreditCard size={16} />
@@ -170,34 +181,56 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
         </a>
 
         {/* Small licensing and compliance notes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
-          <div>🔒 Payments processed securely via Stripe. Compliant with bank-grade encryption.</div>
-          <div style={{ fontStyle: 'italic' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'center', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>
+          <div>Payments processed securely via Stripe. Compliant with bank-grade encryption.</div>
+          <div style={{ fontStyle: 'italic', fontSize: '10px' }}>
             * License access is intended for one professional user or workstation unless otherwise agreed. Lifetime updates included for this version; future versions subject to product terms.
           </div>
         </div>
 
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
-          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Or Activate License</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+          <div style={{ flex: 1, height: '1px', background: 'var(--color-border)' }}></div>
+          <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-sans)' }}>Or Activate License</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--color-border)' }}></div>
         </div>
 
         {/* License Key Activation Form */}
         <form onSubmit={handleActivateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '11px' }}>License Key</label>
+            <label className="form-label" style={{ fontSize: '11px', fontFamily: 'var(--font-sans)', color: 'var(--color-text-muted)' }}>License Key</label>
             <div style={{ display: 'flex', gap: '10px' }}>
               <input 
                 type="text" 
                 value={licenseKey} 
                 onChange={(e) => setLicenseKey(e.target.value)} 
                 placeholder="e.g. EKIT-XXXX-XXXX-XXXX"
-                style={{ flex: 1, fontSize: '13px', padding: '8px 12px' }}
+                style={{ 
+                  flex: 1, 
+                  fontSize: '13px', 
+                  padding: '8px 12px',
+                  backgroundColor: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  color: 'var(--color-text-primary)',
+                  fontFamily: 'var(--font-mono)'
+                }}
               />
-              <button type="submit" className="btn btn-secondary" style={{ flexShrink: 0, padding: '8px 14px', fontSize: '13px' }}>
-                <Key size={13} />
+              <button 
+                type="submit" 
+                className="btn" 
+                style={{ 
+                  flexShrink: 0, 
+                  padding: '8px 16px', 
+                  fontSize: '13px',
+                  backgroundColor: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
                 Activate
               </button>
             </div>
@@ -208,10 +241,10 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              color: 'var(--status-danger)',
+              color: 'var(--color-error)',
               fontSize: '11px',
-              background: 'var(--status-danger-bg)',
-              border: '1px solid var(--status-danger-border)',
+              background: 'rgba(220, 38, 38, 0.08)',
+              border: '1px solid rgba(220, 38, 38, 0.25)',
               padding: '6px 10px',
               borderRadius: '6px'
             }}>
@@ -220,11 +253,9 @@ export default function PricingModal({ isOpen, onClose, onActivate, stripeLink =
             </div>
           )}
 
-          {/* SECURITY MEASURE: Only display developer test activation keys in development mode.
-              Production builds will completely strip and skip rendering this hint. */}
           {isDevMode() && (
-            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', textAlign: 'center', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.1)', padding: '6px 8px', borderRadius: '4px', marginTop: '4px' }}>
-              ⚙️ <strong>Development Mode:</strong> You can test using bypass key: <code style={{ fontSize: '10px', padding: '2px 4px', background: 'var(--bg-tertiary)', color: '#fff' }}>{DEV_TEST_KEY}</code>
+            <div style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', textAlign: 'center', background: 'rgba(217, 119, 6, 0.05)', border: '1px solid rgba(217, 119, 6, 0.1)', padding: '6px 8px', borderRadius: '4px', marginTop: '4px', fontFamily: 'var(--font-sans)' }}>
+              <strong>Development Mode:</strong> You can test using bypass key: <code style={{ fontSize: '10px', padding: '2px 4px', background: 'var(--color-surface-2)', color: 'var(--color-text-primary)' }}>{DEV_TEST_KEY}</code>
             </div>
           )}
         </form>
