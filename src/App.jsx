@@ -845,28 +845,35 @@ export default function App() {
               <Menu size={20} />
             </button>
 
-            {/* Logo Scales Icon */}
-            <div style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '6px',
-              backgroundColor: theme === 'light' ? '#EEF2F7' : 'rgba(255, 255, 255, 0.08)',
-              color: 'var(--color-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              flexShrink: 0
-            }}>
-              ⚖
-            </div>
-
-            {/* Wordmark and Tier Badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Logo Scales Icon & Wordmark linking to Home */}
+            <div 
+              onClick={() => setAppRoute('landing')}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+              title="Go to Landing Page"
+              id="nav-logo-link"
+            >
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--color-surface-2)',
+                color: 'var(--color-accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                flexShrink: 0
+              }}>
+                ⚖
+              </div>
               <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.3px' }}>
                 ExhibitKIT
               </span>
+            </div>
+
+            {/* Tier Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
               {isPro ? (
                 <span className="badge badge-success" style={{ fontSize: '10.5px', borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-sans)' }}>Pro</span>
               ) : isTrialMode ? (
@@ -949,6 +956,24 @@ export default function App() {
                 Upgrade to Pro
               </button>
             )}
+
+            <button 
+              id="nav-home-btn"
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                padding: 0, 
+                fontSize: '13px', 
+                color: 'var(--color-text-secondary)', 
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontFamily: 'var(--font-sans)'
+              }}
+              onClick={() => setAppRoute('landing')}
+              className="text-link-hover"
+            >
+              Home
+            </button>
 
             <button 
               style={{ 
