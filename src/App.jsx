@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock, Menu, Sun, Moon } from 'lucide-react';
+import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
 import PreviewTable from './components/PreviewTable';
@@ -29,6 +29,7 @@ export default function App() {
   // Application Mode Routing: 'landing' | 'workspace' | 'stripe_success' | 'stripe_cancel'
   const [appRoute, setAppRoute] = useState('landing');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [renameStats, setRenameStats] = useState({ count: 0, conflicts: 0, time: "0.0s" });
   const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'dark');
@@ -814,220 +815,189 @@ export default function App() {
       {/* Main Workspace */}
       <div className="main-content">
         {/* Top Header info bar */}
-        <div className="top-bar" style={{
-          backgroundColor: 'var(--color-surface-1)',
-          borderBottom: '1px solid var(--color-border)',
-          height: '56px',
-          minHeight: '56px',
-          padding: '0 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          zIndex: 10
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button 
+        <div className="top-bar">
+          <div className="top-bar-brand">
+            <button
+              type="button"
               className="mobile-hamburger-btn"
-              onClick={() => setIsMobileSidebarOpen(true)}
-              style={{ 
-                background: 'transparent', 
-                border: 'none', 
-                color: 'var(--color-text-primary)', 
-                cursor: 'pointer', 
-                padding: '4px', 
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: '2px'
+              onClick={() => {
+                setIsMobileNavOpen(false);
+                setIsMobileSidebarOpen(true);
               }}
               title="Open Settings"
+              aria-label="Open Settings"
             >
               <Menu size={20} />
             </button>
 
-            {/* Logo Scales Icon & Wordmark linking to Home */}
-            <div 
+            <div
               onClick={() => setAppRoute('landing')}
-              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+              className="top-bar-logo"
               title="Go to Landing Page"
               id="nav-logo-link"
+              role="link"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setAppRoute('landing');
+                }
+              }}
             >
-              <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '6px',
-                backgroundColor: 'var(--color-surface-2)',
-                color: 'var(--color-accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                flexShrink: 0
-              }}>
-                ⚖
-              </div>
-              <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--color-text-primary)', fontFamily: 'var(--font-sans)', letterSpacing: '-0.3px' }}>
-                ExhibitKIT
-              </span>
+              <div className="top-bar-logo-mark" aria-hidden="true">⚖</div>
+              <span className="top-bar-logo-text">ExhibitKIT</span>
             </div>
 
-            {/* Tier Badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
+            <div className="top-bar-badge">
               {isPro ? (
-                <span className="badge badge-success" style={{ fontSize: '10.5px', borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-sans)' }}>Pro</span>
+                <span className="badge badge-success">Pro</span>
               ) : isTrialMode ? (
-                <span className="badge badge-warning" style={{ fontSize: '10.5px', borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-sans)' }}>Trial</span>
+                <span className="badge badge-warning">Trial</span>
               ) : (
-                <span className="badge badge-info" style={{ fontSize: '10.5px', borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-sans)' }}>Demo</span>
+                <span className="badge badge-info">Demo</span>
               )}
             </div>
-            
+
             {directoryName && (
-              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginLeft: '12px', fontFamily: 'var(--font-sans)', borderLeft: '1px solid var(--color-border)', paddingLeft: '12px' }}>
+              <span className="top-bar-folder" title={directoryName}>
                 Active Folder: <strong>{directoryName}</strong>
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            {/* Labeled In-Place Mode Toggle Indicator */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)' }}>
-              <span>In-Place Mode</span>
-              <div 
-                style={{
-                  width: '32px',
-                  height: '18px',
-                  borderRadius: '10px',
-                  backgroundColor: directoryHandle ? 'var(--color-success)' : 'var(--color-border)',
-                  position: 'relative',
-                  transition: 'background-color 0.2s ease',
-                  cursor: 'default'
-                }}
-                title={directoryHandle ? "Active directory connected" : "No active directory connected"}
+          <div className="top-bar-actions">
+            <div
+              className="top-bar-inplace"
+              title={directoryHandle ? 'Active directory connected' : 'No active directory connected'}
+            >
+              <span className="top-bar-inplace-label">In-Place Mode</span>
+              <div
+                className={`top-bar-inplace-toggle ${directoryHandle ? 'is-active' : ''}`}
+                aria-hidden="true"
               >
-                <div style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  backgroundColor: '#ffffff',
-                  position: 'absolute',
-                  top: '3px',
-                  left: directoryHandle ? '17px' : '3px',
-                  transition: 'left 0.2s ease'
-                }}></div>
+                <span className="top-bar-inplace-knob" />
               </div>
             </div>
-            
+
             {isPro ? (
-              <span 
-                style={{ 
-                  padding: '4px 10px', 
-                  fontSize: '11px', 
-                  fontWeight: '500',
-                  backgroundColor: 'rgba(5, 150, 105, 0.08)',
-                  color: 'var(--color-success)',
-                  border: '1px solid rgba(5, 150, 105, 0.2)',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)'
-                }}
+              <button
+                type="button"
+                className="top-bar-pro-active"
                 onClick={handleDeactivate}
                 title="Click to deactivate license on this workstation"
               >
                 Pro Active
-              </span>
+              </button>
             ) : (
-              <button 
-                className="btn" 
-                style={{ 
-                  padding: '6px 16px', 
-                  fontSize: '12px', 
-                  fontWeight: '500',
-                  backgroundColor: 'var(--color-accent)', 
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '20px',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)'
+              <button
+                type="button"
+                className="top-bar-upgrade"
+                onClick={() => {
+                  setIsMobileNavOpen(false);
+                  setIsPricingOpen(true);
                 }}
-                onClick={() => setIsPricingOpen(true)}
               >
-                Upgrade to Pro
+                <span className="top-bar-upgrade-full">Upgrade to Pro</span>
+                <span className="top-bar-upgrade-short">Upgrade</span>
               </button>
             )}
 
-            <button 
-              id="nav-home-btn"
-              style={{ 
-                background: 'transparent', 
-                border: 'none', 
-                padding: 0, 
-                fontSize: '13px', 
-                color: 'var(--color-text-secondary)', 
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontFamily: 'var(--font-sans)'
-              }}
-              onClick={() => setAppRoute('landing')}
-              className="text-link-hover"
-            >
-              Home
-            </button>
+            <nav className="top-bar-links" aria-label="Workspace">
+              <button
+                type="button"
+                id="nav-home-btn"
+                className="top-bar-link text-link-hover"
+                onClick={() => setAppRoute('landing')}
+              >
+                Home
+              </button>
+              <button
+                type="button"
+                className="top-bar-link text-link-hover"
+                onClick={() => setActiveModal('how')}
+              >
+                How to Use
+              </button>
+              <button
+                type="button"
+                className="top-bar-link text-link-hover"
+                onClick={() => setActiveModal('feedback')}
+              >
+                Feedback
+              </button>
+            </nav>
 
-            <button 
-              style={{ 
-                background: 'transparent', 
-                border: 'none', 
-                padding: 0, 
-                fontSize: '13px', 
-                color: 'var(--color-text-secondary)', 
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontFamily: 'var(--font-sans)'
-              }}
-              onClick={() => setActiveModal('how')}
-              className="text-link-hover"
-            >
-              How to Use
-            </button>
-
-            <button 
-              style={{ 
-                background: 'transparent', 
-                border: 'none', 
-                padding: 0, 
-                fontSize: '13px', 
-                color: 'var(--color-text-secondary)', 
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontFamily: 'var(--font-sans)'
-              }}
-              onClick={() => setActiveModal('feedback')}
-              className="text-link-hover"
-            >
-              Feedback
-            </button>
-
-            <button 
-              style={{ 
-                cursor: 'pointer', 
-                border: 'none', 
-                background: 'transparent', 
-                color: 'var(--color-text-secondary)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                padding: '4px',
-                width: '24px',
-                height: '24px',
-                borderRadius: '4px'
-              }}
-              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-              title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+            <button
+              type="button"
+              className="top-bar-theme"
+              onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+              title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              aria-label={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
               {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
             </button>
+
+            <div className={`top-bar-more ${isMobileNavOpen ? 'is-open' : ''}`}>
+              <button
+                type="button"
+                className="top-bar-more-btn"
+                onClick={() => setIsMobileNavOpen((open) => !open)}
+                aria-expanded={isMobileNavOpen}
+                aria-haspopup="menu"
+                aria-label="More navigation"
+                title="More"
+              >
+                <MoreHorizontal size={18} />
+              </button>
+              {isMobileNavOpen && (
+                <>
+                  <button
+                    type="button"
+                    className="top-bar-more-backdrop"
+                    aria-label="Close menu"
+                    onClick={() => setIsMobileNavOpen(false)}
+                  />
+                  <div className="top-bar-more-menu" role="menu">
+                    <div className="top-bar-more-status">
+                      <span>In-Place Mode</span>
+                      <strong className={directoryHandle ? 'is-on' : 'is-off'}>
+                        {directoryHandle ? 'Connected' : 'Off'}
+                      </strong>
+                    </div>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        setAppRoute('landing');
+                      }}
+                    >
+                      Home
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        setActiveModal('how');
+                      }}
+                    >
+                      How to Use
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        setActiveModal('feedback');
+                      }}
+                    >
+                      Feedback
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
