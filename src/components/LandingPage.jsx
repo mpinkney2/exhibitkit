@@ -1,699 +1,268 @@
-import React from 'react';
-import { Shield, HardDrive, ShieldCheck, Zap, ArrowRight, RefreshCcw, Sun, Moon } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronRight,
+  FileCheck2,
+  Files,
+  FolderLock,
+  HardDrive,
+  Moon,
+  Scale,
+  ShieldCheck,
+  Sun,
+  WandSparkles,
+} from 'lucide-react';
 import { hasTrialAvailable } from '../utils/license';
+import './LandingPage.css';
 
-export default function LandingPage({ onLaunchDemo, onLaunchTrial, onOpenPricing, theme, onToggleTheme }) {
+const previewRows = [
+  ['04 - Jones Photo.pdf', 'PX004 Jones Photo.pdf'],
+  ['Smith Draft Contract.pdf', 'PX005 Smith Draft Contract.pdf'],
+  ['Invoice 1892.pdf', 'PX006 Invoice 1892.pdf'],
+];
+
+const workflowSteps = [
+  {
+    number: '01',
+    title: 'Choose your exhibits',
+    body: 'Open a local folder or select a batch of PDFs. Nothing is uploaded or copied to a cloud service.',
+  },
+  {
+    number: '02',
+    title: 'Review the naming map',
+    body: 'Apply an OnCue, TrialDirector, or custom convention, then edit descriptions and resolve conflicts in one preview.',
+  },
+  {
+    number: '03',
+    title: 'Prepare the final set',
+    body: 'Rename in place or download a prepared ZIP with a clear CSV mapping of every original and final filename.',
+  },
+];
+
+export default function LandingPage({
+  onLaunchDemo,
+  onLaunchTrial,
+  onOpenPricing,
+  theme,
+  onToggleTheme,
+}) {
   const trialAvailable = hasTrialAvailable();
 
   return (
-    <div className="landing-container" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      flex: 1,
-      minHeight: '100vh',
-      backgroundColor: 'var(--color-surface-0)',
-      overflowY: 'auto',
-      padding: '40px 24px',
-      alignItems: 'center',
-      fontFamily: 'var(--font-sans)',
-      position: 'relative'
-    }}>
-      {/* Main Container */}
-      <div style={{
-        maxWidth: '1000px',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '64px',
-        margin: 'auto'
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderBottom: '1px solid var(--color-border)',
-          paddingBottom: '20px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '6px',
-              backgroundColor: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              color: 'var(--color-text-primary)'
-            }}>
-              ⚖
-            </div>
-            <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
-              ExhibitKIT
-            </span>
-          </div>
+    <main className="landing-page">
+      <nav className="landing-nav" aria-label="Primary navigation">
+        <a className="landing-brand" href="#top" aria-label="ExhibitKIT home">
+          <span className="landing-brand-mark" aria-hidden="true">
+            <Scale size={17} strokeWidth={1.8} />
+          </span>
+          <span>Exhibit<span>KIT</span></span>
+        </a>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ 
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px', 
-              fontSize: '11px', 
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              color: 'var(--color-text-muted)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '4px',
-              background: 'var(--color-surface-1)'
-            }}>
-              <ShieldCheck size={12} style={{ color: 'var(--color-success)' }} />
-              No Cloud Uploads
-            </span>
-            
-            <button 
-              id="btn-quick-demo"
-              className="btn btn-secondary" 
-              style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--color-border)' }} 
-              onClick={() => onLaunchDemo()}
-            >
-              See It in Action
-            </button>
-
-            <button 
-              id="btn-theme-toggle"
-              style={{ 
-                cursor: 'pointer', 
-                border: '1px solid var(--color-border)', 
-                background: 'var(--color-surface-1)', 
-                color: 'var(--color-text-primary)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                padding: '8px',
-                borderRadius: '6px'
-              }}
-              onClick={onToggleTheme}
-              title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
-            >
-              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-            </button>
-          </div>
+        <div className="landing-nav-links">
+          <a href="#workflow">How it works</a>
+          <a href="#security">Security</a>
+          <a href="#pricing">Pricing</a>
         </div>
 
-        {/* Hero Section */}
-        <div style={{
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '24px',
-          maxWidth: '800px',
-          margin: '0 auto'
-        }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            border: '1px solid var(--color-border)',
-            background: 'var(--color-surface-1)',
-            borderRadius: '16px',
-            padding: '4px 12px',
-            fontSize: '12px',
-            fontWeight: '500',
-            color: 'var(--color-text-secondary)'
-          }}>
-            <span style={{ color: 'var(--color-accent)' }}>⚖</span>
-            Trusted by Litigation Support Professionals
+        <div className="landing-nav-actions">
+          <button
+            className="landing-icon-button"
+            id="btn-theme-toggle"
+            onClick={onToggleTheme}
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+          <button className="landing-nav-demo" id="btn-quick-demo" onClick={onLaunchDemo}>
+            Open demo <ArrowRight size={14} />
+          </button>
+        </div>
+      </nav>
+
+      <section className="landing-hero" id="top">
+        <div className="landing-hero-copy">
+          <div className="landing-eyebrow">
+            <span /> Built for litigation support teams
           </div>
-
-          <h1 style={{
-            fontSize: '42px',
-            fontWeight: '700',
-            lineHeight: '1.2',
-            letterSpacing: '-1px',
-            color: 'var(--color-text-primary)',
-            margin: 0
-          }}>
-            Prepare Legal Exhibits for OnCue and TrialDirector in Minutes
+          <h1>
+            Courtroom-ready exhibits,
+            <em> without the busywork.</em>
           </h1>
-
-          <p style={{
-            fontSize: '16px',
-            lineHeight: '1.6',
-            color: 'var(--color-text-secondary)',
-            margin: '0 auto',
-            maxWidth: '640px'
-          }}>
-            ExhibitKIT helps litigation teams standardize exhibit filenames, preview conflicts, export audit logs, and prepare courtroom-ready batches without uploading client documents.
+          <p className="landing-hero-lede">
+            Turn inconsistent PDF filenames into a clean, indexed exhibit set for OnCue or
+            TrialDirector—all on your own computer.
           </p>
 
-          {/* Core CTAs */}
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            marginTop: '12px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap'
-          }}>
-            <button 
-              id="btn-launch-demo"
-              className="btn btn-primary" 
-              onClick={() => onLaunchDemo()}
-              style={{ 
-                padding: '12px 24px', 
-                fontSize: '14.5px', 
-                fontWeight: '600',
-                backgroundColor: 'var(--color-accent)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px'
-              }}
-            >
-              Launch Demo Mode
-              <ArrowRight size={14} style={{ marginLeft: '4px' }} />
+          <div className="landing-hero-actions">
+            <button className="landing-primary-button" id="btn-launch-demo" onClick={onLaunchDemo}>
+              Try the interactive demo <ArrowRight size={16} />
             </button>
-
             {trialAvailable ? (
-              <button 
-                id="btn-try-trial"
-                className="btn btn-secondary" 
-                onClick={() => onLaunchTrial()}
-                style={{ 
-                  padding: '12px 24px', 
-                  fontSize: '14.5px', 
-                  fontWeight: '600', 
-                  backgroundColor: 'var(--color-surface-1)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text-primary)',
-                  borderRadius: '6px'
-                }}
-              >
-                Try It Free
+              <button className="landing-text-button" id="btn-try-trial" onClick={onLaunchTrial}>
+                Process up to 5 real files <ChevronRight size={16} />
               </button>
             ) : (
-              <button 
-                id="btn-try-trial-disabled"
-                className="btn btn-secondary" 
-                disabled
-                style={{ 
-                  padding: '12px 24px', 
-                  fontSize: '14.5px', 
-                  fontWeight: '600', 
-                  backgroundColor: 'var(--color-surface-2)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text-muted)',
-                  borderRadius: '6px',
-                  cursor: 'not-allowed',
-                  opacity: 0.6
-                }}
-                title="Your free trial batch has been used"
-              >
-                Trial Consumed
+              <button className="landing-text-button" id="btn-try-trial-disabled" disabled>
+                Free trial used
               </button>
             )}
-
-            <button 
-              id="btn-upgrade-pro-hero"
-              onClick={onOpenPricing}
-              style={{ 
-                padding: '12px 18px', 
-                fontSize: '14.5px', 
-                fontWeight: '600',
-                color: 'var(--color-accent)',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              Upgrade to Pro
-            </button>
           </div>
 
-          <div style={{
-            fontSize: '13px',
-            color: 'var(--color-text-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            marginTop: '8px'
-          }}>
-            <Shield size={14} style={{ color: 'var(--color-success)' }} />
-            <span>Confidential Local-First Processing. Your documents never leave this computer.</span>
+          <div className="landing-assurance" aria-label="Product assurances">
+            <span><ShieldCheck size={15} /> No cloud uploads</span>
+            <span><HardDrive size={15} /> Runs in your browser</span>
+            <span><FileCheck2 size={15} /> Audit-ready mapping</span>
           </div>
         </div>
 
-        {/* Cinematic App Preview Frame */}
-        <div style={{
-          overflow: 'hidden',
-          borderRadius: '12px',
-          border: '1px solid var(--color-border)',
-          boxShadow: 'var(--shadow-lg)',
-          marginTop: '12px',
-          backgroundColor: 'var(--color-surface-1)'
-        }}>
-          {/* OS Window Chrome Title Bar in Navy (#1B2A4A) */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            height: '40px',
-            background: '#1B2A4A',
-            borderBottom: '1px solid var(--color-border)',
-            padding: '0 16px',
-            gap: '12px',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444', opacity: 0.8 }}></div>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#fbbf24', opacity: 0.8 }}></div>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', opacity: 0.8 }}></div>
-            </div>
-            
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#94A3B8', 
-              fontFamily: 'var(--font-mono)', 
-              background: 'rgba(255, 255, 255, 0.08)', 
-              padding: '4px 20px', 
-              borderRadius: '20px',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              letterSpacing: '0.5px'
-            }}>
-              exhibitkit.local/workspace
+        <div className="landing-product-stage" aria-label="ExhibitKIT renaming preview">
+          <div className="landing-stage-glow" />
+          <div className="landing-app-preview">
+            <div className="landing-window-bar">
+              <div className="landing-window-dots" aria-hidden="true"><i /><i /><i /></div>
+              <span>Exhibit preparation workspace</span>
+              <span className="landing-local-pill"><FolderLock size={12} /> Local</span>
             </div>
 
-            <div style={{ width: '48px' }}></div>
-          </div>
-
-          {/* App Preview Body Mockup */}
-          <div style={{
-            display: 'flex',
-            height: '340px',
-            background: 'var(--color-surface-0)',
-            overflow: 'hidden'
-          }}>
-            {/* Sidebar Mockup */}
-            <div style={{
-              width: '180px',
-              borderRight: '1px solid var(--color-border)',
-              background: 'var(--color-surface-1)',
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--color-border)' }}>
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '4px',
-                  background: 'var(--color-accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  color: '#fff'
-                }}>
-                  ⚖
+            <div className="landing-preview-body">
+              <aside className="landing-preview-sidebar">
+                <span className="landing-preview-label">Naming preset</span>
+                <button className="active">OnCue <Check size={12} /></button>
+                <button>TrialDirector</button>
+                <div className="landing-preview-rule">
+                  <span className="landing-preview-label">Starting ID</span>
+                  <strong>PX <b>004</b></strong>
                 </div>
-                <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-text-primary)' }}>ExhibitKIT</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '9px', fontWeight: '700', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Presets</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ fontSize: '10.5px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', padding: '6px', borderRadius: '4px', color: 'var(--color-text-primary)', fontWeight: '600' }}>TrialDirector</div>
-                  <div style={{ fontSize: '10.5px', background: 'transparent', border: '1px solid var(--color-border)', padding: '6px', borderRadius: '4px', color: 'var(--color-text-secondary)' }}>OnCue</div>
+                <div className="landing-preview-progress">
+                  <span>Batch status</span>
+                  <strong>3 / 3 ready</strong>
+                  <i><b /></i>
                 </div>
-              </div>
+              </aside>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                <span style={{ fontSize: '9px', fontWeight: '700', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prefix</span>
-                <div style={{ fontSize: '11px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', padding: '6px 10px', borderRadius: '6px', color: 'var(--color-text-primary)', fontWeight: '500' }}>PX</div>
-              </div>
-            </div>
-
-            {/* Main Panel Mockup */}
-            <div style={{
-              flex: 1,
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              overflow: 'hidden'
-            }}>
-              {/* Top info bar mockup */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-primary)' }}>
-                  Exhibits Workspace 
-                  <span style={{ 
-                    fontSize: '9px', 
-                    color: 'var(--color-accent)', 
-                    background: 'rgba(37, 99, 235, 0.08)', 
-                    border: '1px solid rgba(37, 99, 235, 0.15)',
-                    padding: '2px 6px', 
-                    borderRadius: '10px', 
-                    fontWeight: '500', 
-                    marginLeft: '6px' 
-                  }}>
-                    Demo
-                  </span>
-                </span>
-                <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)' }}>🔒 Secure Offline</span>
-              </div>
-
-              {/* Stats Bar mockup - Single row dot separated */}
-              <div style={{ 
-                background: 'var(--color-surface-2)', 
-                border: '1px solid var(--color-border)', 
-                borderRadius: '8px', 
-                padding: '8px 16px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '12px',
-                fontSize: '12px',
-                color: 'var(--color-text-secondary)',
-                fontWeight: '500'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--color-text-primary)', fontWeight: '700' }}>12</span>
-                  <span>Ingested</span>
+              <div className="landing-preview-content">
+                <div className="landing-preview-heading">
+                  <div>
+                    <span className="landing-preview-label">Matter</span>
+                    <strong>Jones v. Apex Holdings</strong>
+                  </div>
+                  <span className="landing-ready-pill"><Check size={11} /> Ready to prepare</span>
                 </div>
-                <span style={{ color: 'var(--color-border)' }}>•</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--color-text-primary)', fontWeight: '700' }}>12</span>
-                  <span>Ready</span>
-                </div>
-                <span style={{ color: 'var(--color-border)' }}>•</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--color-text-muted)', fontWeight: '700' }}>0</span>
-                  <span style={{ color: 'var(--color-text-muted)' }}>Conflicts</span>
-                </div>
-              </div>
 
-              {/* Spreadsheet table mockup */}
-              <div style={{ 
-                flex: 1, 
-                border: '1px solid var(--color-border)', 
-                borderRadius: '8px', 
-                background: 'var(--color-surface-1)', 
-                overflow: 'hidden' 
-              }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--color-surface-2)', borderBottom: '1px solid var(--color-border)' }}>
-                      <th style={{ padding: '8px 12px', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Original Filename</th>
-                      <th style={{ padding: '8px 12px', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Proposed Courtroom Name</th>
-                      <th style={{ padding: '8px 12px', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)', fontSize: '10.5px' }}>04 - Jones Photo.pdf</td>
-                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--color-accent)', fontWeight: '600' }}>PX-004 - Jones Photo.pdf</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                        <span style={{ 
-                          color: 'var(--color-success)', 
-                          background: 'rgba(5, 150, 105, 0.08)', 
-                          border: '1px solid rgba(5, 150, 105, 0.15)', 
-                          borderRadius: '4px', 
-                          padding: '2px 6px', 
-                          fontSize: '9px', 
-                          fontWeight: '600' 
-                        }}>
-                          VALID
-                        </span>
-                      </td>
-                    </tr>
-                    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)', fontSize: '10.5px' }}>Smith Draft Contract.pdf</td>
-                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--color-accent)', fontWeight: '600' }}>PX-005 - Smith Draft Contract.pdf</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                        <span style={{ 
-                          color: 'var(--color-success)', 
-                          background: 'rgba(5, 150, 105, 0.08)', 
-                          border: '1px solid rgba(5, 150, 105, 0.15)', 
-                          borderRadius: '4px', 
-                          padding: '2px 6px', 
-                          fontSize: '9px', 
-                          fontWeight: '600' 
-                        }}>
-                          VALID
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)', fontSize: '10.5px' }}>Invoice 1892.pdf</td>
-                      <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', color: 'var(--color-accent)', fontWeight: '600' }}>PX-006 - Invoice 1892.pdf</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                        <span style={{ 
-                          color: 'var(--color-success)', 
-                          background: 'rgba(5, 150, 105, 0.08)', 
-                          border: '1px solid rgba(5, 150, 105, 0.15)', 
-                          borderRadius: '4px', 
-                          padding: '2px 6px', 
-                          fontSize: '9px', 
-                          fontWeight: '600' 
-                        }}>
-                          VALID
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div className="landing-file-list">
+                  <div className="landing-file-header">
+                    <span>Original filename</span>
+                    <span>Prepared filename</span>
+                    <span>Status</span>
+                  </div>
+                  {previewRows.map(([original, prepared], index) => (
+                    <div className="landing-file-row" key={original}>
+                      <span><Files size={14} /> {original}</span>
+                      <span>{prepared}</span>
+                      <span className="landing-row-status"><Check size={11} /> Valid</span>
+                      {index === 0 && <span className="landing-cursor-note">Auto-formatted</span>}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="landing-preview-footer">
+                  <span>3 files · 0 conflicts</span>
+                  <button><WandSparkles size={13} /> Prepare exhibits</button>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Feature Grid: How it Works, etc */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '24px',
-          marginTop: '20px',
-          width: '100%'
-        }}>
-          <div className="glass-panel" style={{ 
-            backgroundColor: 'var(--color-surface-1)', 
-            border: '1px solid var(--color-border)', 
-            borderRadius: '8px', 
-            boxShadow: 'var(--shadow-card)',
-            padding: '28px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '16px' 
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '6px',
-              background: 'rgba(37, 99, 235, 0.08)',
-              color: 'var(--color-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <HardDrive size={18} strokeWidth={1.5} />
-            </div>
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-text-primary)', margin: 0 }}>Why Local-First Matters</h3>
-            <p style={{ fontSize: '13.5px', color: 'var(--color-text-secondary)', lineHeight: '1.6', margin: 0 }}>
-              Unlike cloud services that require uploading client records, ExhibitKIT processes all renaming logic, file indexing, and folder transfers inside your browser locally. Completely offline-safe and client-confidential.
-            </p>
-          </div>
+      <section className="landing-compatibility" aria-label="Compatible workflows">
+        <span>Fits the tools your trial team already uses</span>
+        <div><strong>ONCUE</strong><i /> <strong>TRIALDIRECTOR</strong><i /> <strong>CUSTOM NAMING</strong></div>
+      </section>
 
-          <div className="glass-panel" style={{ 
-            backgroundColor: 'var(--color-surface-1)', 
-            border: '1px solid var(--color-border)', 
-            borderRadius: '8px', 
-            boxShadow: 'var(--shadow-card)',
-            padding: '28px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '16px' 
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '6px',
-              background: 'rgba(37, 99, 235, 0.08)',
-              color: 'var(--color-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Zap size={18} strokeWidth={1.5} />
-            </div>
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-text-primary)', margin: 0 }}>How It Works</h3>
-            <p style={{ fontSize: '13.5px', color: 'var(--color-text-secondary)', lineHeight: '1.6', margin: 0 }}>
-              Ingest PDF exhibits directly from a local folder, automatically isolate document names and exhibit numbers, auto-sequence starting ranges, preview and fix duplication conflicts, and rename the directories in-place.
-            </p>
-          </div>
-
-          <div className="glass-panel" style={{ 
-            backgroundColor: 'var(--color-surface-1)', 
-            border: '1px solid var(--color-border)', 
-            borderRadius: '8px', 
-            boxShadow: 'var(--shadow-card)',
-            padding: '28px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '16px' 
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '6px',
-              background: 'rgba(37, 99, 235, 0.08)',
-              color: 'var(--color-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <RefreshCcw size={18} strokeWidth={1.5} />
-            </div>
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-text-primary)', margin: 0 }}>Who It Is For</h3>
-            <p style={{ fontSize: '13.5px', color: 'var(--color-text-secondary)', lineHeight: '1.6', margin: 0 }}>
-              Engineered specifically for hot-seat operators, paralegals, litigation support teams, and legal counsel preparing document databases for OnCue and TrialDirector systems.
-            </p>
-          </div>
+      <section className="landing-section landing-workflow" id="workflow">
+        <div className="landing-section-heading">
+          <span className="landing-kicker">A controlled workflow</span>
+          <h2>From folder chaos to a defensible exhibit set.</h2>
+          <p>Every step stays visible, editable, and under your control before a filename changes.</p>
         </div>
 
-        {/* Pricing/Mode Section - Centered Clean Card */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '24px',
-          width: '100%',
-          marginTop: '20px'
-        }}>
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--color-text-primary)', margin: 0, letterSpacing: '-0.5px' }}>
-              Simple, Transparent Pricing
-            </h2>
-            <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              Evaluate ExhibitKIT with sample exhibit data at no cost, or purchase a Pro license.
-            </p>
-          </div>
-
-          <div className="glass-panel" style={{
-            width: '100%',
-            maxWidth: '460px',
-            backgroundColor: 'var(--color-surface-1)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '12px',
-            boxShadow: 'var(--shadow-modal)',
-            padding: '32px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px',
-            textAlign: 'center'
-          }}>
-            <span style={{ 
-              fontSize: '10px', 
-              fontWeight: '700', 
-              textTransform: 'uppercase', 
-              letterSpacing: '1.5px', 
-              color: 'var(--color-accent)',
-              background: 'rgba(37, 99, 235, 0.08)',
-              padding: '4px 10px',
-              borderRadius: '4px'
-            }}>
-              Pro Lifetime License
-            </span>
-            
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '48px', fontWeight: '800', color: 'var(--color-text-primary)', letterSpacing: '-1.5px' }}>$150</span>
-              <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)', fontWeight: '500' }}>USD / one-time</span>
-            </div>
-            
-            <p style={{ fontSize: '13.5px', color: 'var(--color-text-secondary)', lineHeight: '1.6', margin: 0 }}>
-              No recurring fees, seat limits, or subscriptions. Pay once and run ExhibitKIT locally on your workstation forever. Includes all lifetime updates.
-            </p>
-
-            {/* Value propositions list */}
-            <div style={{
-              alignSelf: 'stretch',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              fontSize: '13.5px',
-              color: 'var(--color-text-primary)',
-              textAlign: 'left'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
-                <span>Direct in-place local folder exhibit renaming</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
-                <span>Unlimited PDF exhibits and batches (no file limit)</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
-                <span>OnCue & TrialDirector presets + Custom formatting template</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
-                <span>Saved Matter Profiles & Full Session Audit Log exports</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✓</span>
-                <span>100% offline-ready (Your client records remain confidential)</span>
-              </div>
-            </div>
-
-            <div style={{ width: '100%', height: '1px', background: 'var(--color-border)' }}></div>
-
-            <button 
-              id="btn-purchase-pro-pricing"
-              className="btn btn-primary" 
-              onClick={onOpenPricing} 
-              style={{ 
-                width: '100%', 
-                padding: '12px 18px',
-                backgroundColor: 'var(--color-accent)',
-                color: '#ffffff',
-                fontWeight: '600',
-                fontSize: '14.5px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              Purchase License
-            </button>
-          </div>
+        <div className="landing-steps">
+          {workflowSteps.map((step) => (
+            <article key={step.number}>
+              <span className="landing-step-number">{step.number}</span>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </article>
+          ))}
         </div>
+      </section>
 
-        {/* Footer contact info */}
-        <div style={{
-          textAlign: 'center',
-          fontSize: '12px',
-          color: 'var(--color-text-muted)',
-          borderTop: '1px solid var(--color-border)',
-          paddingTop: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          width: '100%',
-          marginTop: '20px'
-        }}>
-          <p style={{ margin: 0 }}>
-            ExhibitKIT is a standalone desktop litigation support tool published by <strong>PatentPreppers</strong>.
+      <section className="landing-section landing-security" id="security">
+        <div className="landing-security-copy">
+          <span className="landing-kicker">Confidential by design</span>
+          <h2>Your case files stay where they belong.</h2>
+          <p>
+            ExhibitKIT performs filename parsing, sequencing, conflict checks, and file preparation
+            inside your browser. Document contents and metadata are never sent to ExhibitKIT servers.
           </p>
-          <p style={{ margin: 0 }}>
-            Contact support team at <a href="mailto:support@patentpreppers.com" style={{ color: 'var(--color-text-secondary)', textDecoration: 'none' }}>support@patentpreppers.com</a>
-          </p>
+          <div className="landing-security-list">
+            <span><Check size={15} /> No document uploads</span>
+            <span><Check size={15} /> No account required for the demo</span>
+            <span><Check size={15} /> Direct local-folder workflow in Chromium browsers</span>
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div className="landing-security-visual" aria-hidden="true">
+          <div className="landing-device-card">
+            <span className="landing-device-icon"><HardDrive size={24} /></span>
+            <div><strong>Your workstation</strong><small>Files remain local</small></div>
+            <span className="landing-device-check"><Check size={14} /></span>
+          </div>
+          <div className="landing-blocked-path">
+            <i /><span><FolderLock size={17} /> No cloud transfer</span><i />
+          </div>
+          <div className="landing-cloud-card">
+            <span>Cloud storage</span><strong>0 files received</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-pricing" id="pricing">
+        <div className="landing-pricing-copy">
+          <span className="landing-kicker">One license. No subscription.</span>
+          <h2>A small tool for a high-stakes handoff.</h2>
+          <p>Use the demo with sample data, process one real five-file trial batch, then upgrade when it earns a place in your workflow.</p>
+          <button className="landing-text-button" onClick={onLaunchDemo}>
+            Explore with sample exhibits <ChevronRight size={16} />
+          </button>
+        </div>
+
+        <div className="landing-price-card">
+          <div className="landing-price-topline"><span>ExhibitKIT Pro</span><em>Lifetime</em></div>
+          <div className="landing-price"><strong>$150</strong><span>USD<br />one-time</span></div>
+          <ul>
+            <li><Check size={15} /> Unlimited exhibit batches</li>
+            <li><Check size={15} /> Direct local-folder renaming</li>
+            <li><Check size={15} /> Matter profiles and custom templates</li>
+            <li><Check size={15} /> CSV, JSON, and printable audit reports</li>
+          </ul>
+          <button className="landing-primary-button" id="btn-purchase-pro-pricing" onClick={onOpenPricing}>
+            Purchase lifetime access <ArrowRight size={16} />
+          </button>
+          <small>Secure checkout · Manual license activation</small>
+        </div>
+      </section>
+
+      <footer className="landing-footer">
+        <a className="landing-brand" href="#top">
+          <span className="landing-brand-mark"><Scale size={16} /></span>
+          <span>Exhibit<span>KIT</span></span>
+        </a>
+        <p>Local-first exhibit preparation for litigation teams.</p>
+        <a href="mailto:support@patentpreppers.com">support@patentpreppers.com</a>
+      </footer>
+    </main>
   );
 }
