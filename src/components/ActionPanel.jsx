@@ -9,7 +9,7 @@ export default function ActionPanel({
   onClear,
   onExportCsv,
   isPro,
-  isTrial,
+  planLabel = 'Free',
   workstationId,
   preset
 }) {
@@ -24,23 +24,23 @@ export default function ActionPanel({
 
   // Active Mode Badge
   const getModeBadge = () => {
-    if (isPro) {
+    if (planLabel === 'Pro' || planLabel === 'Firm') {
       return (
         <span className="badge-pro">
-          Pro
+          {planLabel}
         </span>
       );
     }
-    if (isTrial) {
+    if (planLabel === 'Case Pass') {
       return (
         <span className="badge badge-warning" style={{ padding: '6px 12px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-          Free Trial Batch
+          Case Pass
         </span>
       );
     }
     return (
       <span className="badge badge-info" style={{ padding: '6px 12px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-        Demo Mode
+        Free
       </span>
     );
   };
@@ -54,7 +54,9 @@ export default function ActionPanel({
     }
 
     const timestamp = new Date().toLocaleString();
-    const modeLabel = isPro ? "PRO LICENSE ACTIVE" : isTrial ? "FREE TRIAL MODE" : "DEMO MODE";
+    const modeLabel = isPro
+      ? (planLabel === 'Case Pass' ? 'CASE PASS ACTIVE' : 'PRO LICENSE ACTIVE')
+      : 'FREE MODE';
     const conflictCount = warningCount;
 
     let rowsHtml = items.map((item, idx) => `
@@ -112,7 +114,7 @@ export default function ActionPanel({
             <div>
               <strong>Database Preset:</strong> ${preset.toUpperCase()}<br>
               <strong>Activation Tier:</strong> 
-              <span class="badge ${isPro ? 'badge-pro' : isTrial ? 'badge-trial' : 'badge-demo'}">
+              <span class="badge ${isPro ? 'badge-pro' : planLabel === 'Case Pass' ? 'badge-trial' : 'badge-demo'}">
                 ${modeLabel}
               </span>
             </div>
@@ -172,7 +174,7 @@ export default function ActionPanel({
       reportType: "ExhibitKIT Session Audit Log",
       timestamp,
       workstationId: workstationId || 'Local-Preview-Station',
-      mode: isPro ? "Pro" : isTrial ? "Trial" : "Demo",
+      mode: planLabel,
       preset,
       summary: {
         totalExhibits: totalCount,

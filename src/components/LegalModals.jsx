@@ -84,7 +84,7 @@ export default function LegalModals({ activeModal, onClose }) {
 
               <div className="legal-block">
                 <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>2. Stripe Payment Processing</h4>
-                <p style={{ color: 'var(--text-secondary)' }}>Transactions for ExhibitKIT Pro licenses are handled securely by Stripe. ExhibitKIT does not capture, store, or have access to your full credit card information. Stripe provides secure, PCI-compliant payment gateways.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>Paid ExhibitKIT plans (Case Pass and Pro) are handled securely by Stripe when checkout is configured. ExhibitKIT does not capture, store, or have access to your full credit card information. Filenames, matter names, and document contents are never sent to the payment processor.</p>
               </div>
 
               <div className="legal-block">
@@ -132,9 +132,9 @@ export default function LegalModals({ activeModal, onClose }) {
               </div>
 
               <div className="legal-block">
-                <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>Enterprise Site Licenses</h4>
+                <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>Firm Licensing</h4>
                 <p style={{ color: 'var(--text-secondary)' }}>
-                  For multi-device deployments, automated corporate setups, custom database plugins, or priority firm-wide support SLAs, please contact the licensing desk at our support email above.
+                  Firm team licensing is not available for self-serve purchase yet. Contact the licensing desk at the support email above for availability. Planned team capabilities are not offered as working features today.
                 </p>
               </div>
             </div>

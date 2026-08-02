@@ -10,7 +10,7 @@ const LICENSE_TIMESTAMP_STORAGE = 'exhibitkit_activation_timestamp';
 const TRIAL_USED_STORAGE = 'exhibitkit_trial_used';
 const WORKSTATION_STORAGE = 'exhibitkit_workstation_info';
 
-export const APP_VERSION = 'v0.9.3';
+export const APP_VERSION = 'v0.10.0';
 export const DEV_TEST_KEY = 'PATENTPREPPERS-EXHIBITKIT-PRO';
 
 /**
@@ -107,10 +107,10 @@ export function validateKeyFormat(key) {
 /**
  * Activates a license key if valid.
  * @param {string} key 
- * @param {string} [type='lifetime'] 
+ * @param {string} [type='pro_perpetual']
  * @returns {boolean} True if successfully activated, false otherwise.
  */
-export function activateLicense(key, type = 'lifetime') {
+export function activateLicense(key, type = 'pro_perpetual') {
   const cleanKey = (key || '').trim().toUpperCase();
 
   if (validateKeyFormat(cleanKey)) {
