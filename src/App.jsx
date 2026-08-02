@@ -8,14 +8,17 @@ import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
 import JSZip from 'jszip';
-import { 
-  hasProAccess, 
-  hasTrialAvailable, 
-  markTrialUsed, 
-  getWorkstationInfo, 
-  activateLicense, 
-  deactivateLicense 
-} from './utils/license';
+import {
+  getEntitlement,
+  hasProFeatures,
+  isWithinFreeFileLimit,
+  getEntitlementLabel,
+  restoreFromLicenseKey,
+  clearEntitlement,
+  getWorkstationInfo,
+  FREE_MAX_FILES_PER_BATCH,
+  migrateLegacyLicenseIfNeeded,
+} from './utils/entitlement';
 import { 
   parseFilename, 
   generateProposedFilename, 
@@ -34,10 +37,13 @@ export default function App() {
   const [renameStats, setRenameStats] = useState({ count: 0, conflicts: 0, time: "0.0s" });
   const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'dark');
   
-  // Workspace Tier States
-  const [isPro, setIsPro] = useState(() => hasProAccess());
-  const [isTrialMode, setIsTrialMode] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  // Entitlement (free | case_pass | pro_perpetual)
+  const [entitlement, setEntitlement] = useState(() => {
+    migrateLegacyLicenseIfNeeded();
+    return getEntitlement();
+  });
+  const isPro = hasProFeatures(entitlement);
+  const planLabel = getEntitlementLabel(entitlement);
 
   // Workstation Profile Info
   const [workstation, setWorkstation] = useState(() => getWorkstationInfo());
@@ -75,11 +81,12 @@ export default function App() {
 
   const isDirectoryApiSupported = 'showDirectoryPicker' in window;
 
-  // Sync workstation info on load
+  // Sync workstation + entitlement on load
   useEffect(() => {
     setWorkstation(getWorkstationInfo());
-    if (hasProAccess()) {
-      setIsPro(true);
+    const current = migrateLegacyLicenseIfNeeded();
+    setEntitlement(current);
+    if (hasProFeatures(current)) {
       setAppRoute('workspace');
     }
   }, []);
@@ -108,28 +115,33 @@ export default function App() {
   }, [theme]);
 
   const handleActivateLicense = (key) => {
-    const success = activateLicense(key);
-    if (success) {
-      setIsPro(true);
-      setIsTrialMode(false);
-      setIsDemoMode(false);
+    const result = restoreFromLicenseKey(key);
+    if (result.ok) {
+      setEntitlement(result.entitlement);
       setIsPricingOpen(false);
       setActivationError('');
       setAppRoute('workspace');
-      showNotification("🎉 ExhibitKIT Pro unlocked successfully! Workstation registered.", "success");
+      showNotification("ExhibitKIT Pro restored on this workstation.", "success");
     } else {
-      setActivationError("❌ Invalid license key format. Please double-check your purchase email.");
+      setActivationError(result.error || "Invalid license key. Please double-check your purchase email.");
     }
   };
 
+  const handleEntitlementActivated = (next) => {
+    setEntitlement(next || getEntitlement());
+    setIsPricingOpen(false);
+    setAppRoute('workspace');
+    showNotification("ExhibitKIT Pro restored on this workstation.", "success");
+  };
+
   const handleDeactivate = () => {
-    deactivateLicense();
-    setIsPro(false);
+    clearEntitlement();
+    setEntitlement(getEntitlement());
     setItems([]);
     setDirectoryHandle(null);
     setDirectoryName("");
     setAppRoute('landing');
-    showNotification("🔓 Workstation license deactivated.", "info");
+    showNotification("Workstation license cleared locally.", "info");
   };
 
   // Helper to trigger alert notifications
@@ -234,12 +246,6 @@ export default function App() {
 
   // Handle native folder picking
   const handleDirectorySelect = async () => {
-    if (isDemoMode) {
-      showNotification("🔒 Direct folder ingestion is restricted in Demo mode. Load Sample Exhibits or upgrade to Pro.", "warning");
-      setIsPricingOpen(true);
-      return;
-    }
-
     try {
       const handle = await window.showDirectoryPicker();
       
@@ -265,9 +271,12 @@ export default function App() {
         return;
       }
 
-      // Enforce Trial volume bounds: max 5 files total
-      if (isTrialMode && files.length > 5) {
-        showNotification("⚠️ Trial tier is restricted to a maximum of 5 files. Please reduce your batch or purchase Pro.", "danger");
+      // Free: up to 5 real files per batch (not a one-time consume limit)
+      if (!isWithinFreeFileLimit(files.length, entitlement)) {
+        showNotification(
+          `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
+          "danger"
+        );
         setIsPricingOpen(true);
         return;
       }
@@ -280,25 +289,22 @@ export default function App() {
 
       const itemsWithProposed = updateProposedNames(files);
       setItems(itemsWithProposed);
-      showNotification(`✨ Loaded ${files.length} PDF exhibits from "${handle.name}".`, "success");
+      showNotification(`Loaded ${files.length} PDF exhibits from "${handle.name}".`, "success");
     } catch (err) {
       if (err.name !== 'AbortError') {
-        showNotification("❌ Directory picker error: " + err.message, "danger");
+        showNotification("Directory picker error: " + err.message, "danger");
       }
     }
   };
 
   // Handle drag and drop file ingestion
   const handleFilesDrop = (filesList) => {
-    if (isDemoMode) {
-      showNotification("🔒 Real file ingestion is restricted in Demo mode. Load Sample Exhibits or upgrade to Pro.", "warning");
-      setIsPricingOpen(true);
-      return;
-    }
-
-    // Enforce Trial volume bounds: max 5 files total
-    if (isTrialMode && filesList.length > 5) {
-      showNotification("⚠️ Trial tier is restricted to a maximum of 5 files. Please reduce your batch or purchase Pro.", "danger");
+    // Free: up to 5 real files per batch (not a one-time consume limit)
+    if (!isWithinFreeFileLimit(filesList.length, entitlement)) {
+      showNotification(
+        `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
+        "danger"
+      );
       setIsPricingOpen(true);
       return;
     }
@@ -320,7 +326,7 @@ export default function App() {
 
     newItems.sort((a, b) => a.originalName.localeCompare(b.originalName, undefined, { numeric: true }));
     setItems(updateProposedNames(newItems));
-    showNotification(`✨ Added ${newItems.length} PDF files for batch preparation.`, "success");
+    showNotification(`Added ${newItems.length} PDF files for batch preparation.`, "success");
   };
 
   // Inline edit callback for individual cells
@@ -384,12 +390,18 @@ export default function App() {
   // Trigger Backup Dialog check first
   const handleRenameTrigger = () => {
     if (items.length === 0) return;
-    
-    // In Demo Mode, block actual rename executions completely
-    if (isDemoMode) {
-      showNotification("🔒 Renaming real files is restricted in Demo mode. Upgrade to Pro to process exhibits.", "warning");
-      setIsPricingOpen(true);
-      return;
+
+    // In-place rename and ZIP batch export require Case Pass or Pro
+    if (!isPro) {
+      const hasRealFiles = items.some((item) => item.file || item.handle);
+      if (hasRealFiles) {
+        showNotification(
+          "In-place renaming and ZIP export require a Case Pass or ExhibitKit Pro. Free includes preview and CSV/HTML export (up to 5 files per batch).",
+          "warning"
+        );
+        setIsPricingOpen(true);
+        return;
+      }
     }
 
     // Open backup checkbox confirmation
@@ -440,17 +452,7 @@ export default function App() {
         const endTime = performance.now();
         const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
 
-        // Consume Trial if in Trial Mode
-        if (isTrialMode) {
-          markTrialUsed();
-          setIsTrialMode(false);
-          setIsDemoMode(true);
-          setItems([]);
-          showNotification("✨ Free trial batch completed! Upgrade to Pro for unlimited local renames.", "success");
-          setIsPricingOpen(true);
-        } else {
-          showNotification("✨ Successfully exported prepared exhibits folder ZIP!", "success");
-        }
+        showNotification("Successfully exported prepared exhibits ZIP.", "success");
 
         // Trigger Success Stats Popup
         setRenameStats({
@@ -460,7 +462,7 @@ export default function App() {
         });
         setShowSuccessModal(true);
       } catch (err) {
-        showNotification("❌ Zipped batch download failed: " + err.message, "danger");
+        showNotification("Zipped batch download failed: " + err.message, "danger");
       } finally {
         setIsPreviewFreezed(false);
       }
@@ -530,17 +532,7 @@ export default function App() {
       const endTime = performance.now();
       const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
 
-      // Consume Trial if in Trial Mode
-      if (isTrialMode) {
-        markTrialUsed();
-        setIsTrialMode(false);
-        setIsDemoMode(true);
-        setItems([]);
-        showNotification("✨ Free trial batch completed! Upgrade to Pro for unlimited local renames.", "success");
-        setIsPricingOpen(true);
-      } else {
-        showNotification(`✨ Successfully renamed ${history.length} exhibits directly inside "${directoryName}"!`, "success");
-      }
+      showNotification(`Successfully renamed ${history.length} exhibits inside "${directoryName}".`, "success");
 
       // Trigger Success Stats Popup
       setRenameStats({
@@ -550,17 +542,17 @@ export default function App() {
       });
       setShowSuccessModal(true);
     } catch (err) {
-      showNotification("❌ Renaming operation failed: " + err.message, "danger");
+      showNotification("Renaming operation failed: " + err.message, "danger");
       console.error(err);
     } finally {
       setIsPreviewFreezed(false);
     }
   };
 
-  // Undo Rename (Only allowed in Pro)
+  // Undo Rename (Case Pass or Pro)
   const handleUndo = async () => {
     if (!isPro) {
-      showNotification("🔒 Reverting renames is an ExhibitKIT Pro feature.", "warning");
+      showNotification("Reverting renames requires a Case Pass or ExhibitKit Pro.", "warning");
       setIsPricingOpen(true);
       return;
     }
@@ -618,16 +610,9 @@ export default function App() {
     showNotification("🧹 Ingestion cleared successfully.", "success");
   };
 
-  // CSV Map Export utility
+  // CSV Map Export utility (available on Free, including real files within the Free batch limit)
   const handleExportCsv = () => {
     if (items.length === 0) return;
-
-    // Demo Mode can export sample CSV only
-    if (isDemoMode && items[0].file !== null) {
-      showNotification("🔒 CSV exporting for real files is restricted in Demo mode. Upgrade to Pro.", "warning");
-      setIsPricingOpen(true);
-      return;
-    }
 
     try {
       const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
@@ -666,33 +651,22 @@ export default function App() {
   };
 
   // Route Launchers
-  const handleLaunchDemoMode = () => {
-    setIsDemoMode(true);
-    setIsTrialMode(false);
+  const handleLaunchFree = () => {
     setItems([]);
+    setDirectoryHandle(null);
+    setDirectoryName("");
     setAppRoute('workspace');
-    showNotification("⚙️ In workspace in Demo Mode. Load sample data to evaluate.", "info");
-  };
-
-  const handleLaunchTrialMode = () => {
-    if (!hasTrialAvailable()) {
-      showNotification("⚠️ Your free trial batch has been used. Purchase ExhibitKIT Pro to process exhibits.", "warning");
-      setIsPricingOpen(true);
-      return;
-    }
-    setIsTrialMode(true);
-    setIsDemoMode(false);
-    setItems([]);
-    setAppRoute('workspace');
-    showNotification("⏳ Live Trial Batch Active (Max 5 real files).", "info");
+    showNotification(
+      `Free workspace ready — up to ${FREE_MAX_FILES_PER_BATCH} files per batch, or load sample exhibits.`,
+      "info"
+    );
   };
 
   // Layout Renderings
   if (appRoute === 'landing') {
     return (
       <LandingPage 
-        onLaunchDemo={handleLaunchDemoMode}
-        onLaunchTrial={handleLaunchTrialMode}
+        onLaunchFree={handleLaunchFree}
         onOpenPricing={() => setIsPricingOpen(true)}
         theme={theme}
         onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
@@ -710,7 +684,7 @@ export default function App() {
             </div>
             <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Payment Received!</h2>
             <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-              Your ExhibitKIT Pro license key will be delivered to the email used at checkout. Once received, enter the key below to activate this workstation.
+              Your license key will be delivered to the email used at checkout. Enter the key below to restore access on this workstation. Pro access does not expire; Case Pass access lasts 30 consecutive days from purchase.
             </p>
           </div>
 
@@ -760,15 +734,15 @@ export default function App() {
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Checkout Canceled</h2>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-            Checkout was canceled. You can continue testing in Demo Mode or purchase your professional workstation license whenever you are ready.
+            Checkout was canceled. You can continue with Free (up to 5 files per batch) or return to pricing when you are ready.
           </p>
           
           <div style={{ display: 'flex', gap: '12px' }}>
             <button className="btn btn-primary" onClick={() => setIsPricingOpen(true)} style={{ flex: 1, fontSize: '13px' }}>
               Purchase License
             </button>
-            <button className="btn btn-secondary" onClick={() => { setAppRoute('workspace'); setIsDemoMode(true); }} style={{ flex: 1, fontSize: '13px' }}>
-              Launch Demo Mode
+            <button className="btn btn-secondary" onClick={handleLaunchFree} style={{ flex: 1, fontSize: '13px' }}>
+              Rename exhibits free
             </button>
           </div>
         </div>
@@ -849,12 +823,12 @@ export default function App() {
             </div>
 
             <div className="top-bar-badge">
-              {isPro ? (
-                <span className="badge badge-success">Pro</span>
-              ) : isTrialMode ? (
-                <span className="badge badge-warning">Trial</span>
+              {planLabel === 'Pro' || planLabel === 'Firm' ? (
+                <span className="badge badge-success">{planLabel}</span>
+              ) : planLabel === 'Case Pass' ? (
+                <span className="badge badge-warning">Case Pass</span>
               ) : (
-                <span className="badge badge-info">Demo</span>
+                <span className="badge badge-info">Free</span>
               )}
             </div>
 
@@ -1010,8 +984,12 @@ export default function App() {
                 onFilesDrop={handleFilesDrop}
                 isSupported={isDirectoryApiSupported}
               />
-              {/* Quick load sample exhibits button in Demo mode */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+                {!isPro && (
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Free: up to {FREE_MAX_FILES_PER_BATCH} files per batch
+                  </span>
+                )}
                 <button 
                   onClick={handleLoadSampleData} 
                   style={{ 
@@ -1025,7 +1003,7 @@ export default function App() {
                     padding: '4px 8px'
                   }}
                 >
-                  Load Sample Exhibits (Demo)
+                  Load Sample Exhibits
                 </button>
               </div>
             </div>
@@ -1048,7 +1026,7 @@ export default function App() {
                 onClear={handleClear}
                 onExportCsv={handleExportCsv}
                 isPro={isPro}
-                isTrial={isTrialMode}
+                planLabel={planLabel}
                 workstationId={workstation.deviceId}
                 preset={preset}
               />
@@ -1210,7 +1188,7 @@ export default function App() {
       <PricingModal 
         isOpen={isPricingOpen} 
         onClose={() => setIsPricingOpen(false)} 
-        onActivate={handleActivateLicense}
+        onActivated={handleEntitlementActivated}
       />
 
       {/* Legal & Operational support overlays */}
