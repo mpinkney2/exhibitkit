@@ -1,81 +1,104 @@
-# ExhibitKIT | Legal Exhibit Preparation Dashboard
+# ExhibitKit | Message Evidence Exhibits
 
-ExhibitKIT is an enterprise-grade, local-first legal exhibit renaming and indexing utility engineered for high-stakes litigation operations, hot-seat trial operators, paralegals, and legal teams preparing databases for **OnCue** and **TrialDirector**.
+ExhibitKit is a privacy-first browser application that turns exported text-message conversations into organized, tamper-evident, court-ready PDF exhibits — without uploading your evidence.
 
----
+**Headline:** Turn message history into organized, tamper-evident exhibits.
 
-## 🛡️ Trust Architecture: Local-First & Confidential
-
-Confidentiality is paramount in legal document handling. Unlike cloud converters that stream user records to third-party servers:
-- **Zero Document Uploads:** All PDF text parsing, sequencing, and directory restructuring occur entirely locally within your browser sandbox.
-- **Offline Operations:** All live renaming operations are executed directly on your local workstation's hard drive using browser File System Access APIs.
-- **Metadata Protection:** No legal document metadata or content ever leaves your machine.
+**Supporting copy:** Import exported conversations, review and redact what matters, and create a clean PDF tied to the original source—all without uploading your evidence.
 
 ---
 
-## 🔒 Licensing & Access Model
+## What ExhibitKit does
 
-ExhibitKIT utilizes a highly structured three-tier access and licensing layer, designed to support professional trial preparation without exposing intellectual property or core workflows.
+- Native parsing of supported message exports (JSON, CSV, plain text, SMS XML)
+- Local browser processing — no evidence uploaded or stored on ExhibitKit servers
+- True redaction (content removed), not visual overlays
+- SHA-256 fingerprinting of source files
+- Sequential message and page references
+- Declaration-of-authenticity template
+- Verifiable source integrity materials
+- Honest language about admissibility: ExhibitKit does **not** certify authorship or guarantee court admissibility. The hash establishes whether the source file has changed, not who authored the messages.
 
-### 1. Demo Mode
-- **Unrestricted Evaluation:** Complete interface testing using mock datasets containing realistic courtroom names.
-- **Evaluation Sandbox:** Test preset formats (OnCue/TrialDirector), auto-sequencing, case conversions, conflict scanning, and printable HTML session reports.
-- **Restrictions:** Real file drops and local folder reads/writes are strictly blocked.
-
-### 2. One-Time Trial Mode
-- **Workspace Validation:** Ingest and process exactly **one real batch** of up to **5 real PDF files** to confirm compatibility with your workstation filesystem.
-- **Enforcement:** The trial is automatically consumed upon successful live execution. Subsequent directory renames will require manual license activation.
-
-### 3. Pro Active Mode
-- **Professional Toolkit:** Unrestricted local file preparation, unlimited batches and PDFs, direct folder updates, and printable session audit logs.
-- **Matter Profiles:** Pro-only configuration profiles for storing, loading, and switching client case settings in the sidebar.
+A legacy PDF exhibit renaming workspace (OnCue / TrialDirector naming) remains available for Pro/ops testing from the app chrome.
 
 ---
 
-## 💳 Stripe Purchase & License Fulfillment
+## Pricing
 
-- **Pricing:** $150 USD one-time lifetime license key.
-- **Checkout Flow:** Users transition to Stripe Checkout. Once transaction completes, the Stripe Success screen guides the user on entering their license manually (delivered via email).
-- **Manual Activation:** In compliance with security standards, the application remains locked until a valid key is provided manually (no insecure automatic activations).
+| Plan | Price | Notes |
+|------|-------|-------|
+| **Free** | $0 | One conversation at a time, true redaction, clean PDF, sequential refs, no watermark, no account |
+| **Case Pass** | $39 one time | All Pro capabilities for 30 days. No recurring billing |
+| **ExhibitKit Pro** | $149 one time | **Perpetual license** — keep the purchased version permanently; 12 months of updates & support |
+| **Optional updates** | $49 / year | After year one; not an automatic subscription |
+| **Firm** | From $399 | Coming soon / contact us |
+
+Payment is processed separately. Your evidence never enters the payment system.
 
 ---
 
-## 🛠️ Developer Setup & Environment Variables
+## Trust architecture
 
-### Local Installation
+- Message files and generated exhibits remain on the user’s device
+- Payment requests never include filenames, case names, captions, message contents, or hashes
+- No server-side evidence uploads
+- Optional project save is an explicit local JSON download (message bodies omitted by default)
+- Content Security Policy restricts unexpected network destinations from the evidence UI
+
+---
+
+## Developer setup
+
 ```bash
-# Clone the repository
-git clone <repository_url>
-
-# Install dependencies
 npm install
-
-# Run the local Vite dev server
 npm run dev
-
-# Compile production bundle
+npm test
+npm run lint
 npm run build
 ```
 
-### Environment Variables
-Configure a `.env` file in the root directory:
+### Environment variables
+
+Copy `.env.example` to `.env.local` and set Payment Link URLs:
+
 ```env
-# Stripe Payment Configuration
-VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/cNicN59My1tC6VN0ayg7e00
+VITE_STRIPE_CASE_PASS_LINK=https://buy.stripe.com/...
+VITE_STRIPE_PRO_LINK=https://buy.stripe.com/...
+# optional legacy alias:
+VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/...
 ```
 
+### Payment configuration notes
+
+Current hosting is a static Vite SPA. Checkout uses **Stripe Payment Links** (no secret keys in the client).
+
+**Configured today**
+- Client opens Stripe-hosted Payment Links for Pro (and Case Pass when `VITE_STRIPE_CASE_PASS_LINK` is set)
+- Manual license activation with keys (`EKIT-XXXX-XXXX-XXXX` or `EKIT-CASE-XXXX-XXXX`)
+- Entitlements stored locally: `free` | `case_pass` | `pro_perpetual` (+ future `firm`)
+
+**Production hardening blocker (documented, not implemented in this static SPA)**
+- Server-side Checkout Session creation
+- Stripe webhook verification with idempotent event handling
+- Issuing signed license keys only after verified payment
+- Never trust client-supplied entitlement values in a multi-device seat model
+
+Until a secure backend exists, treat Payment Links + emailed keys as the fulfillment path, and keep secret keys off the client.
+
+### Development activation keys
+
+Only available when `import.meta.env.DEV === true`:
+
+- Pro: `PATENTPREPPERS-EXHIBITKIT-PRO`
+- Case Pass: `EKIT-CASE-TEST-0001`
+
 ---
 
-## ⚙️ Production Hardening & Security
+## Scripts
 
-- **Strict Key Shielding:** To prevent bypasses, the developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is evaluated and displayed **ONLY** when `import.meta.env.DEV` is strictly `true`. 
-- **Offline Integrity:** All Stripe API keys and webhooks reside securely on the Stripe platform. No private keys or secret credentials are exposed client-side.
-
----
-
-## 🚀 Enterprise Roadmap
-
-- [ ] **Signed Workstation Seat Tokens:** Integrate public-key cryptography to issue signed activation tokens bound to local workstation device IDs.
-- [ ] **Cloud Webhook Verification:** Establish an express licensing microservice to validate EKIT keys against live Stripe webhook records on launch.
-- [ ] **Enterprise Seat Dashboard:** Firm-wide administrative consoles to provision, monitor, and transfer workstation seats.
-- [ ] **Native Desktop Wrapper:** Package the application using Electron or Tauri for enhanced offline shell integrations.
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Local Vite server |
+| `npm test` | Vitest suite |
+| `npm run lint` | ESLint |
+| `npm run build` | Production bundle |

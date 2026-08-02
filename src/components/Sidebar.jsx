@@ -1,5 +1,4 @@
-import React from 'react';
-import { Settings, RefreshCw, FileText, ToggleLeft, HelpCircle, X } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import MatterProfiles from './MatterProfiles';
 import { APP_VERSION } from '../utils/license';
 

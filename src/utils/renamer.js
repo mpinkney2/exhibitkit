@@ -51,7 +51,7 @@ export function parseFilename(filename) {
 
   // 4. Try matching typical DOD structured pattern from original scripts:
   // e.g., "DOD - 12 - 2012 - Author - Title" or "DOC - 5 - Smith - Memo"
-  const dodPattern = /^(DOD|DOC)?\s*-\s*(\d+[\-\w]*)\s*-\s*(\d{4})?\s*-\s*([^–-]+)\s*[-–]\s*(.+)$/i;
+  const dodPattern = /^(DOD|DOC)?\s*-\s*(\d+[-\w]*)\s*-\s*(\d{4})?\s*-\s*([^–-]+)\s*[-–]\s*(.+)$/i;
   match = base.match(dodPattern);
   if (match) {
     const prefix = match[1] || "DOC";

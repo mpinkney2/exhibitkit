@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Play, RotateCcw, Trash2, Files, CheckSquare, AlertCircle, FileSpreadsheet, ChevronDown, ShieldCheck, Printer, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { Play, RotateCcw, Trash2, Files, CheckSquare, AlertCircle, FileSpreadsheet, ChevronDown, Printer, FileText } from 'lucide-react';
 
 export default function ActionPanel({
   items,

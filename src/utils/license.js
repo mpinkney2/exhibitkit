@@ -1,7 +1,21 @@
 /**
- * ExhibitKIT Licensing & Access Service
- * Handles local license storage, validation, developer bypass, and trial gating.
+ * ExhibitKit Licensing & Access Service
+ * Bridges legacy storage with the Free / Case Pass / Pro perpetual entitlement model.
  */
+
+import { validateKeyFormat, isDevMode, DEV_TEST_KEY } from './licenseFormat';
+import {
+  activateFromKey,
+  clearEntitlement,
+  getEffectiveEntitlement,
+  hasProFeatures,
+  readEntitlement,
+  TIERS,
+  writeEntitlement,
+} from './entitlements';
+
+export { validateKeyFormat, isDevMode, DEV_TEST_KEY };
+export { hasProFeatures, getEffectiveEntitlement, readEntitlement, TIERS };
 
 const LICENSE_KEY_STORAGE = 'exhibitkit_license_key';
 const LICENSE_ACTIVATED_STORAGE = 'exhibitkit_pro_activated';
@@ -10,182 +24,143 @@ const LICENSE_TIMESTAMP_STORAGE = 'exhibitkit_activation_timestamp';
 const TRIAL_USED_STORAGE = 'exhibitkit_trial_used';
 const WORKSTATION_STORAGE = 'exhibitkit_workstation_info';
 
-export const APP_VERSION = 'v0.9.3';
-export const DEV_TEST_KEY = 'PATENTPREPPERS-EXHIBITKIT-PRO';
+export const APP_VERSION = 'v1.0.0';
 
-/**
- * Checks if the application is currently running in development mode.
- * @returns {boolean}
- */
-export function isDevMode() {
-  return import.meta.env.DEV === true;
-}
-
-/**
- * Initializes and retrieves local workstation/device credentials on first app launch.
- * This architecture enables future server-side seat verification, license transfers,
- * and multi-workstation diagnostics.
- * @returns {object} { deviceId, activatedAt, licenseType, trialUsed, appVersion }
- */
 export function initializeWorkstation() {
   let info = localStorage.getItem(WORKSTATION_STORAGE);
   const currentTrialState = localStorage.getItem(TRIAL_USED_STORAGE) === 'true';
+  const entitlement = getEffectiveEntitlement();
 
   if (!info) {
-    // Generate a secure, recognizable local workstation identifier
-    const deviceId = 'EKIT-WORKSTATION-' + 
-      Math.random().toString(36).substring(2, 15).toUpperCase() + '-' + 
+    const deviceId =
+      'EKIT-WORKSTATION-' +
+      Math.random().toString(36).substring(2, 15).toUpperCase() +
+      '-' +
       Math.random().toString(36).substring(2, 6).toUpperCase();
 
     const newInfo = {
       deviceId,
-      activatedAt: null,
-      licenseType: 'none',
+      activatedAt: entitlement.purchasedAt,
+      licenseType: entitlement.tier,
       trialUsed: currentTrialState,
-      appVersion: APP_VERSION
+      appVersion: APP_VERSION,
     };
     localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(newInfo));
     return newInfo;
   }
 
-  // Ensure local cached workstation info matches current trial state and version
   try {
     const parsed = JSON.parse(info);
     parsed.trialUsed = currentTrialState;
     parsed.appVersion = APP_VERSION;
+    parsed.licenseType = entitlement.tier;
+    parsed.activatedAt = entitlement.purchasedAt;
     localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(parsed));
     return parsed;
-  } catch (e) {
-    // Fallback reset on corrupted JSON
+  } catch {
     localStorage.removeItem(WORKSTATION_STORAGE);
     return initializeWorkstation();
   }
 }
 
-/**
- * Exposes workstation metadata.
- * @returns {object}
- */
 export function getWorkstationInfo() {
   return initializeWorkstation();
 }
 
-/**
- * Returns current license information.
- * @returns {object} { active: boolean, key: string|null, timestamp: string|null, type: string|null }
- */
 export function getLicenseStatus() {
-  const active = localStorage.getItem(LICENSE_ACTIVATED_STORAGE) === 'true';
-  const key = localStorage.getItem(LICENSE_KEY_STORAGE);
-  const type = localStorage.getItem(LICENSE_TYPE_STORAGE);
-  const timestamp = localStorage.getItem(LICENSE_TIMESTAMP_STORAGE);
-
-  return { active, key, timestamp, type };
+  const entitlement = getEffectiveEntitlement();
+  const active = hasProFeatures();
+  return {
+    active,
+    key: entitlement.key || localStorage.getItem(LICENSE_KEY_STORAGE),
+    timestamp: entitlement.purchasedAt || localStorage.getItem(LICENSE_TIMESTAMP_STORAGE),
+    type: entitlement.tier,
+    entitlement,
+  };
 }
 
 /**
- * Validates a license key format.
- * Format allowed: EKIT-XXXX-XXXX-XXXX where X are alphanumeric characters.
- * @param {string} key 
- * @returns {boolean}
+ * Activates a license key (Case Pass or Pro perpetual).
+ * @param {string} key
+ * @param {string} [type] - optional forced tier
  */
-export function validateKeyFormat(key) {
-  const cleanKey = (key || '').trim().toUpperCase();
+export function activateLicense(key, type) {
+  const options = type ? { tier: type === 'lifetime' ? TIERS.PRO_PERPETUAL : type } : {};
+  const entitlement = activateFromKey(key, options);
+  if (!entitlement) return false;
 
-  // 1. Allow the developer test key ONLY in development mode.
-  // In production, this key must be completely ignored as a valid key.
-  if (isDevMode() && cleanKey === DEV_TEST_KEY) {
-    return true;
-  }
+  // Keep legacy flags in sync for older UI paths
+  localStorage.setItem(LICENSE_ACTIVATED_STORAGE, 'true');
+  localStorage.setItem(LICENSE_KEY_STORAGE, entitlement.key);
+  localStorage.setItem(LICENSE_TYPE_STORAGE, entitlement.tier);
+  localStorage.setItem(LICENSE_TIMESTAMP_STORAGE, entitlement.purchasedAt);
 
-  // 2. Standard product license format validation
-  // Matches EKIT-XXXX-XXXX-XXXX
-  const licenseRegex = /^EKIT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-  return licenseRegex.test(cleanKey);
+  const info = getWorkstationInfo();
+  info.activatedAt = entitlement.purchasedAt;
+  info.licenseType = entitlement.tier;
+  localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(info));
+  return true;
 }
 
-/**
- * Activates a license key if valid.
- * @param {string} key 
- * @param {string} [type='lifetime'] 
- * @returns {boolean} True if successfully activated, false otherwise.
- */
-export function activateLicense(key, type = 'lifetime') {
-  const cleanKey = (key || '').trim().toUpperCase();
-
-  if (validateKeyFormat(cleanKey)) {
-    localStorage.setItem(LICENSE_ACTIVATED_STORAGE, 'true');
-    localStorage.setItem(LICENSE_KEY_STORAGE, cleanKey);
-    localStorage.setItem(LICENSE_TYPE_STORAGE, type);
-    localStorage.setItem(LICENSE_TIMESTAMP_STORAGE, new Date().toISOString());
-
-    // Update the local workstation state
-    const info = getWorkstationInfo();
-    info.activatedAt = new Date().toISOString();
-    info.licenseType = type;
-    localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(info));
-
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Deactivates and clears the current license key.
- */
 export function deactivateLicense() {
+  clearEntitlement();
   localStorage.removeItem(LICENSE_ACTIVATED_STORAGE);
   localStorage.removeItem(LICENSE_KEY_STORAGE);
   localStorage.removeItem(LICENSE_TYPE_STORAGE);
   localStorage.removeItem(LICENSE_TIMESTAMP_STORAGE);
 
-  // Clear activation state on the workstation
   const info = getWorkstationInfo();
   info.activatedAt = null;
-  info.licenseType = 'none';
+  info.licenseType = TIERS.FREE;
   localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(info));
 }
 
 /**
- * Checks if the user has Pro access (valid active license).
- * TODO: Server-side license validation to verify key integrity against Stripe records.
- * TODO: Account-based license lookup via customer emails.
- * TODO: Email-based license recovery service.
- * @returns {boolean}
+ * Pro access = Case Pass (unexpired) or Pro perpetual / Firm.
+ * Migrates legacy lifetime activations into pro_perpetual on first read.
  */
 export function hasProAccess() {
-  const { active, key } = getLicenseStatus();
-  if (!active || !key) return false;
-
-  // Additional security check: ensure stored key format remains valid
-  return validateKeyFormat(key);
+  migrateLegacyLicenseIfNeeded();
+  return hasProFeatures();
 }
 
-/**
- * Checks if the user has a trial batch available (i.e. has not used it yet).
- * @returns {boolean}
- */
+function migrateLegacyLicenseIfNeeded() {
+  const entitlement = readEntitlement();
+  if (entitlement.tier !== TIERS.FREE) return;
+
+  const legacyActive = localStorage.getItem(LICENSE_ACTIVATED_STORAGE) === 'true';
+  const legacyKey = localStorage.getItem(LICENSE_KEY_STORAGE);
+  const legacyType = localStorage.getItem(LICENSE_TYPE_STORAGE);
+  if (!legacyActive || !legacyKey || !validateKeyFormat(legacyKey)) return;
+
+  const purchasedAt = localStorage.getItem(LICENSE_TIMESTAMP_STORAGE) || new Date().toISOString();
+  if (legacyType === 'case_pass' || legacyKey.startsWith('EKIT-CASE-')) {
+    activateFromKey(legacyKey, { tier: TIERS.CASE_PASS, purchasedAt });
+  } else {
+    const updatesUntil = new Date(
+      new Date(purchasedAt).getTime() + 365 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    writeEntitlement({
+      tier: TIERS.PRO_PERPETUAL,
+      key: legacyKey.trim().toUpperCase(),
+      purchasedAt,
+      expiresAt: null,
+      updatesUntil,
+    });
+  }
+}
+
 export function hasTrialAvailable() {
   return localStorage.getItem(TRIAL_USED_STORAGE) !== 'true';
 }
 
-/**
- * Marks the one-time trial batch as consumed.
- */
 export function markTrialUsed() {
   localStorage.setItem(TRIAL_USED_STORAGE, 'true');
-
-  // Update workstation info
   const info = getWorkstationInfo();
   info.trialUsed = true;
   localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(info));
 }
 
-/**
- * Resets the trial state (useful for developer testing or resetting trials).
- * Only accessible in development.
- */
 export function resetTrialState() {
   if (isDevMode()) {
     localStorage.removeItem(TRIAL_USED_STORAGE);
@@ -193,4 +168,12 @@ export function resetTrialState() {
     info.trialUsed = false;
     localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(info));
   }
+}
+
+export function getEntitlementLabel() {
+  const e = getEffectiveEntitlement();
+  if (e.tier === TIERS.PRO_PERPETUAL) return 'Pro';
+  if (e.tier === TIERS.CASE_PASS) return 'Case Pass';
+  if (e.tier === TIERS.FIRM) return 'Firm';
+  return 'Free';
 }

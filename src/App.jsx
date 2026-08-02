@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldAlert, Info, AlertTriangle, ShieldCheck, ArrowLeft, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
 import PreviewTable from './components/PreviewTable';
@@ -7,6 +7,8 @@ import ActionPanel from './components/ActionPanel';
 import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
+import MessageWorkspace from './components/MessageWorkspace';
+import './components/MessageWorkspace.css';
 import JSZip from 'jszip';
 import { 
   hasProAccess, 
@@ -14,8 +16,13 @@ import {
   markTrialUsed, 
   getWorkstationInfo, 
   activateLicense, 
-  deactivateLicense 
+  deactivateLicense,
+  getEffectiveEntitlement,
+  getEntitlementLabel,
+  TIERS,
 } from './utils/license';
+import { startCheckout } from './utils/payment';
+import { installEvidenceNetworkGuard } from './utils/privacyGuard';
 import { 
   parseFilename, 
   generateProposedFilename, 
@@ -25,17 +32,37 @@ import {
   formatCase
 } from './utils/renamer';
 
+function readStripeRouteFromLocation() {
+  if (typeof window === 'undefined') {
+    return { route: 'landing', product: null, shouldCleanUrl: false };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const stripeStatus = params.get('stripe_status');
+  const product = params.get('product');
+  if (stripeStatus === 'success') {
+    return { route: 'stripe_success', product, shouldCleanUrl: true };
+  }
+  if (stripeStatus === 'cancel') {
+    return { route: 'stripe_cancel', product, shouldCleanUrl: true };
+  }
+  return { route: 'landing', product: null, shouldCleanUrl: false };
+}
+
 export default function App() {
-  // Application Mode Routing: 'landing' | 'workspace' | 'stripe_success' | 'stripe_cancel'
-  const [appRoute, setAppRoute] = useState('landing');
+  const initialStripe = readStripeRouteFromLocation();
+
+  // Application Mode Routing: 'landing' | 'messages' | 'workspace' | 'stripe_success' | 'stripe_cancel'
+  const [appRoute, setAppRoute] = useState(initialStripe.route);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [renameStats, setRenameStats] = useState({ count: 0, conflicts: 0, time: "0.0s" });
   const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'dark');
+  const [checkoutProduct] = useState(initialStripe.product);
   
   // Workspace Tier States
   const [isPro, setIsPro] = useState(() => hasProAccess());
+  const [tierLabel, setTierLabel] = useState(() => getEntitlementLabel());
   const [isTrialMode, setIsTrialMode] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
 
@@ -75,27 +102,17 @@ export default function App() {
 
   const isDirectoryApiSupported = 'showDirectoryPicker' in window;
 
-  // Sync workstation info on load
+  // Privacy: block unexpected evidence upload attempts from the processing context
   useEffect(() => {
-    setWorkstation(getWorkstationInfo());
-    if (hasProAccess()) {
-      setIsPro(true);
-      setAppRoute('workspace');
-    }
+    return installEvidenceNetworkGuard();
   }, []);
 
-  // Parse Stripe Success/Cancel call routes from URL params on load
+  // Clean Stripe query params after initial route hydration
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const stripeStatus = params.get('stripe_status');
-    if (stripeStatus === 'success') {
-      setAppRoute('stripe_success');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (stripeStatus === 'cancel') {
-      setAppRoute('stripe_cancel');
+    if (initialStripe.shouldCleanUrl) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [initialStripe.shouldCleanUrl]);
 
   // Apply theme class to document body
   useEffect(() => {
@@ -107,29 +124,61 @@ export default function App() {
     localStorage.setItem('exhibitkit_theme', theme);
   }, [theme]);
 
+  const refreshEntitlementState = () => {
+    setIsPro(hasProAccess());
+    setTierLabel(getEntitlementLabel());
+    setWorkstation(getWorkstationInfo());
+  };
+
   const handleActivateLicense = (key) => {
     const success = activateLicense(key);
     if (success) {
-      setIsPro(true);
+      refreshEntitlementState();
       setIsTrialMode(false);
       setIsDemoMode(false);
       setIsPricingOpen(false);
       setActivationError('');
-      setAppRoute('workspace');
-      showNotification("🎉 ExhibitKIT Pro unlocked successfully! Workstation registered.", "success");
+      setAppRoute('messages');
+      const entitlement = getEffectiveEntitlement();
+      const label =
+        entitlement.tier === TIERS.CASE_PASS ? 'Case Pass' : 'ExhibitKit Pro';
+      showNotification(`${label} activated. Evidence still stays on this device.`, 'success');
     } else {
-      setActivationError("❌ Invalid license key format. Please double-check your purchase email.");
+      setActivationError('Invalid license key format. Please double-check your purchase email.');
     }
   };
 
   const handleDeactivate = () => {
     deactivateLicense();
-    setIsPro(false);
+    refreshEntitlementState();
     setItems([]);
     setDirectoryHandle(null);
-    setDirectoryName("");
+    setDirectoryName('');
     setAppRoute('landing');
-    showNotification("🔓 Workstation license deactivated.", "info");
+    showNotification('License deactivated. Local exhibits on disk were not deleted.', 'info');
+  };
+
+  const handlePurchaseCasePass = () => {
+    const result = startCheckout('case_pass');
+    if (result.status === 'configuration_required') {
+      setIsPricingOpen(true);
+      showNotification(
+        'Case Pass checkout link is not configured yet. You can still activate with a Case Pass key, or set VITE_STRIPE_CASE_PASS_LINK.',
+        'warning'
+      );
+      return;
+    }
+    showNotification('Opening Case Pass checkout. Evidence is not sent to payment.', 'info');
+  };
+
+  const handlePurchasePro = () => {
+    const result = startCheckout('pro_perpetual');
+    if (result.status === 'configuration_required') {
+      setIsPricingOpen(true);
+      showNotification(result.error, 'warning');
+      return;
+    }
+    showNotification('Opening ExhibitKit Pro checkout. Evidence is not sent to payment.', 'info');
   };
 
   // Helper to trigger alert notifications
@@ -183,10 +232,12 @@ export default function App() {
 
   // Re-run proposed name generation when sidebar options update (if not frozen)
   useEffect(() => {
-    if (items.length > 0 && !isPreviewFreezed) {
-      setItems(prevItems => updateProposedNames(prevItems));
-    }
-  }, [preset, prefix, startNumber, padLength, caseStyle, customTemplate, cleanDesc]);
+    if (items.length === 0 || isPreviewFreezed) return undefined;
+    const frame = requestAnimationFrame(() => {
+      setItems((prevItems) => updateProposedNames(prevItems));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [preset, prefix, startNumber, padLength, caseStyle, customTemplate, cleanDesc, isPreviewFreezed, items.length]);
 
   // Apply Matter Profile settings
   const handleApplyProfileSettings = (settings) => {
@@ -666,17 +717,25 @@ export default function App() {
   };
 
   // Route Launchers
+  const handleStartFree = () => {
+    setIsDemoMode(false);
+    setIsTrialMode(false);
+    setAppRoute('messages');
+    showNotification('Free message exhibit workspace ready. Nothing is uploaded.', 'info');
+  };
+
   const handleLaunchDemoMode = () => {
+    // Legacy rename sandbox retained for Pro/ops testing
     setIsDemoMode(true);
     setIsTrialMode(false);
     setItems([]);
     setAppRoute('workspace');
-    showNotification("⚙️ In workspace in Demo Mode. Load sample data to evaluate.", "info");
+    showNotification('Legacy rename demo opened. Message exhibits are available from Home.', 'info');
   };
 
   const handleLaunchTrialMode = () => {
     if (!hasTrialAvailable()) {
-      showNotification("⚠️ Your free trial batch has been used. Purchase ExhibitKIT Pro to process exhibits.", "warning");
+      showNotification('Legacy rename trial used. Use Free message exhibits or purchase Pro.', 'warning');
       setIsPricingOpen(true);
       return;
     }
@@ -684,23 +743,60 @@ export default function App() {
     setIsDemoMode(false);
     setItems([]);
     setAppRoute('workspace');
-    showNotification("⏳ Live Trial Batch Active (Max 5 real files).", "info");
+    showNotification('Legacy rename trial active (max 5 PDF files).', 'info');
   };
 
   // Layout Renderings
   if (appRoute === 'landing') {
     return (
-      <LandingPage 
-        onLaunchDemo={handleLaunchDemoMode}
-        onLaunchTrial={handleLaunchTrialMode}
-        onOpenPricing={() => setIsPricingOpen(true)}
-        theme={theme}
-        onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-      />
+      <>
+        <LandingPage
+          onStartFree={handleStartFree}
+          onOpenPricing={() => setIsPricingOpen(true)}
+          onPurchaseCasePass={handlePurchaseCasePass}
+          onPurchasePro={handlePurchasePro}
+          theme={theme}
+          onToggleTheme={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+        />
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+          onActivate={handleActivateLicense}
+        />
+        {notification.show && (
+          <div className={`notification ${notification.type}`}>
+            <div className="notification-message">{notification.message}</div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  if (appRoute === 'messages') {
+    return (
+      <>
+        <MessageWorkspace
+          onBack={() => setAppRoute('landing')}
+          onOpenPricing={() => setIsPricingOpen(true)}
+          showNotification={showNotification}
+        />
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+          onActivate={handleActivateLicense}
+        />
+        {notification.show && (
+          <div className={`notification ${notification.type}`}>
+            <div className="notification-message">{notification.message}</div>
+          </div>
+        )}
+      </>
     );
   }
 
   if (appRoute === 'stripe_success') {
+    const productLabel =
+      checkoutProduct === 'case_pass' ? 'Case Pass' : 'ExhibitKit Pro perpetual license';
     return (
       <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div className="glass-panel" style={{ maxWidth: '520px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', border: '1px solid var(--status-success-border)' }}>
@@ -708,25 +804,26 @@ export default function App() {
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--status-success-bg)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
               <ShieldCheck size={26} />
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Payment Received!</h2>
+            <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Payment received</h2>
             <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-              Your ExhibitKIT Pro license key will be delivered to the email used at checkout. Once received, enter the key below to activate this workstation.
+              Your {productLabel} key will be emailed after checkout. Enter it below to activate this browser. Payment is processed separately — your evidence never enters the payment system.
             </p>
           </div>
 
           <form onSubmit={(e) => { e.preventDefault(); handleActivateLicense(licenseInputValue); }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Activation License Key</label>
+              <label className="form-label" htmlFor="stripe-success-key">Activation license key</label>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input 
+                  id="stripe-success-key"
                   type="text" 
                   value={licenseInputValue} 
                   onChange={(e) => setLicenseInputValue(e.target.value)} 
-                  placeholder="Format: EKIT-XXXX-XXXX-XXXX"
+                  placeholder="EKIT-XXXX-XXXX-XXXX or EKIT-CASE-XXXX-XXXX"
                   style={{ flex: 1, fontSize: '13px' }}
                 />
                 <button type="submit" className="btn btn-success" style={{ flexShrink: 0 }}>
-                  Activate Pro
+                  Activate
                 </button>
               </div>
             </div>
@@ -740,11 +837,11 @@ export default function App() {
           </form>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11.5px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-            <span>📧 Technical issues or license recovery? Contact <a href="mailto:support@patentpreppers.com" style={{ color: 'var(--text-secondary)' }}>support@patentpreppers.com</a></span>
+            <span>License recovery: <a href="mailto:support@patentpreppers.com" style={{ color: 'var(--text-secondary)' }}>support@patentpreppers.com</a></span>
           </div>
 
-          <button className="btn btn-secondary" onClick={() => setAppRoute('workspace')} style={{ width: '100%', fontSize: '13px' }}>
-            <ArrowLeft size={14} /> Continue to Demo Workspace
+          <button className="btn btn-secondary" onClick={() => setAppRoute('messages')} style={{ width: '100%', fontSize: '13px' }}>
+            <ArrowLeft size={14} /> Continue to exhibit workspace
           </button>
         </div>
       </div>
@@ -758,20 +855,25 @@ export default function App() {
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
             <Info size={24} />
           </div>
-          <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Checkout Canceled</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Checkout canceled</h2>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-            Checkout was canceled. You can continue testing in Demo Mode or purchase your professional workstation license whenever you are ready.
+            No charge was made. You can keep building exhibits on the free plan or return to pricing when ready.
           </p>
           
           <div style={{ display: 'flex', gap: '12px' }}>
             <button className="btn btn-primary" onClick={() => setIsPricingOpen(true)} style={{ flex: 1, fontSize: '13px' }}>
-              Purchase License
+              View pricing
             </button>
-            <button className="btn btn-secondary" onClick={() => { setAppRoute('workspace'); setIsDemoMode(true); }} style={{ flex: 1, fontSize: '13px' }}>
-              Launch Demo Mode
+            <button className="btn btn-secondary" onClick={handleStartFree} style={{ flex: 1, fontSize: '13px' }}>
+              Build an exhibit free
             </button>
           </div>
         </div>
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+          onActivate={handleActivateLicense}
+        />
       </div>
     );
   }
@@ -845,12 +947,12 @@ export default function App() {
               }}
             >
               <div className="top-bar-logo-mark" aria-hidden="true">⚖</div>
-              <span className="top-bar-logo-text">ExhibitKIT</span>
+              <span className="top-bar-logo-text">ExhibitKit</span>
             </div>
 
             <div className="top-bar-badge">
               {isPro ? (
-                <span className="badge badge-success">Pro</span>
+                <span className="badge badge-success">{tierLabel}</span>
               ) : isTrialMode ? (
                 <span className="badge badge-warning">Trial</span>
               ) : (
@@ -914,6 +1016,13 @@ export default function App() {
               <button
                 type="button"
                 className="top-bar-link text-link-hover"
+                onClick={() => setAppRoute('messages')}
+              >
+                Message exhibits
+              </button>
+              <button
+                type="button"
+                className="top-bar-link text-link-hover"
                 onClick={() => setActiveModal('how')}
               >
                 How to Use
@@ -973,6 +1082,36 @@ export default function App() {
                       }}
                     >
                       Home
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        setAppRoute('messages');
+                      }}
+                    >
+                      Message exhibits
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        handleLaunchDemoMode();
+                      }}
+                    >
+                      Legacy rename demo
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        handleLaunchTrialMode();
+                      }}
+                    >
+                      Legacy rename trial
                     </button>
                     <button
                       type="button"

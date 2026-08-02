@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Upload, FolderOpen, AlertCircle, HelpCircle } from 'lucide-react';
+import { useState } from 'react';
+import { FolderOpen, AlertCircle } from 'lucide-react';
 
 export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }) {
-  const [dragActive, setDragActive] = useState(false);
+  const [, setDragActive] = useState(false);
 
   const handleDrag = (e) => {
     e.preventDefault();
