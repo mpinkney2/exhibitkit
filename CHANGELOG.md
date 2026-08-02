@@ -1,6 +1,25 @@
 # Changelog
 
-All notable changes to the **ExhibitKIT** litigation preparation utility will be documented in this file.
+All notable changes to **ExhibitKit** will be documented in this file.
+
+---
+
+## [1.0.0] - 2026-08-02
+
+### Repositioned
+- Primary product focus is now **message-evidence preparation**: import conversation exports, redact locally, and export tamper-evident PDF exhibits.
+- Branding standardized to **ExhibitKit** (perpetual license terminology replaces “lifetime”).
+
+### Added
+- Free / Case Pass ($39) / Pro perpetual ($149) / Firm (coming soon) pricing section with comparison table and FAQ.
+- Browser-local project model (matter, caption, source SHA-256, selected/redacted messages).
+- Local PDF pipeline: sequential refs, declaration template, Pro cover/index/integrity/binder/ZIP.
+- Entitlement model (`free`, `case_pass`, `pro_perpetual`, future `firm`) with Case Pass expiration that never deletes local files.
+- Payment adapter around Stripe Payment Links; privacy-safe checkout payloads; evidence network guard + CSP.
+- Vitest suite covering pricing, entitlements, hashing, redaction, PDF export, payment privacy, and upload blocking.
+
+### Preserved
+- Legacy PDF rename workspace remains available for Pro/ops testing.
 
 ---
 

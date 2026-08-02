@@ -1,4 +1,3 @@
-import React from 'react';
 import { Table } from 'lucide-react';
 
 export default function PreviewTable({
