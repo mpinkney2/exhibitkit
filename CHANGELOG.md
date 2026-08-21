@@ -4,6 +4,16 @@ All notable changes to the **ExhibitKIT** litigation preparation utility will be
 
 ---
 
+## [0.10.1] - 2026-08-21
+
+### Added — Founder admin live-test console
+- Secret-gated founder panel (`/?founder=1`, `#founder`, or Ctrl+Shift+F)
+- Stage switches: Free, Case Pass (active/expired/pending), Pro (updates included/lapsed)
+- Surface jumps: landing, workspace, Stripe success/cancel, pricing modal
+- Docs: `docs/FOUNDER_ADMIN.md`, `.env.example` (`VITE_FOUNDER_ADMIN_SECRET`)
+
+---
+
 ## [0.10.0] - 2026-08-02
 
 ### Changed — Pricing model migration
