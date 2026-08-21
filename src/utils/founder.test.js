@@ -33,17 +33,19 @@ describe('founder admin access', () => {
     expect(isFounderUnlocked()).toBe(false);
   });
 
+  it('always resolves a usable founder secret', async () => {
+    vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', '');
+    const { DEFAULT_FOUNDER_SECRET, getFounderSecret, unlockFounder, isFounderAdminConfigured } = await import('./founder.js');
+    expect(isFounderAdminConfigured()).toBe(true);
+    expect(getFounderSecret()).toBe(DEFAULT_FOUNDER_SECRET);
+    expect(unlockFounder(DEFAULT_FOUNDER_SECRET).ok).toBe(true);
+  });
+
   it('uses DEV default secret when env is unset', async () => {
     vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', '');
-    vi.stubEnv('DEV', true);
-    // Vitest/Vite sets import.meta.env.DEV from mode; assert DEFAULT is used when secret empty in DEV
     const { DEFAULT_FOUNDER_SECRET, getFounderSecret, unlockFounder } = await import('./founder.js');
-    // If DEV is true in this environment, secret falls back
-    const secret = getFounderSecret();
-    if (secret) {
-      expect(secret === DEFAULT_FOUNDER_SECRET || secret.length > 0).toBe(true);
-      expect(unlockFounder(secret).ok).toBe(true);
-    }
+    expect(getFounderSecret()).toBe(DEFAULT_FOUNDER_SECRET);
+    expect(unlockFounder(DEFAULT_FOUNDER_SECRET).ok).toBe(true);
   });
 });
 

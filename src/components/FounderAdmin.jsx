@@ -8,6 +8,7 @@ import {
   shouldOfferFounderEntry,
   clearFounderQueryFromUrl,
   DEFAULT_FOUNDER_SECRET,
+  isUsingDefaultFounderSecret,
 } from '../utils/founder.js';
 import {
   getEntitlement,
@@ -103,6 +104,7 @@ export default function FounderAdmin({
   if (!visible) return null;
 
   const configured = isFounderAdminConfigured();
+  const usingDefaultSecret = isUsingDefaultFounderSecret();
   const checkout = getCheckoutConfig();
   const current = entitlement || getEntitlement();
   const workstation = getWorkstationInfo();
@@ -169,11 +171,6 @@ export default function FounderAdmin({
 
       {!unlocked ? (
         <form onSubmit={handleUnlock} style={{ display: 'grid', gap: 8 }}>
-          {!configured && (
-            <div style={{ color: '#f87171' }}>
-              Founder admin is not configured. Set <code>VITE_FOUNDER_ADMIN_SECRET</code> for this build.
-            </div>
-          )}
           <label style={{ display: 'grid', gap: 4 }}>
             <span style={{ color: 'var(--color-text-muted, #9ca3af)' }}>Founder secret</span>
             <input
@@ -196,9 +193,9 @@ export default function FounderAdmin({
               <Unlock size={13} /> Unlock founder admin
             </span>
           </button>
-          {isDevMode() && (
+          {usingDefaultSecret && (
             <div style={{ color: 'var(--color-text-muted, #9ca3af)' }}>
-              DEV default secret: <code>{DEFAULT_FOUNDER_SECRET}</code>
+              Default secret: <code>{DEFAULT_FOUNDER_SECRET}</code>
             </div>
           )}
           {error && <div style={{ color: '#f87171' }}>{error}</div>}

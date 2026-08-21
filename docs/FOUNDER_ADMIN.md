@@ -16,8 +16,8 @@ Alternate entry:
 
 | Build | Secret |
 |-------|--------|
-| Local DEV (`npm run dev`) | `ekit-founder-2026` (default when `VITE_FOUNDER_ADMIN_SECRET` is unset) |
-| Preview / production | Must set `VITE_FOUNDER_ADMIN_SECRET` at build time (see `.env.example`) |
+| Any build (default) | `ekit-founder-2026` |
+| Custom host | Set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` / host env (overrides default) |
 
 Session unlock is stored in `sessionStorage` for the browser tab only. Click **Lock** to end the session.
 

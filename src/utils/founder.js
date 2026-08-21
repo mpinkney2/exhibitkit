@@ -6,11 +6,11 @@
  *   2. Enter the founder secret
  *
  * Secret resolution:
- *   - VITE_FOUNDER_ADMIN_SECRET if set (required for production builds)
- *   - In Vite DEV mode only, falls back to DEFAULT_FOUNDER_SECRET
+ *   - VITE_FOUNDER_ADMIN_SECRET if set
+ *   - otherwise DEFAULT_FOUNDER_SECRET (`ekit-founder-2026`)
  *
- * This is a live-test console for entitlement stages. It does not replace
- * Stripe-verified purchases and must not be treated as customer licensing.
+ * Prefer setting a custom VITE_FOUNDER_ADMIN_SECRET on public hosts.
+ * This is a live-test console for entitlement stages — not customer licensing.
  */
 
 export const DEFAULT_FOUNDER_SECRET = 'ekit-founder-2026';
@@ -25,27 +25,20 @@ function envSecret() {
   }
 }
 
-function isDev() {
-  try {
-    return import.meta.env?.DEV === true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The secret that unlocks founder admin for this build.
- * Empty string means founder admin cannot unlock (production without env).
+ * Always resolves to a usable secret so local/preview testing is not blocked.
  */
 export function getFounderSecret() {
-  const configured = envSecret();
-  if (configured) return configured;
-  if (isDev()) return DEFAULT_FOUNDER_SECRET;
-  return '';
+  return envSecret() || DEFAULT_FOUNDER_SECRET;
 }
 
 export function isFounderAdminConfigured() {
   return Boolean(getFounderSecret());
+}
+
+export function isUsingDefaultFounderSecret() {
+  return !envSecret();
 }
 
 /**
@@ -76,12 +69,6 @@ export function isFounderUnlocked() {
  */
 export function unlockFounder(candidate) {
   const expected = getFounderSecret();
-  if (!expected) {
-    return {
-      ok: false,
-      error: 'Founder admin is not configured for this build. Set VITE_FOUNDER_ADMIN_SECRET.',
-    };
-  }
   if ((candidate || '').trim() !== expected) {
     return { ok: false, error: 'Incorrect founder secret.' };
   }
