@@ -1051,6 +1051,10 @@ table.exhibit-table {
   text-align: left;
 }
 
+table.exhibit-table--resizable {
+  table-layout: fixed;
+}
+
 table.exhibit-table th {
   position: sticky;
   top: 0;
@@ -1065,6 +1069,59 @@ table.exhibit-table th {
   color: var(--color-text-muted);
   z-index: 2;
   height: 44px;
+}
+
+.exhibit-th-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  padding-right: 8px;
+}
+
+.exhibit-th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exhibit-col-resizer {
+  position: absolute;
+  top: -12px;
+  right: -16px;
+  width: 10px;
+  height: calc(100% + 24px);
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+
+.exhibit-col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background-color var(--transition-fast);
+}
+
+.exhibit-col-resizer:hover::after,
+.exhibit-col-resizer:active::after {
+  background: var(--color-accent);
+}
+
+table.exhibit-table--resizable td,
+table.exhibit-table--resizable th {
+  overflow: hidden;
+}
+
+table.exhibit-table--resizable .original-filename-cell,
+table.exhibit-table--resizable .proposed-filename-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 table.exhibit-table td {
