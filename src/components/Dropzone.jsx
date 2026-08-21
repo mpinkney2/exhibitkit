@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, FolderOpen, AlertCircle, HelpCircle } from 'lucide-react';
+import { useState } from 'react';
+import { FolderOpen, AlertCircle } from 'lucide-react';
 
 export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }) {
   const [dragActive, setDragActive] = useState(false);
@@ -60,14 +60,16 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
         maxWidth: '560px',
         width: '100%',
         backgroundColor: 'var(--color-surface-1)',
-        border: '1px solid var(--color-border)',
+        border: dragActive ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
         borderRadius: '12px',
         padding: '48px 40px',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        textAlign: 'center'
+        textAlign: 'center',
+        transition: 'border-color 0.15s ease, background-color 0.15s ease',
+        background: dragActive ? 'rgba(37, 99, 235, 0.04)' : 'var(--color-surface-1)'
       }}>
         {/* Upload Icon: FolderOpen thin-stroke */}
         <div style={{ color: 'var(--color-text-muted)', marginBottom: '20px' }}>

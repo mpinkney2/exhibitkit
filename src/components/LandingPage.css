@@ -144,19 +144,34 @@
 .landing-cloud-card { padding: 14px 17px; display: flex; justify-content: space-between; border: 1px dashed #394861; border-radius: 9px; color: #6f8098; font-size: 9px; }
 .landing-cloud-card strong { color: #8494aa; }
 
-.landing-pricing { display: grid; grid-template-columns: 1fr 430px; gap: 100px; align-items: center; }
-.landing-pricing-copy .landing-text-button { margin-top: 18px; }
-.landing-price-card { padding: 32px; border: 1px solid var(--landing-line); border-radius: 16px; background: var(--landing-card); box-shadow: 0 24px 70px rgba(15,23,42,.11); }
+.landing-pricing { width: min(1080px, calc(100% - 48px)); }
+.landing-pricing-heading { max-width: 720px; text-align: center; margin: 0 auto; }
+.landing-pricing-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 54px; align-items: stretch; }
+.landing-price-card { display: flex; flex-direction: column; padding: 32px; border: 1px solid var(--landing-line); border-radius: 16px; background: var(--landing-card); box-shadow: 0 24px 70px rgba(15,23,42,.08); }
+.landing-price-card-pro { border-color: rgba(37,99,235,.58); box-shadow: 0 24px 70px rgba(37,99,235,.13); }
 .landing-price-topline { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; }
 .landing-price-topline em { padding: 4px 8px; border-radius: 99px; color: var(--landing-blue); background: rgba(37,99,235,.09); font-size: 9px; font-style: normal; letter-spacing: .08em; text-transform: uppercase; }
-.landing-price { display: flex; align-items: center; gap: 12px; margin: 28px 0; padding-bottom: 26px; border-bottom: 1px solid var(--landing-line); }
+.landing-price { display: flex; align-items: center; gap: 12px; margin: 28px 0 18px; }
 .landing-price strong { font-size: 54px; line-height: 1; letter-spacing: -.06em; }
 .landing-price span { color: var(--landing-muted); font-size: 10px; line-height: 1.5; }
-.landing-price-card ul { display: grid; gap: 13px; margin: 0 0 28px; list-style: none; color: var(--landing-muted); font-size: 12px; }
+.landing-price-description { min-height: 49px; margin: 0; padding-bottom: 22px; border-bottom: 1px solid var(--landing-line); color: var(--landing-muted); font-size: 12px; line-height: 1.65; }
+.landing-price-card ul { display: grid; gap: 13px; margin: 24px 0 28px; padding: 0; list-style: none; color: var(--landing-muted); font-size: 12px; }
 .landing-price-card li { display: flex; align-items: center; gap: 9px; }
 .landing-price-card li svg { color: var(--color-success); }
-.landing-price-card .landing-primary-button { width: 100%; }
+.landing-price-card .landing-primary-button, .landing-secondary-button { width: 100%; margin-top: auto; }
+.landing-secondary-button { min-height: 47px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--landing-line); border-radius: 9px; color: var(--landing-ink); background: var(--landing-soft); font-size: 13.5px; font-weight: 650; }
+.landing-secondary-button:hover { border-color: var(--landing-blue); color: var(--landing-blue); }
+.landing-inline-action, .landing-restore-button { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; padding: 0; border: 0; color: var(--landing-muted); background: transparent; font-size: 11px; }
+.landing-inline-action:hover, .landing-restore-button:hover { color: var(--landing-blue); }
+.landing-inline-status { min-height: 36px; display: grid; place-items: center; margin-top: 8px; color: var(--landing-faint); font-size: 10px; }
 .landing-price-card > small { display: block; margin-top: 13px; color: var(--landing-faint); text-align: center; font-size: 9px; }
+.landing-firm-contact { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; margin-top: 22px; padding: 18px 20px; border: 1px solid var(--landing-line); border-radius: 13px; background: var(--landing-soft); }
+.landing-firm-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; color: var(--landing-blue); background: rgba(37,99,235,.09); }
+.landing-firm-contact div { display: grid; gap: 3px; }
+.landing-firm-contact strong { font-size: 12px; }
+.landing-firm-contact div span { color: var(--landing-muted); font-size: 10.5px; line-height: 1.5; }
+.landing-firm-contact > a { display: inline-flex; align-items: center; gap: 6px; color: var(--landing-blue); font-size: 11px; font-weight: 700; }
+.landing-firm-contact > a:hover { color: var(--landing-blue-dark); }
 
 .landing-footer { width: min(1180px, calc(100% - 48px)); min-height: 112px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-top: 1px solid var(--landing-line); color: var(--landing-faint); font-size: 10px; }
 .landing-footer .landing-brand { color: var(--landing-ink); font-size: 14px; }
@@ -171,7 +186,7 @@
   .landing-hero-copy { max-width: 700px; }
   .landing-product-stage { width: min(720px, 100%); margin: 0 auto; }
   .landing-security { grid-template-columns: 1fr; gap: 48px; }
-  .landing-pricing { grid-template-columns: 1fr 390px; gap: 45px; }
+  .landing-pricing-grid { gap: 18px; }
 }
 
 @media (max-width: 700px) {
@@ -202,8 +217,11 @@
   .landing-step-number { top: 16px; }
   .landing-security { padding: 65px 24px; border-radius: 16px; }
   .landing-security-visual { padding: 16px; }
-  .landing-pricing { grid-template-columns: 1fr; gap: 45px; }
+  .landing-pricing-grid { grid-template-columns: 1fr; margin-top: 38px; }
   .landing-price-card { padding: 25px; }
+  .landing-price-description { min-height: 0; }
+  .landing-firm-contact { grid-template-columns: auto 1fr; }
+  .landing-firm-contact > a { grid-column: 2; justify-self: start; }
   .landing-footer { grid-template-columns: 1fr; gap: 14px; padding: 30px 0; text-align: left; }
   .landing-footer > a:last-child { justify-self: start; }
 }

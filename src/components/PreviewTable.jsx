@@ -1,4 +1,3 @@
-import React from 'react';
 import { Table } from 'lucide-react';
 
 export default function PreviewTable({
@@ -164,6 +163,7 @@ export default function PreviewTable({
               Clean Text
             </button>
             <select 
+              defaultValue=""
               onChange={(e) => {
                 if (e.target.value) {
                   onBulkCaseChange(e.target.value);
@@ -182,7 +182,7 @@ export default function PreviewTable({
                 width: 'auto'
               }}
             >
-              <option value="" disabled selected>Bulk Case...</option>
+              <option value="" disabled>Bulk Case...</option>
               <option value="title">Title Case</option>
               <option value="upper">UPPERCASE</option>
               <option value="lower">lowercase</option>
@@ -206,7 +206,7 @@ export default function PreviewTable({
           <tbody>
             {items.map((item, index) => (
               <tr 
-                key={index} 
+                key={`${item.originalName}-${index}`}
                 className={
                   item.status === 'warning' ? 'has-conflict' : 
                   item.status === 'danger' ? 'has-error' : ''

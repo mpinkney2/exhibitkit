@@ -1,5 +1,14 @@
-import React, { useState } from 'react';
-import { Play, RotateCcw, Trash2, Files, CheckSquare, AlertCircle, FileSpreadsheet, ChevronDown, ShieldCheck, Printer, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { Play, RotateCcw, Trash2, Files, CheckSquare, AlertCircle, FileSpreadsheet, ChevronDown, Printer, FileText } from 'lucide-react';
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export default function ActionPanel({
   items,
@@ -19,7 +28,8 @@ export default function ActionPanel({
   const warningCount = items.filter(i => i.status === 'warning').length;
   const errorCount = items.filter(i => i.status === 'danger').length;
 
-  const hasErrors = errorCount > 0;
+  const blockingIssueCount = warningCount + errorCount;
+  const hasBlockingIssues = blockingIssueCount > 0;
   const hasItems = totalCount > 0;
 
   // Active Mode Badge
@@ -53,7 +63,7 @@ export default function ActionPanel({
       return;
     }
 
-    const timestamp = new Date().toLocaleString();
+    const timestamp = escapeHtml(new Date().toLocaleString());
     const modeLabel = isPro ? "PRO LICENSE ACTIVE" : isTrial ? "FREE TRIAL MODE" : "DEMO MODE";
     const conflictCount = warningCount;
 
@@ -61,12 +71,12 @@ export default function ActionPanel({
       <tr>
         <td style="font-family: monospace; font-size: 11px; text-align: center; border-bottom: 1px solid #e5e7eb; padding: 10px;">${idx + 1}</td>
         <td style="border-bottom: 1px solid #e5e7eb; padding: 10px; font-weight: 600; color: ${item.status === 'danger' ? '#ef4444' : item.status === 'warning' ? '#f59e0b' : '#10b981'}">
-          ● ${item.status.toUpperCase()}
+          ● ${escapeHtml(item.status.toUpperCase())}
         </td>
-        <td style="font-family: monospace; font-size: 11px; word-break: break-all; border-bottom: 1px solid #e5e7eb; padding: 10px;">${item.originalName}</td>
-        <td style="font-family: monospace; font-size: 11px; font-weight: bold; border-bottom: 1px solid #e5e7eb; padding: 10px;">${item.number || '-'}</td>
-        <td style="border-bottom: 1px solid #e5e7eb; padding: 10px;">${item.description || '-'}</td>
-        <td style="font-family: monospace; font-size: 11px; font-weight: bold; color: #6366f1; word-break: break-all; border-bottom: 1px solid #e5e7eb; padding: 10px;">${item.proposedName}</td>
+        <td style="font-family: monospace; font-size: 11px; word-break: break-all; border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.originalName)}</td>
+        <td style="font-family: monospace; font-size: 11px; font-weight: bold; border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.number || '-')}</td>
+        <td style="border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.description || '-')}</td>
+        <td style="font-family: monospace; font-size: 11px; font-weight: bold; color: #6366f1; word-break: break-all; border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.proposedName)}</td>
       </tr>
     `).join("");
 
@@ -107,13 +117,13 @@ export default function ActionPanel({
           <div class="header-meta">
             <div>
               <strong>Published:</strong> ${timestamp}<br>
-              <strong>Workstation Signature:</strong> ${workstationId || 'Local-Preview-Station'}
+              <strong>Workstation Signature:</strong> ${escapeHtml(workstationId || 'Local-Preview-Station')}
             </div>
             <div>
-              <strong>Database Preset:</strong> ${preset.toUpperCase()}<br>
+              <strong>Database Preset:</strong> ${escapeHtml(preset.toUpperCase())}<br>
               <strong>Activation Tier:</strong> 
               <span class="badge ${isPro ? 'badge-pro' : isTrial ? 'badge-trial' : 'badge-demo'}">
-                ${modeLabel}
+                ${escapeHtml(modeLabel)}
               </span>
             </div>
           </div>
@@ -198,6 +208,8 @@ export default function ActionPanel({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
   };
 
   return (
@@ -292,8 +304,8 @@ export default function ActionPanel({
             </span>
             {getModeBadge()}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            <span>🔒 All operations run locally — no document uploads</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: hasBlockingIssues ? 'var(--color-warning)' : 'var(--color-text-muted)', marginTop: '2px' }}>
+            <span>{hasBlockingIssues ? `Resolve ${blockingIssueCount} issue${blockingIssueCount === 1 ? '' : 's'} before processing` : '🔒 All operations run locally — no document uploads'}</span>
           </div>
         </div>
 
@@ -443,7 +455,8 @@ export default function ActionPanel({
           <button 
             className="btn" 
             onClick={onRenameExecute}
-            disabled={!hasItems || hasErrors}
+            disabled={!hasItems || hasBlockingIssues}
+            title={hasBlockingIssues ? 'Resolve all conflicts and errors before renaming' : 'Prepare this exhibit batch'}
             style={{ 
               padding: '10px 24px', 
               fontSize: '13.5px',
@@ -452,8 +465,8 @@ export default function ActionPanel({
               color: '#ffffff',
               border: 'none',
               borderRadius: '6px',
-              opacity: (!hasItems || hasErrors) ? 0.4 : 1,
-              cursor: (!hasItems || hasErrors) ? 'not-allowed' : 'pointer'
+              opacity: (!hasItems || hasBlockingIssues) ? 0.4 : 1,
+              cursor: (!hasItems || hasBlockingIssues) ? 'not-allowed' : 'pointer'
             }}
           >
             <Play size={13} fill="currentColor" style={{ marginRight: '4px' }} />

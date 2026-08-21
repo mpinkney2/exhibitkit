@@ -1,11 +1,13 @@
 import {
   ArrowRight,
+  Building2,
   Check,
   ChevronRight,
   FileCheck2,
   Files,
   FolderLock,
   HardDrive,
+  KeyRound,
   Moon,
   Scale,
   ShieldCheck,
@@ -13,6 +15,7 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { hasTrialAvailable } from '../utils/license';
+import { PRO_PRICE_LABEL } from '../utils/payment';
 import './LandingPage.css';
 
 const previewRows = [
@@ -43,6 +46,7 @@ export default function LandingPage({
   onLaunchDemo,
   onLaunchTrial,
   onOpenPricing,
+  onRestoreLicense,
   theme,
   onToggleTheme,
 }) {
@@ -230,28 +234,62 @@ export default function LandingPage({
       </section>
 
       <section className="landing-section landing-pricing" id="pricing">
-        <div className="landing-pricing-copy">
-          <span className="landing-kicker">One license. No subscription.</span>
-          <h2>A small tool for a high-stakes handoff.</h2>
-          <p>Use the demo with sample data, process one real five-file trial batch, then upgrade when it earns a place in your workflow.</p>
-          <button className="landing-text-button" onClick={onLaunchDemo}>
-            Explore with sample exhibits <ChevronRight size={16} />
-          </button>
+        <div className="landing-section-heading landing-pricing-heading">
+          <span className="landing-kicker">Simple launch pricing</span>
+          <h2>Start free. Upgrade once the workflow earns its place.</h2>
+          <p>Two clear choices, no subscription, and no case files sent to a payment processor.</p>
         </div>
 
-        <div className="landing-price-card">
-          <div className="landing-price-topline"><span>ExhibitKIT Pro</span><em>Lifetime</em></div>
-          <div className="landing-price"><strong>$150</strong><span>USD<br />one-time</span></div>
-          <ul>
-            <li><Check size={15} /> Unlimited exhibit batches</li>
-            <li><Check size={15} /> Direct local-folder renaming</li>
-            <li><Check size={15} /> Matter profiles and custom templates</li>
-            <li><Check size={15} /> CSV, JSON, and printable audit reports</li>
-          </ul>
-          <button className="landing-primary-button" id="btn-purchase-pro-pricing" onClick={onOpenPricing}>
-            Purchase lifetime access <ArrowRight size={16} />
-          </button>
-          <small>Secure checkout · Manual license activation</small>
+        <div className="landing-pricing-grid">
+          <article className="landing-price-card landing-price-card-free">
+            <div className="landing-price-topline"><span>Free</span><em>No account</em></div>
+            <div className="landing-price"><strong>$0</strong><span>USD<br />to evaluate</span></div>
+            <p className="landing-price-description">Confirm the naming workflow with sample data and one small real-file batch.</p>
+            <ul>
+              <li><Check size={15} /> Unlimited interactive demo workflow</li>
+              <li><Check size={15} /> One real trial batch of up to 5 PDFs</li>
+              <li><Check size={15} /> Preview and edit proposed filenames</li>
+              <li><Check size={15} /> Local processing with no account</li>
+            </ul>
+            <button className="landing-secondary-button" onClick={onLaunchDemo}>
+              Start free <ArrowRight size={16} />
+            </button>
+            {trialAvailable ? (
+              <button className="landing-inline-action" onClick={onLaunchTrial}>
+                Process up to 5 real files <ChevronRight size={15} />
+              </button>
+            ) : (
+              <span className="landing-inline-status">Real-file trial already used</span>
+            )}
+          </article>
+
+          <article className="landing-price-card landing-price-card-pro">
+            <div className="landing-price-topline"><span>ExhibitKIT Pro</span><em>Launch price</em></div>
+            <div className="landing-price"><strong>{PRO_PRICE_LABEL}</strong><span>USD<br />one-time</span></div>
+            <p className="landing-price-description">One workstation. Perpetual use of the purchased version, with 12 months of updates and support.</p>
+            <ul>
+              <li><Check size={15} /> Unlimited exhibit batches</li>
+              <li><Check size={15} /> Direct local-folder renaming</li>
+              <li><Check size={15} /> Matter profiles and custom templates</li>
+              <li><Check size={15} /> CSV, JSON, and printable audit reports</li>
+            </ul>
+            <button className="landing-primary-button" id="btn-purchase-pro-pricing" onClick={onOpenPricing}>
+              Buy Pro — {PRO_PRICE_LABEL} <ArrowRight size={16} />
+            </button>
+            <button className="landing-restore-button" onClick={onRestoreLicense}>
+              <KeyRound size={14} /> Already purchased? Restore license
+            </button>
+            <small>Secure checkout by Stripe · Files never leave your computer</small>
+          </article>
+        </div>
+
+        <div className="landing-firm-contact">
+          <span className="landing-firm-icon" aria-hidden="true"><Building2 size={19} /></span>
+          <div>
+            <strong>Need multiple workstations?</strong>
+            <span>Firm licensing is handled as a guided pilot while team management is being built.</span>
+          </div>
+          <a href="mailto:support@patentpreppers.com?subject=ExhibitKIT%20Firm%20licensing">Contact us <ArrowRight size={14} /></a>
         </div>
       </section>
 

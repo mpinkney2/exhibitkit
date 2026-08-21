@@ -33,9 +33,8 @@ export function initializeWorkstation() {
 
   if (!info) {
     // Generate a secure, recognizable local workstation identifier
-    const deviceId = 'EKIT-WORKSTATION-' + 
-      Math.random().toString(36).substring(2, 15).toUpperCase() + '-' + 
-      Math.random().toString(36).substring(2, 6).toUpperCase();
+    const randomId = crypto.randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase();
+    const deviceId = `EKIT-WORKSTATION-${randomId}`;
 
     const newInfo = {
       deviceId,
@@ -55,7 +54,7 @@ export function initializeWorkstation() {
     parsed.appVersion = APP_VERSION;
     localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(parsed));
     return parsed;
-  } catch (e) {
+  } catch {
     // Fallback reset on corrupted JSON
     localStorage.removeItem(WORKSTATION_STORAGE);
     return initializeWorkstation();

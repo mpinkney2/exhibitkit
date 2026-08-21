@@ -1,27 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { FolderHeart, Save, Trash2, Lock, Check } from 'lucide-react';
+import { useState } from 'react';
+import { FolderHeart, Save, Trash2, Lock } from 'lucide-react';
 
 export default function MatterProfiles({
   isPro,
   currentSettings,
   onApplySettings,
-  onShowNotification,
-  theme
+  onShowNotification
 }) {
-  const [profiles, setProfiles] = useState([]);
-  const [newProfileName, setNewProfileName] = useState('');
-
-  // Load profiles on mount
-  useEffect(() => {
+  const [profiles, setProfiles] = useState(() => {
     const saved = localStorage.getItem('exhibitkit_matter_profiles');
-    if (saved) {
-      try {
-        setProfiles(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse matter profiles", e);
-      }
+    if (!saved) return [];
+
+    try {
+      return JSON.parse(saved);
+    } catch (error) {
+      console.error("Failed to parse matter profiles", error);
+      return [];
     }
-  }, []);
+  });
+  const [newProfileName, setNewProfileName] = useState('');
 
   const handleSaveProfile = (e) => {
     e.preventDefault();

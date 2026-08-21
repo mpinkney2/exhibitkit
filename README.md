@@ -34,9 +34,11 @@ ExhibitKIT utilizes a highly structured three-tier access and licensing layer, d
 
 ## 💳 Stripe Purchase & License Fulfillment
 
-- **Pricing:** $150 USD one-time lifetime license key.
-- **Checkout Flow:** Users transition to Stripe Checkout. Once transaction completes, the Stripe Success screen guides the user on entering their license manually (delivered via email).
+- **Pricing:** $149 USD one-time Pro workstation license. The purchased version remains licensed; 12 months of updates and support are included.
+- **Checkout Flow:** Users transition to a Stripe-hosted Payment Link. ExhibitKIT adds the local workstation ID as Stripe's `client_reference_id` so a future webhook can reconcile payment and fulfillment without receiving exhibit data.
+- **Return Flow:** Configure the Payment Link's post-payment redirect in Stripe to return to `https://YOUR_DOMAIN/?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`.
 - **Manual Activation:** In compliance with security standards, the application remains locked until a valid key is provided manually (no insecure automatic activations).
+- **Important:** A return URL is not proof of payment. Production license verification still requires a server-side webhook and activation service; see [`docs/stripe-hardening.md`](docs/stripe-hardening.md).
 
 ---
 
@@ -58,9 +60,9 @@ npm run build
 ```
 
 ### Environment Variables
-Configure a `.env` file in the root directory:
+Copy `.env.example` to `.env` and configure the public Payment Link:
 ```env
-# Stripe Payment Configuration
+# Public Stripe Payment Link only. Never put a Stripe secret key in Vite variables.
 VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/cNicN59My1tC6VN0ayg7e00
 ```
 
@@ -69,7 +71,7 @@ VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/cNicN59My1tC6VN0ayg7e00
 ## ⚙️ Production Hardening & Security
 
 - **Strict Key Shielding:** To prevent bypasses, the developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is evaluated and displayed **ONLY** when `import.meta.env.DEV` is strictly `true`. 
-- **Offline Integrity:** All Stripe API keys and webhooks reside securely on the Stripe platform. No private keys or secret credentials are exposed client-side.
+- **Offline Integrity:** The browser only receives a public Stripe Payment Link. Stripe secret keys and webhook secrets must live in a separate server-side environment and must never use a `VITE_` prefix.
 
 ---
 
