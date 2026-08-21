@@ -17,7 +17,6 @@ ExhibitKIT is a local-first legal exhibit renaming and indexing utility for liti
 | Plan | Price | Access |
 |------|-------|--------|
 | **Free** | $0 | Unlimited sample/demo workflow; **up to 5 files per batch**; parse, preview, edit; basic sequential numbering; standard CSV/HTML export; local processing; no account or watermark |
-| **Case Pass** | $39 one-time | All Pro renaming features for **30 consecutive days**; unlimited batches; in-place rename; Matter Profiles; undo; ZIP exports; **no automatic renewal** |
 | **ExhibitKit Pro** | $149 one-time | **Perpetual license** — Pro renaming access does not expire; 12 months of updates and support included; optional renewal afterward |
 | **Firm** | Starting at $399 | Contact us / Coming soon — not available for self-serve purchase |
 
@@ -25,7 +24,7 @@ ExhibitKIT is a local-first legal exhibit renaming and indexing utility for liti
 
 Optional Updates & Support (informational until renewal checkout is implemented): Pro $49/year · Firm $129/year. Renewal is never required to keep entitled renaming access.
 
-Central pricing values live in [`src/config/pricing.js`](src/config/pricing.js). See [`docs/BILLING_BACKEND.md`](docs/BILLING_BACKEND.md) for server-side checkout requirements.
+The public launch offer is Free or $149 Pro, with Firm licenses handled by contact. The entitlement model retains Case Pass support for a possible future offer. Central pricing values live in [`src/config/pricing.js`](src/config/pricing.js).
 
 ### License restoration
 
@@ -33,8 +32,19 @@ Restore access with your **license key** (format `EKIT-XXXX-XXXX-XXXX`). Existin
 
 ---
 
-## Developer Setup
+## Stripe Purchase & License Fulfillment
 
+- **Pricing:** $149 USD one-time Pro workstation license. The purchased version remains licensed; 12 months of updates and support are included.
+- **Checkout Flow:** Users transition to a Stripe-hosted Payment Link. ExhibitKIT adds the local workstation ID as Stripe's `client_reference_id` so a future webhook can reconcile payment and fulfillment without receiving exhibit data.
+- **Return Flow:** Configure the Payment Link's post-payment redirect in Stripe to return to `https://YOUR_DOMAIN/?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`.
+- **Manual Activation:** In compliance with security standards, the application remains locked until a valid key is provided manually (no insecure automatic activations).
+- **Important:** A return URL is not proof of payment. Production license verification still requires a server-side webhook and activation service; see [`docs/stripe-hardening.md`](docs/stripe-hardening.md).
+
+---
+
+## Developer Setup & Environment Variables
+
+### Local Installation
 ```bash
 # Install dependencies
 npm install
@@ -54,17 +64,14 @@ npm run build
 
 ### Environment Variables
 
-Pricing UI works without checkout configuration. Paid purchase CTAs stay **disabled** until a verified billing backend is configured:
+Copy `.env.example` to `.env` and configure the public Payment Link:
 
 ```env
-# Required together for enabling Case Pass / Pro checkout CTAs (after backend exists)
-VITE_CHECKOUT_API_URL=
-VITE_ENTITLEMENT_API_URL=
-VITE_STRIPE_PRICE_CASE_PASS=
-VITE_STRIPE_PRICE_PRO=
+# Public Stripe Payment Link only. Never put a Stripe secret key in Vite variables.
+VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/dRm4gze2Ob4c4NF3mKg7e01
 
 # Founder live-test console (see docs/FOUNDER_ADMIN.md)
-VITE_FOUNDER_ADMIN_SECRET=ekit-founder-2026
+VITE_FOUNDER_ADMIN_SECRET=replace_with_a_private_value
 ```
 
 Stripe secret keys and webhook secrets must remain server-side only. Do not place them in `VITE_*` variables.

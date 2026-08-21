@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    include: [
+      'src/**/*.{test,spec}.{js,jsx}',
+      'test/**/*.{test,spec}.{js,jsx}',
+    ],
   },
 })

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Settings, RefreshCw, FileText, ToggleLeft, HelpCircle, X } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import MatterProfiles from './MatterProfiles';
 import { APP_VERSION } from '../utils/license';
 
@@ -24,8 +23,7 @@ export default function Sidebar({
   onOpenModal,
   onShowNotification,
   className = '',
-  onCloseMobile,
-  theme
+  onCloseMobile
 }) {
   const currentSettings = {
     preset,
@@ -225,7 +223,6 @@ export default function Sidebar({
           currentSettings={currentSettings}
           onApplySettings={onApplySettings}
           onShowNotification={onShowNotification}
-          theme={theme}
         />
 
         {/* Reset & Quick Presets Info */}

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Award, ShieldAlert, FolderSync, Info, AlertTriangle, ShieldCheck, CreditCard, Key, ArrowLeft, Lock, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldAlert, Info, AlertTriangle, ShieldCheck, ArrowLeft, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
 import PreviewTable from './components/PreviewTable';
@@ -28,10 +28,24 @@ import {
   cleanDescription,
   formatCase
 } from './utils/renamer';
+import { PRO_PRICE_LABEL } from './utils/payment';
+
+function getInitialAppRoute() {
+  const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
+  if (stripeStatus === 'success') return 'stripe_success';
+  if (stripeStatus === 'cancel') return 'stripe_cancel';
+  return hasProFeatures(getEntitlement()) ? 'workspace' : 'landing';
+}
+
+function escapeCsvCell(value) {
+  let text = String(value ?? '');
+  if (/^[=+@-]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
 
 export default function App() {
   // Application Mode Routing: 'landing' | 'workspace' | 'stripe_success' | 'stripe_cancel'
-  const [appRoute, setAppRoute] = useState('landing');
+  const [appRoute, setAppRoute] = useState(getInitialAppRoute);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -47,7 +61,7 @@ export default function App() {
   const planLabel = getEntitlementLabel(entitlement);
 
   // Workstation Profile Info
-  const [workstation, setWorkstation] = useState(() => getWorkstationInfo());
+  const [workstation] = useState(getWorkstationInfo);
 
   // Naming Rule States
   const [preset, setPreset] = useState('oncue');
@@ -74,33 +88,24 @@ export default function App() {
 
   // Stripe & Pricing Modal
   const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [pricingIntent, setPricingIntent] = useState('purchase');
   const [licenseInputValue, setLicenseInputValue] = useState('');
   const [activationError, setActivationError] = useState('');
+
+  const openPricing = (intent = 'purchase') => {
+    setPricingIntent(intent);
+    setIsPricingOpen(true);
+  };
 
   // Active Legal/Support Modals: null | 'terms' | 'privacy' | 'support' | 'how'
   const [activeModal, setActiveModal] = useState(null);
 
   const isDirectoryApiSupported = 'showDirectoryPicker' in window;
 
-  // Sync workstation + entitlement on load
+  // Clear Stripe status params after the initial route has been derived.
   useEffect(() => {
-    setWorkstation(getWorkstationInfo());
-    const current = migrateLegacyLicenseIfNeeded();
-    setEntitlement(current);
-    if (hasProFeatures(current)) {
-      setAppRoute('workspace');
-    }
-  }, []);
-
-  // Parse Stripe Success/Cancel call routes from URL params on load
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const stripeStatus = params.get('stripe_status');
-    if (stripeStatus === 'success') {
-      setAppRoute('stripe_success');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (stripeStatus === 'cancel') {
-      setAppRoute('stripe_cancel');
+    const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
+    if (stripeStatus === 'success' || stripeStatus === 'cancel') {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -194,12 +199,26 @@ export default function App() {
     return validateProposedNames(updated);
   };
 
-  // Re-run proposed name generation when sidebar options update (if not frozen)
-  useEffect(() => {
-    if (items.length > 0 && !isPreviewFreezed) {
-      setItems(prevItems => updateProposedNames(prevItems));
-    }
-  }, [preset, prefix, startNumber, padLength, caseStyle, customTemplate, cleanDesc]);
+  const handleRuleChange = (ruleName, value) => {
+    if (isPreviewFreezed) return;
+
+    const setters = {
+      preset: setPreset,
+      prefix: setPrefix,
+      startNumber: setStartNumber,
+      padLength: setPadLength,
+      caseStyle: setCaseStyle,
+      customTemplate: setCustomTemplate,
+      cleanDesc: setCleanDesc
+    };
+
+    setters[ruleName](value);
+    setItems(prevItems => (
+      prevItems.length > 0
+        ? updateProposedNames(prevItems, { [ruleName]: value })
+        : prevItems
+    ));
+  };
 
   // Apply Matter Profile settings
   const handleApplyProfileSettings = (settings) => {
@@ -211,6 +230,9 @@ export default function App() {
     setCaseStyle(settings.caseStyle);
     setCleanDesc(settings.cleanDesc);
     setCustomTemplate(settings.customTemplate);
+    setItems(prevItems => (
+      prevItems.length > 0 ? updateProposedNames(prevItems, settings) : prevItems
+    ));
   };
 
   // Load sample data exhibits for interactive demo workflow
@@ -413,12 +435,22 @@ export default function App() {
   // Rename Execution
   const handleRenameExecute = async () => {
     setShowBackupModal(false);
+
+    if (items.some(item => item.status !== 'success')) {
+      showNotification("⚠️ The batch changed and now contains filename issues. Review the preview before trying again.", "warning");
+      return;
+    }
     
     // Freeze preview state before renaming to block mid-operation changes
     setIsPreviewFreezed(true);
 
-    const conflictCount = items.filter(item => item.hasConflict || item.status === 'conflict').length;
+    const conflictCount = items.filter(item => item.status === 'warning').length;
     const startTime = performance.now();
+    const renameMap = items.map(item => ({
+      originalName: item.originalName,
+      number: item.number,
+      proposedName: item.proposedName
+    }));
 
     if (!directoryHandle) {
       // Fallback: Zipped batch download since there is no local folder handle
@@ -433,9 +465,8 @@ export default function App() {
 
         // Add CSV Rename Report to the zip archive
         const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
-        const rows = items.map(item => {
-          const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-          return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        const rows = renameMap.map(item => {
+          return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
         }).join("\n");
         zip.file("exhibit_rename_report.csv", headers + rows);
 
@@ -475,6 +506,18 @@ export default function App() {
       const history = [];
       const updatedItems = [...items];
 
+      // Fail before changing any files if a target name already exists.
+      for (const item of updatedItems) {
+        if (item.originalName.toLowerCase() === item.proposedName.toLowerCase()) continue;
+
+        try {
+          await directoryHandle.getFileHandle(item.proposedName);
+          throw new Error(`A file named "${item.proposedName}" already exists in this folder.`);
+        } catch (error) {
+          if (error.name !== 'NotFoundError') throw error;
+        }
+      }
+
       for (let i = 0; i < updatedItems.length; i++) {
         const item = updatedItems[i];
         const entry = item.handle;
@@ -513,9 +556,8 @@ export default function App() {
       // Automatically write CSV Rename Report directly inside the local folder
       try {
         const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
-        const rows = updatedItems.map(item => {
-          const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-          return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        const rows = renameMap.map(item => {
+          return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
         }).join("\n");
         const reportContent = headers + rows;
 
@@ -618,8 +660,7 @@ export default function App() {
     try {
       const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
       const rows = items.map(item => {
-        const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-        return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
       }).join("\n");
 
       const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
@@ -641,13 +682,25 @@ export default function App() {
   // Reset rules back to default
   const handleResetRules = () => {
     if (isPreviewFreezed) return;
-    setPreset('oncue');
-    setPrefix('PX');
-    setStartNumber(1);
-    setPadLength(3);
-    setCaseStyle('title');
-    setCustomTemplate('{Prefix}{Number} - {Description}');
-    setCleanDesc(true);
+    const defaults = {
+      preset: 'oncue',
+      prefix: 'PX',
+      startNumber: 1,
+      padLength: 3,
+      caseStyle: 'title',
+      customTemplate: '{Prefix}{Number} - {Description}',
+      cleanDesc: true
+    };
+    setPreset(defaults.preset);
+    setPrefix(defaults.prefix);
+    setStartNumber(defaults.startNumber);
+    setPadLength(defaults.padLength);
+    setCaseStyle(defaults.caseStyle);
+    setCustomTemplate(defaults.customTemplate);
+    setCleanDesc(defaults.cleanDesc);
+    setItems(prevItems => (
+      prevItems.length > 0 ? updateProposedNames(prevItems, defaults) : prevItems
+    ));
     showNotification("🔄 Naming rules reset to default OnCue PX-001.", "success");
   };
 
@@ -678,19 +731,20 @@ export default function App() {
   if (appRoute === 'landing') {
     return (
       <>
-        <LandingPage 
+        <LandingPage
           onLaunchFree={handleLaunchFree}
-          onOpenPricing={() => setIsPricingOpen(true)}
+          onOpenPricing={() => openPricing('purchase')}
+          onRestoreLicense={() => openPricing('restore')}
           theme={theme}
           onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
         />
-        {isPricingOpen && (
-          <PricingModal 
-            isOpen={isPricingOpen} 
-            onClose={() => setIsPricingOpen(false)} 
-            onActivated={handleEntitlementActivated}
-          />
-        )}
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+          onActivated={handleEntitlementActivated}
+          workstationId={workstation.deviceId}
+          initialView={pricingIntent}
+        />
         {founderAdmin}
       </>
     );
@@ -705,7 +759,7 @@ export default function App() {
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--status-success-bg)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
               <ShieldCheck size={26} />
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Payment Received!</h2>
+            <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Checkout Complete</h2>
             <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
               Your license key will be delivered to the email used at checkout. Enter the key below to restore access on this workstation. Pro access does not expire; Case Pass access lasts 30 consecutive days from purchase.
             </p>
@@ -764,8 +818,8 @@ export default function App() {
           </p>
           
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn btn-primary" onClick={() => setIsPricingOpen(true)} style={{ flex: 1, fontSize: '13px' }}>
-              Purchase License
+            <button className="btn btn-primary" onClick={() => openPricing('purchase')} style={{ flex: 1, fontSize: '13px' }}>
+              Buy Pro — {PRO_PRICE_LABEL}
             </button>
             <button className="btn btn-secondary" onClick={handleLaunchFree} style={{ flex: 1, fontSize: '13px' }}>
               Rename exhibits free
@@ -778,6 +832,8 @@ export default function App() {
           isOpen={isPricingOpen} 
           onClose={() => setIsPricingOpen(false)} 
           onActivated={handleEntitlementActivated}
+          workstationId={workstation.deviceId}
+          initialView={pricingIntent}
         />
       )}
       {founderAdmin}
@@ -794,19 +850,19 @@ export default function App() {
       {/* Configuration Sidebar */}
       <Sidebar 
         preset={preset}
-        setPreset={setPreset}
+        setPreset={(value) => handleRuleChange('preset', value)}
         prefix={prefix}
-        setPrefix={setPrefix}
+        setPrefix={(value) => handleRuleChange('prefix', value)}
         startNumber={startNumber}
-        setStartNumber={setStartNumber}
+        setStartNumber={(value) => handleRuleChange('startNumber', value)}
         padLength={padLength}
-        setPadLength={setPadLength}
+        setPadLength={(value) => handleRuleChange('padLength', value)}
         caseStyle={caseStyle}
-        setCaseStyle={setCaseStyle}
+        setCaseStyle={(value) => handleRuleChange('caseStyle', value)}
         customTemplate={customTemplate}
-        setCustomTemplate={setCustomTemplate}
+        setCustomTemplate={(value) => handleRuleChange('customTemplate', value)}
         cleanDesc={cleanDesc}
-        setCleanDesc={setCleanDesc}
+        setCleanDesc={(value) => handleRuleChange('cleanDesc', value)}
         onReset={handleResetRules}
         isPro={isPro}
         onApplySettings={handleApplyProfileSettings}
@@ -814,7 +870,6 @@ export default function App() {
         onShowNotification={showNotification}
         className={isMobileSidebarOpen ? 'mobile-open' : ''}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        theme={theme}
       />
 
       {isMobileSidebarOpen && (
@@ -903,7 +958,7 @@ export default function App() {
                 className="top-bar-upgrade"
                 onClick={() => {
                   setIsMobileNavOpen(false);
-                  setIsPricingOpen(true);
+                  openPricing('purchase');
                 }}
               >
                 <span className="top-bar-upgrade-full">Upgrade to Pro</span>
@@ -1224,6 +1279,8 @@ export default function App() {
         isOpen={isPricingOpen} 
         onClose={() => setIsPricingOpen(false)} 
         onActivated={handleEntitlementActivated}
+        workstationId={workstation.deviceId}
+        initialView={pricingIntent}
       />
 
       {/* Legal & Operational support overlays */}

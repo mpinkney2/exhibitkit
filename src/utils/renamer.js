@@ -51,7 +51,7 @@ export function parseFilename(filename) {
 
   // 4. Try matching typical DOD structured pattern from original scripts:
   // e.g., "DOD - 12 - 2012 - Author - Title" or "DOC - 5 - Smith - Memo"
-  const dodPattern = /^(DOD|DOC)?\s*-\s*(\d+[\-\w]*)\s*-\s*(\d{4})?\s*-\s*([^–-]+)\s*[-–]\s*(.+)$/i;
+  const dodPattern = /^(DOD|DOC)?\s*-\s*(\d+[-\w]*)\s*-\s*(\d{4})?\s*-\s*([^–-]+)\s*[-–]\s*(.+)$/i;
   match = base.match(dodPattern);
   if (match) {
     const prefix = match[1] || "DOC";
@@ -230,6 +230,9 @@ export function generateProposedFilename({
  */
 export function validateProposedNames(items) {
   const nameCounts = {};
+  const originalNames = new Set(
+    items.map(item => (item.originalName || '').toLowerCase().trim()).filter(Boolean)
+  );
   
   // First pass: Count occurrences of proposed names
   items.forEach(item => {
@@ -256,6 +259,14 @@ export function validateProposedNames(items) {
     else if (nameCounts[nameLower] > 1) {
       status = "warning";
       message = "Duplicate proposed filename detected";
+    }
+    // Sequential in-place renames must not target another loaded file's current name.
+    else if (
+      nameLower !== (item.originalName || '').toLowerCase().trim() &&
+      originalNames.has(nameLower)
+    ) {
+      status = "warning";
+      message = "Proposed filename is already used by another file in this batch";
     }
     // Check for OS forbidden characters (should already be stripped, but safe check)
     else if (/[\\/:*?"<>|]/.test(proposed.replace(".pdf", ""))) {

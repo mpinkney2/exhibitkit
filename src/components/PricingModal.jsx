@@ -1,395 +1,182 @@
-import { useState } from 'react';
-import { CreditCard, X, AlertCircle, Check, Mail } from 'lucide-react';
-import {
-  PLANS,
-  PLAN_IDS,
-  PLAN_CHOOSER,
-  PRICING_FAQ,
-  RENEWAL_SKUS,
-  getPlanById,
-} from '../config/pricing.js';
-import { getCheckoutConfig, getPlanCta, canPurchasePlan, startCheckout } from '../utils/checkout.js';
-import { restoreFromLicenseKey, isDevMode, DEV_TEST_KEY } from '../utils/entitlement.js';
+import { useEffect, useId, useRef, useState } from 'react';
+import { AlertCircle, Check, CreditCard, ExternalLink, KeyRound, ShieldCheck, X } from 'lucide-react';
+import { restoreFromLicenseKey, isDevMode, DEV_TEST_KEY } from '../utils/entitlement';
+import { buildStripePaymentLink, PRO_PRICE_LABEL } from '../utils/payment';
+import './PricingModal.css';
 
-export default function PricingModal({ isOpen, onClose, onActivated }) {
+const benefits = [
+  'Unlimited PDF exhibits and batches',
+  'Direct, in-place local folder renaming',
+  'OnCue, TrialDirector, and custom templates',
+  '12 months of updates and support',
+];
+
+export default function PricingModal({
+  isOpen,
+  onClose,
+  onActivated,
+  workstationId,
+  initialView = 'purchase',
+}) {
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
-  const [checkoutError, setCheckoutError] = useState('');
-  const [busyPlan, setBusyPlan] = useState(null);
-  const config = getCheckoutConfig();
+  const titleId = useId();
+  const descriptionId = useId();
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const licenseInputRef = useRef(null);
+  const stripeLink = buildStripePaymentLink({ workstationId });
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const previousActiveElement = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    if (initialView === 'restore') {
+      licenseInputRef.current?.focus();
+    } else {
+      closeButtonRef.current?.focus();
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Tab') return;
+
+      const focusable = dialogRef.current?.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable?.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousActiveElement?.focus?.();
+    };
+  }, [initialView, isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const handleActivateSubmit = (e) => {
-    e.preventDefault();
+  const handleActivateSubmit = (event) => {
+    event.preventDefault();
     const result = restoreFromLicenseKey(licenseKey);
+
     if (result.ok) {
       setError('');
       setLicenseKey('');
       onActivated?.(result.entitlement);
-    } else {
-      setError(result.error || 'Activation failed.');
-    }
-  };
-
-  const handlePlanAction = async (planId) => {
-    setCheckoutError('');
-    const cta = getPlanCta(planId, config);
-
-    if (cta.kind === 'contact' && cta.href) {
-      window.open(cta.href, '_self', 'noopener,noreferrer');
       return;
     }
 
-    if (cta.kind === 'checkout') {
-      setBusyPlan(planId);
-      try {
-        await startCheckout(planId, config);
-      } catch (err) {
-        setCheckoutError(err.message || 'Checkout is unavailable.');
-      } finally {
-        setBusyPlan(null);
-      }
-    }
+    setError(result.error || 'That license key could not be restored.');
+  };
+
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) onClose();
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(5, 7, 12, 0.85)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 3000,
-        animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        padding: '16px',
-      }}
-    >
-      <div
-        className="glass-panel"
-        style={{
-          width: '920px',
-          maxWidth: '100%',
-          maxHeight: '92vh',
-          overflowY: 'auto',
-          padding: '28px',
-          position: 'relative',
-          backgroundColor: 'var(--color-surface-1)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '12px',
-          boxShadow: 'var(--shadow-modal)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px',
-        }}
+    <div className="pricing-backdrop" onMouseDown={handleBackdropClick}>
+      <section
+        ref={dialogRef}
+        className="pricing-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
       >
         <button
+          ref={closeButtonRef}
           type="button"
+          className="pricing-close"
           onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--color-text-secondary)',
-            cursor: 'pointer',
-            padding: '4px',
-            zIndex: 10,
-          }}
-          aria-label="Close pricing"
+          aria-label="Close pricing dialog"
         >
           <X size={18} />
         </button>
 
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, letterSpacing: '-0.4px' }}>
-            ExhibitKIT pricing
-          </h2>
-          <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            Local-first exhibit filename renaming. No subscription required.
-          </span>
+        <div className="pricing-header">
+          <span className="pricing-icon" aria-hidden="true"><ShieldCheck size={21} /></span>
+          <span className="pricing-eyebrow">ExhibitKIT Pro · Perpetual workstation license</span>
+          <h2 id={titleId}>Prepare every exhibit set with confidence.</h2>
+          <p id={descriptionId}>One workstation. One payment. Keep using the purchased version, with 12 months of updates and support included.</p>
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: '8px',
-            fontSize: '12px',
-            color: 'var(--color-text-secondary)',
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '8px',
-            padding: '12px',
-          }}
-        >
-          {PLAN_CHOOSER.map((row) => {
-            const plan = getPlanById(row.planId);
-            return (
-              <div key={row.planId}>
-                <div style={{ color: 'var(--color-text-muted)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {row.audience}
-                </div>
-                <strong style={{ color: 'var(--color-text-primary)' }}>{plan?.name}</strong>
-              </div>
-            );
-          })}
-        </div>
-
-        {!config.checkoutConfigured && (
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'flex-start',
-              fontSize: '12px',
-              color: 'var(--color-text-secondary)',
-              background: 'rgba(217, 119, 6, 0.08)',
-              border: '1px solid rgba(217, 119, 6, 0.25)',
-              borderRadius: '8px',
-              padding: '10px 12px',
-            }}
-          >
-            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 2, color: 'var(--status-warning, #d97706)' }} />
-            <span>
-              Secure checkout is not configured for this deployment. Paid purchase buttons stay disabled until a
-              verified billing backend is available. You can still restore an existing license key below.
-            </span>
+        <div className="pricing-offer">
+          <div className="pricing-price">
+            <strong>{PRO_PRICE_LABEL}</strong>
+            <span>USD<br />one-time</span>
           </div>
-        )}
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-            gap: '12px',
-          }}
-        >
-          {PLANS.map((plan) => {
-            const cta = getPlanCta(plan.id, config);
-            const purchasable = canPurchasePlan(plan.id, config);
-            const isFirm = plan.id === PLAN_IDS.FIRM;
-            const isFree = plan.id === PLAN_IDS.FREE;
-
-            return (
-              <div
-                key={plan.id}
-                style={{
-                  border: plan.badge ? '1px solid var(--color-accent, #2563eb)' : '1px solid var(--color-border)',
-                  borderRadius: '10px',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                  background: 'var(--color-surface-2)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  <strong style={{ fontSize: '14px' }}>{plan.name}</strong>
-                  {plan.badge && (
-                    <em
-                      style={{
-                        fontStyle: 'normal',
-                        fontSize: '9px',
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
-                        padding: '3px 7px',
-                        borderRadius: '99px',
-                        background: 'rgba(37,99,235,.12)',
-                        color: 'var(--color-accent, #2563eb)',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {plan.badge}
-                    </em>
-                  )}
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>{plan.displayPrice}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{plan.billingLabel}</div>
-                  {plan.licenseLabel && (
-                    <div style={{ fontSize: '11px', marginTop: 4, fontWeight: 600 }}>{plan.licenseLabel}</div>
-                  )}
-                </div>
-
-                {plan.supportingCopy && (
-                  <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--color-text-secondary)', lineHeight: 1.45 }}>
-                    {plan.supportingCopy}
-                  </p>
-                )}
-
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '7px', flex: 1 }}>
-                  {plan.features.map((f) => (
-                    <li key={f.text} style={{ display: 'flex', gap: 7, fontSize: '11.5px', lineHeight: 1.35, color: f.available ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}>
-                      <Check size={13} style={{ flexShrink: 0, marginTop: 1, opacity: f.available ? 1 : 0.45 }} />
-                      <span>
-                        {f.text}
-                        {f.planned ? ' (planned)' : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {plan.clarification && (
-                  <p style={{ margin: 0, fontSize: '10.5px', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
-                    {plan.clarification}
-                  </p>
-                )}
-
-                {isFree ? (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={onClose}
-                    style={{ width: '100%', fontSize: '13px' }}
-                  >
-                    {plan.ctaShort}
-                  </button>
-                ) : isFirm || cta.kind === 'contact' ? (
-                  <a
-                    href={cta.href}
-                    className="btn btn-secondary"
-                    style={{
-                      width: '100%',
-                      fontSize: '13px',
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <Mail size={14} />
-                    {cta.label}
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={!purchasable || busyPlan === plan.id}
-                    onClick={() => handlePlanAction(plan.id)}
-                    title={!purchasable ? cta.disabledReason || undefined : undefined}
-                    style={{
-                      width: '100%',
-                      fontSize: '13px',
-                      opacity: purchasable ? 1 : 0.45,
-                      cursor: purchasable ? 'pointer' : 'not-allowed',
-                      backgroundColor: 'var(--color-accent)',
-                      color: '#fff',
-                      border: 'none',
-                      display: 'inline-flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                    data-purchase-enabled={purchasable ? 'true' : 'false'}
-                    data-plan-id={plan.id}
-                  >
-                    <CreditCard size={14} />
-                    {busyPlan === plan.id ? 'Starting…' : cta.label}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {checkoutError && (
-          <div style={{ fontSize: '12px', color: 'var(--color-error, #dc2626)' }}>{checkoutError}</div>
-        )}
-
-        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', lineHeight: 1.45 }}>
-          Optional Updates & Support after Pro&apos;s included year: {RENEWAL_SKUS.proUpdatesSupport.displayPrice}/year
-          (informational — renewal checkout is not enabled). Firm updates/support: {RENEWAL_SKUS.firmUpdatesSupport.displayPrice}/year
-          (planned). Renewal is never required to keep entitled renaming access.
-        </div>
-
-        <details style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Pricing FAQ</summary>
-          <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-            {PRICING_FAQ.map((item) => (
-              <div key={item.id}>
-                <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 4 }}>{item.question}</div>
-                <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{item.answer}</p>
-              </div>
+          <ul className="pricing-benefits">
+            {benefits.map((benefit) => (
+              <li key={benefit}><Check size={15} /> {benefit}</li>
             ))}
-          </div>
-        </details>
+          </ul>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
-          <span style={{ fontSize: 10.5, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            Restore license key
-          </span>
-          <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+          {stripeLink ? (
+            <a className="pricing-checkout" href={stripeLink}>
+              <CreditCard size={17} /> Buy Pro — {PRO_PRICE_LABEL} <ExternalLink size={14} />
+            </a>
+          ) : (
+            <div className="pricing-config-error" role="alert">
+              <AlertCircle size={15} /> Checkout is temporarily unavailable. Contact support@patentpreppers.com.
+            </div>
+          )}
+
+          <div className="pricing-trust-row">
+            <span><ShieldCheck size={13} /> Payment handled by Stripe</span>
+            <span>Files never leave your computer</span>
+          </div>
         </div>
 
-        <form onSubmit={handleActivateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <label className="form-label" style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-            License Key
-          </label>
-          <div style={{ display: 'flex', gap: 10 }}>
+        <div className="pricing-divider"><span>Restore a license</span></div>
+
+        <form className="pricing-activation" onSubmit={handleActivateSubmit}>
+          <label htmlFor="pricing-license-key"><KeyRound size={14} /> Enter your ExhibitKIT license key</label>
+          <div className="pricing-activation-row">
             <input
+              ref={licenseInputRef}
+              id="pricing-license-key"
               type="text"
               value={licenseKey}
-              onChange={(e) => setLicenseKey(e.target.value)}
-              placeholder="e.g. EKIT-XXXX-XXXX-XXXX"
-              style={{
-                flex: 1,
-                fontSize: 13,
-                padding: '8px 12px',
-                backgroundColor: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 6,
-                color: 'var(--color-text-primary)',
-                fontFamily: 'var(--font-mono)',
+              onChange={(event) => {
+                setLicenseKey(event.target.value);
+                if (error) setError('');
               }}
+              placeholder="EKIT-XXXX-XXXX-XXXX"
+              autoComplete="off"
+              spellCheck="false"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'pricing-license-error' : undefined}
             />
-            <button type="submit" className="btn btn-secondary" style={{ flexShrink: 0, padding: '8px 16px', fontSize: 13 }}>
-              Activate
-            </button>
+            <button type="submit">Activate</button>
           </div>
+
           {error && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                color: 'var(--color-error, #dc2626)',
-                fontSize: 11,
-                background: 'rgba(220, 38, 38, 0.08)',
-                border: '1px solid rgba(220, 38, 38, 0.25)',
-                padding: '6px 10px',
-                borderRadius: 6,
-              }}
-            >
-              <AlertCircle size={13} style={{ flexShrink: 0 }} />
-              <span>{error}</span>
+            <div id="pricing-license-error" className="pricing-license-error" role="alert">
+              <AlertCircle size={14} /> {error}
             </div>
           )}
+
           {isDevMode() && (
-            <div
-              style={{
-                fontSize: 10.5,
-                color: 'var(--color-text-muted)',
-                textAlign: 'center',
-                background: 'rgba(217, 119, 6, 0.05)',
-                border: '1px solid rgba(217, 119, 6, 0.1)',
-                padding: '6px 8px',
-                borderRadius: 4,
-              }}
-            >
-              <strong>Development Mode:</strong> test key{' '}
-              <code style={{ fontSize: 10, padding: '2px 4px', background: 'var(--color-surface-2)' }}>{DEV_TEST_KEY}</code>
-            </div>
+            <p className="pricing-dev-note">Local test key: <code>{DEV_TEST_KEY}</code></p>
           )}
         </form>
-      </div>
+      </section>
     </div>
   );
 }

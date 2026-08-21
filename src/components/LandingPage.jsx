@@ -1,11 +1,13 @@
 import {
   ArrowRight,
+  Building2,
   Check,
   ChevronRight,
   FileCheck2,
   Files,
   FolderLock,
   HardDrive,
+  KeyRound,
   Moon,
   Scale,
   ShieldCheck,
@@ -13,14 +15,10 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import {
-  PLANS,
-  PLAN_IDS,
-  PLAN_CHOOSER,
   PRICING_FAQ,
   FREE_MAX_FILES_PER_BATCH,
-  getPlanById,
 } from '../config/pricing.js';
-import { getCheckoutConfig, getPlanCta, canPurchasePlan } from '../utils/checkout.js';
+import { PRO_PRICE_LABEL } from '../utils/payment';
 import './LandingPage.css';
 
 const previewRows = [
@@ -47,14 +45,17 @@ const workflowSteps = [
   },
 ];
 
+const publicPricingFaq = PRICING_FAQ.filter(
+  (item) => item.id !== 'case-pass-auto-renew' && item.id !== 'case-pass-expires'
+);
+
 export default function LandingPage({
   onLaunchFree,
   onOpenPricing,
+  onRestoreLicense,
   theme,
   onToggleTheme,
 }) {
-  const config = getCheckoutConfig();
-
   return (
     <main className="landing-page">
       <nav className="landing-nav" aria-label="Primary navigation">
@@ -232,99 +233,57 @@ export default function LandingPage({
       </section>
 
       <section className="landing-section landing-pricing" id="pricing">
-        <div className="landing-pricing-copy">
-          <span className="landing-kicker">Simple pricing</span>
-          <h2>Pay when a matter needs Pro renaming power.</h2>
-          <p>
-            Start free with sample data or up to {FREE_MAX_FILES_PER_BATCH} real files per batch.
-            Choose a 30-day Case Pass for an active matter, or ExhibitKit Pro for ongoing use.
-          </p>
+        <div className="landing-section-heading landing-pricing-heading">
+          <span className="landing-kicker">Simple launch pricing</span>
+          <h2>Start free. Upgrade once the workflow earns its place.</h2>
+          <p>Two clear choices, no subscription, and no case files sent to a payment processor.</p>
+        </div>
 
-          <div className="landing-plan-chooser" aria-label="Which plan fits">
-            {PLAN_CHOOSER.map((row) => {
-              const plan = getPlanById(row.planId);
-              return (
-                <div key={row.planId} className="landing-plan-chooser-row">
-                  <span>{row.audience}</span>
-                  <strong>{plan?.name}</strong>
-                </div>
-              );
-            })}
+        <div className="landing-pricing-grid">
+          <article className="landing-price-card landing-price-card-free">
+            <div className="landing-price-topline"><span>Free</span><em>No account</em></div>
+            <div className="landing-price"><strong>$0</strong><span>USD<br />to evaluate</span></div>
+            <p className="landing-price-description">Use the full preview workflow with sample data or real-file batches of up to {FREE_MAX_FILES_PER_BATCH} PDFs.</p>
+            <ul>
+              <li><Check size={15} /> Unlimited interactive demo workflow</li>
+              <li><Check size={15} /> Up to {FREE_MAX_FILES_PER_BATCH} real PDFs per batch</li>
+              <li><Check size={15} /> Preview and edit proposed filenames</li>
+              <li><Check size={15} /> Local processing with no account</li>
+            </ul>
+            <button className="landing-secondary-button" onClick={onLaunchFree}>
+              Start free <ArrowRight size={16} />
+            </button>
+            <span className="landing-inline-status">No trial clock and no credit card</span>
+          </article>
+
+          <article className="landing-price-card landing-price-card-pro">
+            <div className="landing-price-topline"><span>ExhibitKIT Pro</span><em>Launch price</em></div>
+            <div className="landing-price"><strong>{PRO_PRICE_LABEL}</strong><span>USD<br />one-time</span></div>
+            <p className="landing-price-description">One workstation. Perpetual use of the purchased version, with 12 months of updates and support.</p>
+            <ul>
+              <li><Check size={15} /> Unlimited exhibit batches</li>
+              <li><Check size={15} /> Direct local-folder renaming</li>
+              <li><Check size={15} /> Matter profiles and custom templates</li>
+              <li><Check size={15} /> CSV, JSON, and printable audit reports</li>
+            </ul>
+            <button className="landing-primary-button" id="btn-purchase-pro-pricing" onClick={onOpenPricing}>
+              Buy Pro — {PRO_PRICE_LABEL} <ArrowRight size={16} />
+            </button>
+            <button className="landing-restore-button" onClick={onRestoreLicense}>
+              <KeyRound size={14} /> Already purchased? Restore license
+            </button>
+            <small>Secure checkout by Stripe · Files never leave your computer</small>
+          </article>
+        </div>
+
+        <div className="landing-firm-contact">
+          <span className="landing-firm-icon" aria-hidden="true"><Building2 size={19} /></span>
+          <div>
+            <strong>Need multiple workstations?</strong>
+            <span>Firm licensing is handled as a guided pilot while team management is being built.</span>
           </div>
+          <a href="mailto:support@patentpreppers.com?subject=ExhibitKIT%20Firm%20licensing">Contact us <ArrowRight size={14} /></a>
         </div>
-
-        <div className="landing-price-grid" data-checkout-configured={config.checkoutConfigured ? 'true' : 'false'}>
-          {PLANS.map((plan) => {
-            const cta = getPlanCta(plan.id, config);
-            const purchasable = canPurchasePlan(plan.id, config);
-
-            return (
-              <article
-                key={plan.id}
-                className={`landing-price-card${plan.badge ? ' is-featured' : ''}`}
-                data-plan-id={plan.id}
-              >
-                <div className="landing-price-topline">
-                  <span>{plan.name}</span>
-                  {plan.badge ? <em>{plan.badge}</em> : plan.licenseLabel ? <em>{plan.licenseLabel}</em> : null}
-                </div>
-                <div className="landing-price">
-                  <strong>{plan.displayPrice}</strong>
-                  <span>{plan.billingLabel}</span>
-                </div>
-                {plan.supportingCopy && <p className="landing-price-support">{plan.supportingCopy}</p>}
-                <ul>
-                  {plan.features.map((f) => (
-                    <li key={f.text}>
-                      <Check size={15} />
-                      <span>
-                        {f.text}
-                        {f.planned ? ' (planned)' : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {plan.clarification && <p className="landing-price-note">{plan.clarification}</p>}
-
-                {plan.id === PLAN_IDS.FREE && (
-                  <button className="landing-primary-button" id="btn-pricing-free" onClick={onLaunchFree}>
-                    {plan.cta} <ArrowRight size={16} />
-                  </button>
-                )}
-
-                {plan.id === PLAN_IDS.FIRM && (
-                  <a className="landing-primary-button landing-contact-button" href={cta.href}>
-                    {cta.label}
-                  </a>
-                )}
-
-                {(plan.id === PLAN_IDS.CASE_PASS || plan.id === PLAN_IDS.PRO) && (
-                  <button
-                    className={`landing-primary-button${purchasable ? '' : ' is-disabled'}`}
-                    id={`btn-purchase-${plan.id}`}
-                    data-purchase-enabled={purchasable ? 'true' : 'false'}
-                    type="button"
-                    title={purchasable ? undefined : (cta.disabledReason || 'Checkout not configured — open to restore a license key')}
-                    onClick={onOpenPricing}
-                  >
-                    {purchasable ? (
-                      <>
-                        {plan.cta} <ArrowRight size={16} />
-                      </>
-                    ) : (
-                      'View plan / restore license'
-                    )}
-                  </button>
-                )}
-              </article>
-            );
-          })}
-        </div>
-        {!config.checkoutConfigured && (
-          <p className="landing-checkout-note">
-            Paid checkout is not configured in this deployment. Open pricing to restore a license key, or contact support.
-          </p>
-        )}
       </section>
 
       <section className="landing-section landing-faq" id="faq">
@@ -333,7 +292,7 @@ export default function LandingPage({
           <h2>Pricing questions, answered plainly.</h2>
         </div>
         <div className="landing-faq-list">
-          {PRICING_FAQ.map((item) => (
+          {publicPricingFaq.map((item) => (
             <details key={item.id} className="landing-faq-item">
               <summary>{item.question}</summary>
               <p>{item.answer}</p>

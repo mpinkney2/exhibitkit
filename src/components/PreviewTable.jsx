@@ -335,7 +335,7 @@ export default function PreviewTable({
           <tbody>
             {items.map((item, index) => (
               <tr
-                key={index}
+                key={`${item.originalName}-${index}`}
                 className={
                   item.status === 'warning' ? 'has-conflict' :
                   item.status === 'danger' ? 'has-error' : ''

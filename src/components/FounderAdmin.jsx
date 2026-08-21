@@ -85,12 +85,6 @@ export default function FounderAdmin({
   const [note, setNote] = useState('');
 
   useEffect(() => {
-    if (shouldOfferFounderEntry()) {
-      setVisible(true);
-    }
-  }, []);
-
-  useEffect(() => {
     const onKey = (e) => {
       if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
         e.preventDefault();
