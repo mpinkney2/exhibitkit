@@ -62,9 +62,16 @@ VITE_CHECKOUT_API_URL=
 VITE_ENTITLEMENT_API_URL=
 VITE_STRIPE_PRICE_CASE_PASS=
 VITE_STRIPE_PRICE_PRO=
+
+# Founder live-test console (see docs/FOUNDER_ADMIN.md)
+VITE_FOUNDER_ADMIN_SECRET=ekit-founder-2026
 ```
 
 Stripe secret keys and webhook secrets must remain server-side only. Do not place them in `VITE_*` variables.
+
+### Founder live testing
+
+Open `http://localhost:5173/?founder=1` and unlock with the founder secret (DEV default: `ekit-founder-2026`). Full instructions: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
 
 ---
 

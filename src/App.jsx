@@ -7,6 +7,7 @@ import ActionPanel from './components/ActionPanel';
 import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
+import FounderAdmin from './components/FounderAdmin';
 import JSZip from 'jszip';
 import {
   getEntitlement,
@@ -663,19 +664,41 @@ export default function App() {
   };
 
   // Layout Renderings
+  const founderAdmin = (
+    <FounderAdmin
+      appRoute={appRoute}
+      entitlement={entitlement}
+      onEntitlementChange={(next) => setEntitlement(next || getEntitlement())}
+      onSetRoute={setAppRoute}
+      onOpenPricing={() => setIsPricingOpen(true)}
+      onLaunchWorkspace={handleLaunchFree}
+    />
+  );
+
   if (appRoute === 'landing') {
     return (
-      <LandingPage 
-        onLaunchFree={handleLaunchFree}
-        onOpenPricing={() => setIsPricingOpen(true)}
-        theme={theme}
-        onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-      />
+      <>
+        <LandingPage 
+          onLaunchFree={handleLaunchFree}
+          onOpenPricing={() => setIsPricingOpen(true)}
+          theme={theme}
+          onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+        />
+        {isPricingOpen && (
+          <PricingModal 
+            isOpen={isPricingOpen} 
+            onClose={() => setIsPricingOpen(false)} 
+            onActivated={handleEntitlementActivated}
+          />
+        )}
+        {founderAdmin}
+      </>
     );
   }
 
   if (appRoute === 'stripe_success') {
     return (
+      <>
       <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div className="glass-panel" style={{ maxWidth: '520px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', border: '1px solid var(--status-success-border)' }}>
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -722,11 +745,14 @@ export default function App() {
           </button>
         </div>
       </div>
+      {founderAdmin}
+      </>
     );
   }
 
   if (appRoute === 'stripe_cancel') {
     return (
+      <>
       <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'center' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
@@ -747,6 +773,15 @@ export default function App() {
           </div>
         </div>
       </div>
+      {isPricingOpen && (
+        <PricingModal 
+          isOpen={isPricingOpen} 
+          onClose={() => setIsPricingOpen(false)} 
+          onActivated={handleEntitlementActivated}
+        />
+      )}
+      {founderAdmin}
+      </>
     );
   }
 
@@ -1196,6 +1231,8 @@ export default function App() {
         activeModal={activeModal}
         onClose={() => setActiveModal(null)}
       />
+
+      {founderAdmin}
     </div>
   );
 }

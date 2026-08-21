@@ -282,8 +282,8 @@ export function restoreFromLicenseKey(key) {
 }
 
 /**
- * Test / internal helper: grant an active Case Pass window without Stripe.
- * Not exposed in production UI purchase flows.
+ * Test / founder helper: grant an active Case Pass window without Stripe.
+ * Not exposed in customer purchase flows.
  */
 export function applyCasePassForTesting(purchasedAt = new Date().toISOString()) {
   return applyEntitlementRecord({
@@ -294,6 +294,67 @@ export function applyCasePassForTesting(purchasedAt = new Date().toISOString()) 
     casePassStatus: 'active',
     updatesIncludedUntil: null,
     updateRenewalStatus: 'none',
+    purchasedVersion: APP_VERSION,
+    migratedFromLegacy: false,
+  });
+}
+
+/**
+ * Founder helper: Case Pass already expired (Pro features off; Free limits apply).
+ */
+export function applyExpiredCasePassForTesting() {
+  const purchasedAt = new Date(Date.now() - (CASE_PASS_DURATION_DAYS + 1) * 24 * 60 * 60 * 1000).toISOString();
+  return applyEntitlementRecord({
+    plan: PLAN_IDS.CASE_PASS,
+    licenseKey: null,
+    purchasedAt,
+    expiresAt: addDays(purchasedAt, CASE_PASS_DURATION_DAYS),
+    casePassStatus: 'expired',
+    updatesIncludedUntil: null,
+    updateRenewalStatus: 'none',
+    purchasedVersion: APP_VERSION,
+    migratedFromLegacy: false,
+  });
+}
+
+/**
+ * Founder helper: payment pending Case Pass (no Pro features yet).
+ */
+export function applyPendingCasePassForTesting() {
+  const purchasedAt = new Date().toISOString();
+  return applyEntitlementRecord({
+    plan: PLAN_IDS.CASE_PASS,
+    licenseKey: null,
+    purchasedAt,
+    expiresAt: addDays(purchasedAt, CASE_PASS_DURATION_DAYS),
+    casePassStatus: 'payment_pending',
+    updatesIncludedUntil: null,
+    updateRenewalStatus: 'none',
+    purchasedVersion: APP_VERSION,
+    migratedFromLegacy: false,
+  });
+}
+
+/**
+ * Founder helper: Pro perpetual access.
+ * @param {{ updatesLapsed?: boolean }} [options]
+ */
+export function applyProForTesting(options = {}) {
+  const purchasedAt = options.updatesLapsed
+    ? new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString()
+    : new Date().toISOString();
+  const updatesIncludedUntil = options.updatesLapsed
+    ? new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+    : addMonths(purchasedAt, PRO_UPDATES_INCLUDED_MONTHS);
+
+  return applyEntitlementRecord({
+    plan: PLAN_IDS.PRO,
+    licenseKey: 'EKIT-FNDR-TEST-PRO1',
+    purchasedAt,
+    expiresAt: null,
+    casePassStatus: 'none',
+    updatesIncludedUntil,
+    updateRenewalStatus: options.updatesLapsed ? 'lapsed' : 'included',
     purchasedVersion: APP_VERSION,
     migratedFromLegacy: false,
   });
