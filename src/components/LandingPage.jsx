@@ -63,7 +63,10 @@ export default function LandingPage({
           <span className="landing-brand-mark" aria-hidden="true">
             <Scale size={17} strokeWidth={1.8} />
           </span>
-          <span>Exhibit<span>KIT</span></span>
+          <span className="landing-brand-copy">
+            <small>Patent Preppers™</small>
+            <strong>Exhibit<span>KIT</span></strong>
+          </span>
         </a>
 
         <div className="landing-nav-links">
@@ -304,7 +307,10 @@ export default function LandingPage({
       <footer className="landing-footer">
         <a className="landing-brand" href="#top">
           <span className="landing-brand-mark"><Scale size={16} /></span>
-          <span>Exhibit<span>KIT</span></span>
+          <span className="landing-brand-copy">
+            <small>Patent Preppers™</small>
+            <strong>Exhibit<span>KIT</span></strong>
+          </span>
         </a>
         <p>Local-first exhibit filename renaming for litigation teams.</p>
         <a href="mailto:support@patentpreppers.com">support@patentpreppers.com</a>

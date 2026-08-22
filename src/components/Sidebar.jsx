@@ -39,35 +39,18 @@ export default function Sidebar({
     <div className={`sidebar ${className}`}>
       <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: '6px',
-            backgroundColor: 'var(--color-surface-2)',
-            color: 'var(--color-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            flexShrink: 0
-          }}>
+          <div className="sidebar-brand-mark">
             ⚖
           </div>
-          <h1 style={{
-            fontSize: '15px',
-            fontWeight: '600',
-            color: 'var(--color-text-primary)',
-            fontFamily: 'var(--font-sans)',
-            margin: 0,
-            letterSpacing: '-0.3px'
-          }}>
-            ExhibitKIT
-          </h1>
+          <div className="sidebar-brand-copy">
+            <span>Patent Preppers™</span>
+            <h1>ExhibitKIT</h1>
+          </div>
         </div>
         {onCloseMobile && (
           <button 
             onClick={onCloseMobile} 
+            className="sidebar-close-button"
             style={{ 
               padding: '6px', 
               color: 'var(--text-secondary)', 

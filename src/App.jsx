@@ -55,7 +55,7 @@ export default function App() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [renameStats, setRenameStats] = useState({ count: 0, conflicts: 0, time: "0.0s" });
-  const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'light');
   
   // Entitlement (free | case_pass | pro_perpetual)
   const [entitlement, setEntitlement] = useState(() => {
@@ -974,7 +974,10 @@ export default function App() {
               }}
             >
               <div className="top-bar-logo-mark" aria-hidden="true">⚖</div>
-              <span className="top-bar-logo-text">ExhibitKIT</span>
+              <span className="top-bar-logo-copy">
+                <small>Patent Preppers™</small>
+                <strong className="top-bar-logo-text">ExhibitKIT</strong>
+              </span>
             </div>
 
             <div className="top-bar-badge">

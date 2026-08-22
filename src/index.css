@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 :root {
   /* Spacing Tokens */
@@ -26,34 +26,55 @@
   --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Color Palette (Dark Theme by default) */
-  --color-primary: #1B2A4A;
-  --color-primary-hover: #243660;
-  --color-accent: #2563EB;
-  --color-accent-hover: #1D4ED8;
-  --color-surface-0: #0F172A;
-  --color-surface-1: #1E293B;
-  --color-surface-2: #334155;
-  --color-border: #334155;
-  --color-text-primary: #F8FAFC;
-  --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
-  --color-success: #059669;
-  --color-warning: #D97706;
-  --color-error: #DC2626;
+  /* Patent Preppers family palette — dark utility theme */
+  --color-primary: #143A66;
+  --color-primary-hover: #1C4B80;
+  --color-accent: #4F83C2;
+  --color-accent-hover: #6B9BD1;
+  --color-surface-0: #0D1F30;
+  --color-surface-1: #13283D;
+  --color-surface-2: #1B344C;
+  --color-border: rgba(207, 222, 235, 0.18);
+  --color-text-primary: #F3F6F9;
+  --color-text-secondary: #B5C2CE;
+  --color-text-muted: #7E93A6;
+  --color-success: #8DA36F;
+  --color-warning: #C6A76A;
+  --color-error: #B56F6F;
+  --brand-navy: #0D1F30;
+  --brand-docket: #143A66;
+  --brand-gold: #C6A76A;
+  --brand-sage: #8DA36F;
+  --brand-frost: #C7D7E4;
+  --brand-parchment: #FBFAF6;
 
   /* Fonts */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   
   /* Shadows & Blurs */
   --glass-blur: blur(12px);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 44px -24px rgba(0, 0, 0, 0.68);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.15);
   --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-glow: 0 0 0 1px rgba(79, 131, 194, 0.12);
+  --transition-fast: 160ms ease;
+  --transition-normal: 240ms ease;
+  --accent-primary-glow: rgba(79, 131, 194, 0.14);
+  --border-color-glow: rgba(199, 215, 228, 0.34);
+  --bg-preset-card: rgba(255, 255, 255, 0.025);
+  --bg-preset-card-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-title-gradient: linear-gradient(120deg, #F3F6F9 20%, #AFC5D9 100%);
+  --status-success-bg: rgba(141, 163, 111, 0.12);
+  --status-success-border: rgba(141, 163, 111, 0.3);
+  --status-warning-bg: rgba(198, 167, 106, 0.12);
+  --status-warning-border: rgba(198, 167, 106, 0.3);
+  --status-danger-bg: rgba(181, 111, 111, 0.12);
+  --status-danger-border: rgba(181, 111, 111, 0.3);
   
   /* Backward Compatibility Mappings */
   --bg-primary: var(--color-surface-0);
@@ -78,20 +99,31 @@
 }
 
 .light-theme {
-  --color-primary: #1B2A4A;
-  --color-primary-hover: #243660;
-  --color-accent: #2563EB;
-  --color-accent-hover: #1D4ED8;
-  --color-surface-0: #FAFAF9;
+  --color-primary: #143A66;
+  --color-primary-hover: #0D2D51;
+  --color-accent: #225C9B;
+  --color-accent-hover: #143A66;
+  --color-surface-0: #F1F4F6;
   --color-surface-1: #FFFFFF;
-  --color-surface-2: #F4F4F2;
-  --color-border: #E2E2DE;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6B7280;
-  --color-text-muted: #9CA3AF;
-  --color-success: #059669;
-  --color-warning: #D97706;
-  --color-error: #DC2626;
+  --color-surface-2: #F7F6F1;
+  --color-border: rgba(13, 31, 48, 0.12);
+  --color-text-primary: #18202A;
+  --color-text-secondary: #596774;
+  --color-text-muted: #86929D;
+  --color-success: #647D47;
+  --color-warning: #8A6B2E;
+  --color-error: #984B4B;
+  --accent-primary-glow: rgba(34, 92, 155, 0.11);
+  --border-color-glow: rgba(20, 58, 102, 0.3);
+  --bg-preset-card: #FBFAF6;
+  --bg-preset-card-hover: #F3F6F9;
+  --sidebar-title-gradient: linear-gradient(120deg, #0D1F30 20%, #225C9B 100%);
+  --status-success-bg: rgba(100, 125, 71, 0.1);
+  --status-success-border: rgba(100, 125, 71, 0.24);
+  --status-warning-bg: rgba(138, 107, 46, 0.1);
+  --status-warning-border: rgba(138, 107, 46, 0.24);
+  --status-danger-bg: rgba(152, 75, 75, 0.1);
+  --status-danger-border: rgba(152, 75, 75, 0.24);
 
   /* Backward Compatibility Mappings */
   --bg-primary: var(--color-surface-0);
@@ -145,7 +177,7 @@ body {
   font-family: var(--font-sans);
   min-height: 100vh;
   overflow-x: hidden;
-  letter-spacing: -0.1px;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
@@ -165,6 +197,12 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.5px;
 }
 
+.landing-page h1,
+.landing-page h2 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+}
+
 /* Background Glowing Orbs */
 .glow-orb-1 {
   position: absolute;
@@ -173,7 +211,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 50vw;
   height: 50vw;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0) 70%);
+  background: radial-gradient(circle, rgba(79, 131, 194, 0.09) 0%, rgba(79, 131, 194, 0) 70%);
   z-index: -1;
   pointer-events: none;
   filter: blur(40px);
@@ -185,7 +223,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 40vw;
   height: 40vw;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0) 70%);
+  background: radial-gradient(circle, rgba(198, 167, 106, 0.07) 0%, rgba(198, 167, 106, 0) 70%);
   z-index: -1;
   pointer-events: none;
   filter: blur(40px);
@@ -235,13 +273,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  background: var(--brand-docket);
+  box-shadow: 0 8px 22px -12px rgba(13, 31, 48, 0.7);
   color: #ffffff;
 }
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45), 0 0 10px rgba(139, 92, 246, 0.3);
+  background: var(--color-primary-hover);
+  box-shadow: 0 12px 26px -14px rgba(13, 31, 48, 0.85);
   color: #ffffff;
 }
 .btn-primary:active {
@@ -1634,3 +1673,135 @@ table.exhibit-table tr.has-error {
   margin-top: 20px;
 }
 
+/* Patent Preppers suite skin — restrained legal-tech utility surfaces */
+.sidebar-brand-mark,
+.top-bar-logo-mark {
+  width: 30px;
+  height: 34px;
+  border-radius: 50% 50% 44% 44% / 34% 34% 60% 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  background: var(--brand-navy);
+  border: 1px solid rgba(255, 255, 255, .16);
+  box-shadow: 0 8px 18px -12px rgba(13, 31, 48, .8);
+  font-size: 13px;
+}
+
+.sidebar-brand-copy,
+.top-bar-logo-copy {
+  display: grid;
+  gap: 2px;
+  line-height: 1;
+}
+
+.sidebar-brand-copy > span,
+.top-bar-logo-copy > small {
+  color: var(--color-text-muted);
+  font: 500 7px/1 var(--font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.sidebar-brand-copy h1 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: 600 15px/1 var(--font-sans);
+  letter-spacing: -.025em;
+}
+
+.sidebar-close-button {
+  display: none !important;
+}
+
+.top-bar-logo-text {
+  line-height: 1;
+}
+
+.light-theme .main-content {
+  background-color: var(--color-surface-0);
+  background-image:
+    linear-gradient(to right, rgba(139, 166, 189, .055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(139, 166, 189, .055) 1px, transparent 1px);
+  background-size: 88px 88px;
+}
+
+.light-theme .sidebar {
+  background: #fbfaf6;
+}
+
+.light-theme .top-bar {
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 0 rgba(13, 31, 48, .025);
+  backdrop-filter: blur(14px);
+}
+
+.light-theme .dropzone-container {
+  border-width: 1px;
+  border-color: rgba(20, 58, 102, .22);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 24px 54px -40px rgba(13, 31, 48, .45);
+}
+
+.light-theme .dropzone-container:hover,
+.light-theme .dropzone-container.drag-active {
+  background: #fff;
+  border-color: var(--brand-docket);
+  box-shadow: 0 28px 60px -38px rgba(20, 58, 102, .48);
+}
+
+.dropzone-title {
+  font-family: var(--font-serif);
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: -.025em;
+}
+
+.dropzone-icon {
+  border-radius: 50% 50% 44% 44% / 34% 34% 60% 60%;
+}
+
+.light-theme .dropzone-icon {
+  color: var(--brand-docket);
+  background: #f3f6f9;
+}
+
+.light-theme .cell-editable:focus-within {
+  background: #fff;
+}
+
+.light-theme .stat-card,
+.light-theme .action-bar,
+.light-theme .glass-panel {
+  box-shadow: 0 16px 40px -34px rgba(13, 31, 48, .42);
+}
+
+.top-bar-upgrade {
+  background: var(--brand-docket);
+  box-shadow: 0 9px 20px -14px rgba(13, 31, 48, .75);
+}
+
+.top-bar-upgrade:hover {
+  background: var(--color-primary-hover);
+}
+
+.sidebar-section-title,
+.form-label,
+table.exhibit-table th {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: .1em;
+}
+
+@media (max-width: 768px) {
+  .sidebar-close-button {
+    display: flex !important;
+  }
+
+  .sidebar-brand-copy > span,
+  .top-bar-logo-copy > small {
+    display: none;
+  }
+}
