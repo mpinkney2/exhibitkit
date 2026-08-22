@@ -53,8 +53,11 @@ body:not(.light-theme) .landing-page {
 .landing-nav-links a:hover { color: var(--landing-ink); }
 .landing-nav-actions { justify-self: end; display: flex; align-items: center; gap: 10px; }
 .landing-nav button { padding: 0; }
-.landing-icon-button { width: 36px; height: 36px; border: 1px solid var(--landing-line); border-radius: 999px; color: var(--landing-muted); background: rgba(255,255,255,.72); }
-.landing-icon-button:hover { color: var(--landing-ink); border-color: var(--landing-faint); }
+.landing-icon-button { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #b9c8d5; border-radius: 999px; color: #31516f; background: rgba(255,255,255,.92); box-shadow: 0 5px 14px -10px rgba(13,31,48,.72); }
+.landing-icon-button svg { width: 18px; height: 18px; display: block; stroke: currentColor; stroke-width: 2.25; }
+.landing-icon-button:hover { color: #143a66; border-color: #7d96aa; background: #fff; }
+body:not(.light-theme) .landing-icon-button { color: #e3edf6; border-color: rgba(199,215,228,.32); background: rgba(255,255,255,.09); }
+body:not(.light-theme) .landing-icon-button:hover { color: #fff; border-color: rgba(199,215,228,.62); background: rgba(255,255,255,.15); }
 .landing-nav-demo { height: 38px; padding: 0 16px !important; border: 1px solid var(--landing-blue); border-radius: 999px; color: #fff; background: var(--landing-blue); font-size: 12px; font-weight: 600; }
 .landing-nav-demo:hover { border-color: var(--landing-blue-dark); color: #fff; background: var(--landing-blue-dark); }
 
