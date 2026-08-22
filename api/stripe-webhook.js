@@ -28,7 +28,10 @@ export default {
         signature,
         process.env.STRIPE_WEBHOOK_SECRET,
       );
-    } catch {
+    } catch (error) {
+      console.error('Stripe webhook signature verification failed', {
+        error: error instanceof Error ? error.message : 'unknown_error',
+      });
       return json({ ok: false, error: 'Webhook signature verification failed.' }, 400);
     }
 
