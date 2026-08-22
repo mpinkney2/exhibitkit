@@ -1,6 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { AlertCircle, Check, CreditCard, ExternalLink, KeyRound, ShieldCheck, X } from 'lucide-react';
-import { restoreFromLicenseKey, isDevMode, DEV_TEST_KEY } from '../utils/entitlement';
+import { AlertCircle, Check, CreditCard, ExternalLink, KeyRound, Mail, ShieldCheck, X } from 'lucide-react';
+import {
+  restoreFromLicenseKey,
+  requestLicenseRecovery,
+  isDevMode,
+  DEV_TEST_KEY,
+} from '../utils/entitlement';
 import { buildStripePaymentLink, PRO_PRICE_LABEL } from '../utils/payment';
 import './PricingModal.css';
 
@@ -20,6 +25,13 @@ export default function PricingModal({
 }) {
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
+  const [isActivating, setIsActivating] = useState(false);
+  const [needsTransfer, setNeedsTransfer] = useState(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [recoveryError, setRecoveryError] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
   const titleId = useId();
   const descriptionId = useId();
   const dialogRef = useRef(null);
@@ -35,9 +47,9 @@ export default function PricingModal({
     document.body.style.overflow = 'hidden';
 
     if (initialView === 'restore') {
-      licenseInputRef.current?.focus();
+      licenseInputRef.current?.focus({ preventScroll: true });
     } else {
-      closeButtonRef.current?.focus();
+      closeButtonRef.current?.focus({ preventScroll: true });
     }
 
     const handleKeyDown = (event) => {
@@ -70,18 +82,43 @@ export default function PricingModal({
 
   if (!isOpen) return null;
 
-  const handleActivateSubmit = (event) => {
-    event.preventDefault();
-    const result = restoreFromLicenseKey(licenseKey);
+  const activate = async (confirmTransfer = false) => {
+    setIsActivating(true);
+    setError('');
+    const result = await restoreFromLicenseKey(licenseKey, {
+      workstationId,
+      confirmTransfer,
+    });
 
+    setIsActivating(false);
     if (result.ok) {
-      setError('');
+      setNeedsTransfer(false);
       setLicenseKey('');
       onActivated?.(result.entitlement);
       return;
     }
 
+    setNeedsTransfer(Boolean(result.needsTransfer));
     setError(result.error || 'That license key could not be restored.');
+  };
+
+  const handleActivateSubmit = async (event) => {
+    event.preventDefault();
+    await activate(false);
+  };
+
+  const handleRecoverySubmit = async (event) => {
+    event.preventDefault();
+    setIsRecovering(true);
+    setRecoveryError('');
+    setRecoveryMessage('');
+    const result = await requestLicenseRecovery(recoveryEmail);
+    setIsRecovering(false);
+    if (result.ok) {
+      setRecoveryMessage(result.message || 'Check your email for recovery instructions.');
+    } else {
+      setRecoveryError(result.error || 'License recovery is temporarily unavailable.');
+    }
   };
 
   const handleBackdropClick = (event) => {
@@ -156,14 +193,17 @@ export default function PricingModal({
               onChange={(event) => {
                 setLicenseKey(event.target.value);
                 if (error) setError('');
+                if (needsTransfer) setNeedsTransfer(false);
               }}
-              placeholder="EKIT-XXXX-XXXX-XXXX"
+              placeholder="EKIT-XXXX-XXXX-XXXX-XXXX"
               autoComplete="off"
               spellCheck="false"
               aria-invalid={Boolean(error)}
               aria-describedby={error ? 'pricing-license-error' : undefined}
             />
-            <button type="submit">Activate</button>
+            <button type="submit" disabled={isActivating || !licenseKey.trim()}>
+              {isActivating ? 'Verifying…' : 'Activate'}
+            </button>
           </div>
 
           {error && (
@@ -172,10 +212,59 @@ export default function PricingModal({
             </div>
           )}
 
+          {needsTransfer && (
+            <div className="pricing-transfer-panel">
+              <p>Transferring will deactivate this license on the previous workstation.</p>
+              <button
+                type="button"
+                className="pricing-transfer-button"
+                disabled={isActivating}
+                onClick={() => activate(true)}
+              >
+                Transfer license to this workstation
+              </button>
+            </div>
+          )}
+
           {isDevMode() && (
             <p className="pricing-dev-note">Local test key: <code>{DEV_TEST_KEY}</code></p>
           )}
         </form>
+
+        <button
+          type="button"
+          className="pricing-recovery-toggle"
+          onClick={() => {
+            setIsRecoveryOpen((current) => !current);
+            setRecoveryError('');
+            setRecoveryMessage('');
+          }}
+          aria-expanded={isRecoveryOpen}
+        >
+          <Mail size={13} /> Lost your license key?
+        </button>
+
+        {isRecoveryOpen && (
+          <form className="pricing-recovery" onSubmit={handleRecoverySubmit}>
+            <label htmlFor="pricing-recovery-email">Purchase email</label>
+            <div className="pricing-recovery-row">
+              <input
+                id="pricing-recovery-email"
+                type="email"
+                value={recoveryEmail}
+                onChange={(event) => setRecoveryEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
+              <button type="submit" disabled={isRecovering}>
+                {isRecovering ? 'Sending…' : 'Email my key'}
+              </button>
+            </div>
+            {recoveryMessage && <p className="pricing-recovery-success" role="status">{recoveryMessage}</p>}
+            {recoveryError && <p className="pricing-recovery-error" role="alert">{recoveryError}</p>}
+          </form>
+        )}
       </section>
     </div>
   );

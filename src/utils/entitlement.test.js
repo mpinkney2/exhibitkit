@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   migrateLegacyLicenseIfNeeded,
   getEntitlement,
@@ -7,6 +7,7 @@ import {
   isWithinFreeFileLimit,
   getMaxRealFilesPerBatch,
   restoreFromLicenseKey,
+  refreshVerifiedEntitlementStatus,
   applyCasePassForTesting,
   applyEntitlementRecord,
   clearEntitlement,
@@ -18,6 +19,10 @@ import { activateLicense } from './license.js';
 
 beforeEach(() => {
   localStorage.clear();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('Free five-file limit', () => {
@@ -69,6 +74,7 @@ describe('Pro perpetual entitlement', () => {
       updatesIncludedUntil,
       updateRenewalStatus: 'lapsed',
       purchasedVersion: 'v0.9.3',
+      serverVerified: true,
     });
 
     expect(areUpdatesIncluded(ent)).toBe(false);
@@ -76,11 +82,65 @@ describe('Pro perpetual entitlement', () => {
     expect(ent.plan).toBe(PLAN_IDS.PRO);
   });
 
-  it('restores Pro via license key', () => {
-    const result = restoreFromLicenseKey('ekit-abcd-efgh-ijkl');
+  it('restores Pro only after the license service verifies the key', async () => {
+    const verifiedResponse = new Response(JSON.stringify({
+      ok: true,
+      entitlement: {
+        plan: PLAN_IDS.PRO,
+        purchasedAt: '2026-08-21T12:00:00.000Z',
+        expiresAt: null,
+        casePassStatus: 'none',
+        updatesIncludedUntil: '2027-08-21T12:00:00.000Z',
+        updateRenewalStatus: 'included',
+        purchasedVersion: 'v0.10.0',
+        serverVerified: true,
+        activationToken: 'a'.repeat(43),
+        licenseFingerprint: '••••-IJKL',
+      },
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(verifiedResponse));
+
+    const result = await restoreFromLicenseKey('ekit-abcd-efgh-ijkl');
     expect(result.ok).toBe(true);
     expect(result.entitlement.plan).toBe(PLAN_IDS.PRO);
     expect(hasProFeatures(result.entitlement)).toBe(true);
+    expect(fetch).toHaveBeenCalledWith('/api/license/activate', expect.objectContaining({
+      method: 'POST',
+    }));
+  });
+
+  it('does not unlock Pro when the server rejects a format-valid key', async () => {
+    const rejectedResponse = new Response(JSON.stringify({
+      ok: false,
+      code: 'INVALID_LICENSE',
+      error: 'That license key could not be verified.',
+    }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(rejectedResponse));
+
+    const result = await restoreFromLicenseKey('EKIT-FAKE-FAKE-FAKE');
+    expect(result.ok).toBe(false);
+    expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
+    expect(hasProFeatures(getEntitlement())).toBe(false);
+  });
+
+  it('keeps a previously verified perpetual license during a temporary server outage', async () => {
+    const ent = applyEntitlementRecord({
+      plan: PLAN_IDS.PRO,
+      serverVerified: true,
+      activationToken: 'a'.repeat(43),
+      purchasedAt: '2026-08-21T12:00:00.000Z',
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 503 })));
+
+    const result = await refreshVerifiedEntitlementStatus(ent);
+    expect(result.offline).toBe(true);
+    expect(hasProFeatures(getEntitlement())).toBe(true);
   });
 });
 
@@ -106,7 +166,11 @@ describe('legacy license migration', () => {
 
 describe('clearEntitlement', () => {
   it('returns the workstation to Free', () => {
-    restoreFromLicenseKey('EKIT-ZZZZ-YYYY-XXXX');
+    applyEntitlementRecord({
+      plan: PLAN_IDS.PRO,
+      serverVerified: true,
+      activationToken: 'a'.repeat(43),
+    });
     clearEntitlement();
     const ent = getEntitlement();
     expect(ent.plan).toBe(PLAN_IDS.FREE);

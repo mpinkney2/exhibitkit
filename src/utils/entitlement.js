@@ -2,9 +2,9 @@
  * ExhibitKIT entitlement model.
  * States: free | case_pass | pro_perpetual | firm (future stub)
  *
- * Local cache is for UX only. Paid purchases require server-side verification
- * once a durable backend is configured. Until then, checkout stays disabled and
- * only migrated legacy licenses / format-valid license keys restore Pro.
+ * Local cache is for UX only. New paid licenses require server-side activation.
+ * Existing locally activated licenses remain available through a one-time legacy
+ * migration so prior customers do not lose access.
  *
  * Restoration method: license key (see restoreFromLicenseKey).
  * Do not use guessable seat query params or unsigned entitlement APIs.
@@ -45,6 +45,11 @@ const MIGRATION_FLAG = 'exhibitkit_entitlement_migrated_v1';
  * @property {UpdateRenewalStatus} updateRenewalStatus
  * @property {string|null} purchasedVersion
  * @property {boolean} migratedFromLegacy
+ * @property {boolean} serverVerified
+ * @property {boolean} developerOverride
+ * @property {string|null} activationToken
+ * @property {string|null} verifiedAt
+ * @property {string|null} licenseFingerprint
  */
 
 export { FREE_MAX_FILES_PER_BATCH, PLAN_IDS, APP_VERSION, isDevMode, DEV_TEST_KEY };
@@ -60,6 +65,11 @@ function emptyEntitlement() {
     updateRenewalStatus: 'none',
     purchasedVersion: null,
     migratedFromLegacy: false,
+    serverVerified: false,
+    developerOverride: false,
+    activationToken: null,
+    verifiedAt: null,
+    licenseFingerprint: null,
   };
 }
 
@@ -129,7 +139,18 @@ export function migrateLegacyLicenseIfNeeded() {
 }
 
 function normalizeEntitlement(record) {
+  const isLegacyShape = record
+    && record.plan === PLAN_IDS.PRO
+    && record.licenseKey
+    && !Object.hasOwn(record, 'serverVerified');
   const base = { ...emptyEntitlement(), ...record };
+
+  // Entitlements written by older ExhibitKIT builds did not include a
+  // serverVerified field. Preserve those customers as migrated legacy users,
+  // but never create this state from newly entered keys.
+  if (isLegacyShape && validateKeyFormat(record.licenseKey)) {
+    base.migratedFromLegacy = true;
+  }
 
   if (base.plan === PLAN_IDS.CASE_PASS && base.expiresAt) {
     const now = Date.now();
@@ -175,7 +196,7 @@ export function isCasePassActive(entitlement = getEntitlement()) {
  * Pro perpetual access never expires based on updatesIncludedUntil.
  */
 export function isProPerpetual(entitlement = getEntitlement()) {
-  return entitlement.plan === PLAN_IDS.PRO;
+  return entitlement.plan === PLAN_IDS.PRO && hasPaidRenamingAccess(entitlement);
 }
 
 /**
@@ -183,6 +204,10 @@ export function isProPerpetual(entitlement = getEntitlement()) {
  * Expiration of updatesIncludedUntil must NEVER revert Pro to Free.
  */
 export function hasPaidRenamingAccess(entitlement = getEntitlement()) {
+  const trusted = entitlement.serverVerified
+    || entitlement.migratedFromLegacy
+    || (isDevMode() && entitlement.developerOverride);
+  if (!trusted) return false;
   if (entitlement.plan === PLAN_IDS.PRO) return true;
   if (entitlement.plan === PLAN_IDS.FIRM) return true;
   if (isCasePassActive(entitlement)) return true;
@@ -214,8 +239,8 @@ export function isWithinFreeFileLimit(fileCount, entitlement = getEntitlement())
  * Human-readable plan badge for the workspace chrome.
  */
 export function getEntitlementLabel(entitlement = getEntitlement()) {
-  if (entitlement.plan === PLAN_IDS.PRO) return 'Pro';
-  if (entitlement.plan === PLAN_IDS.FIRM) return 'Firm';
+  if (entitlement.plan === PLAN_IDS.PRO && hasPaidRenamingAccess(entitlement)) return 'Pro';
+  if (entitlement.plan === PLAN_IDS.FIRM && hasPaidRenamingAccess(entitlement)) return 'Firm';
   if (isCasePassActive(entitlement)) return 'Case Pass';
   if (entitlement.plan === PLAN_IDS.CASE_PASS && entitlement.casePassStatus === 'expired') {
     return 'Free';
@@ -236,7 +261,11 @@ export function applyEntitlementRecord(record) {
   writeStored(next);
 
   // Keep legacy license keys in sync for Pro so older code paths remain coherent
-  if (next.plan === PLAN_IDS.PRO && next.licenseKey) {
+  if (
+    next.plan === PLAN_IDS.PRO
+    && next.licenseKey
+    && (next.migratedFromLegacy || (isDevMode() && next.developerOverride))
+  ) {
     legacyActivateLicense(next.licenseKey, 'pro_perpetual');
   }
 
@@ -244,41 +273,146 @@ export function applyEntitlementRecord(record) {
 }
 
 /**
- * Restore access via license key (defined restoration method).
- * - Valid format → Pro perpetual (legacy-compatible; server will refine plan types later)
- * - Dev test key in DEV only → Pro perpetual
- *
- * Case Pass keys must be issued/verified by a future backend; until then this
- * path maps format-valid keys to pro_perpetual so existing customers keep access.
+ * Restore access via a server-verified license key.
+ * The developer test key remains local and DEV-only.
  *
  * @param {string} key
- * @returns {{ ok: boolean, entitlement?: EntitlementRecord, error?: string }}
+ * @returns {Promise<{ ok: boolean, entitlement?: EntitlementRecord, error?: string, code?: string, needsTransfer?: boolean }>}
  */
-export function restoreFromLicenseKey(key) {
+export async function restoreFromLicenseKey(key, options = {}) {
   const cleanKey = (key || '').trim().toUpperCase();
   if (!validateKeyFormat(cleanKey)) {
     return {
       ok: false,
       error: isDevMode()
         ? `Invalid license key format. Developer test key: ${DEV_TEST_KEY}`
-        : 'Invalid license key format. Expected EKIT-XXXX-XXXX-XXXX.',
+        : 'Invalid license key format. Expected an ExhibitKIT key from your purchase email.',
     };
   }
 
-  const purchasedAt = new Date().toISOString();
-  const entitlement = applyEntitlementRecord({
-    plan: PLAN_IDS.PRO,
-    licenseKey: cleanKey,
-    purchasedAt,
-    expiresAt: null,
-    casePassStatus: 'none',
-    updatesIncludedUntil: addMonths(purchasedAt, PRO_UPDATES_INCLUDED_MONTHS),
-    updateRenewalStatus: 'included',
-    purchasedVersion: APP_VERSION,
-    migratedFromLegacy: false,
-  });
+  if (isDevMode() && cleanKey === DEV_TEST_KEY) {
+    const purchasedAt = new Date().toISOString();
+    const entitlement = applyEntitlementRecord({
+      plan: PLAN_IDS.PRO,
+      licenseKey: cleanKey,
+      purchasedAt,
+      expiresAt: null,
+      casePassStatus: 'none',
+      updatesIncludedUntil: addMonths(purchasedAt, PRO_UPDATES_INCLUDED_MONTHS),
+      updateRenewalStatus: 'included',
+      purchasedVersion: APP_VERSION,
+      migratedFromLegacy: false,
+      developerOverride: true,
+    });
+    return { ok: true, entitlement };
+  }
 
-  return { ok: true, entitlement };
+  const workstationId = options.workstationId || getWorkstationInfo().deviceId;
+  const endpoint = options.confirmTransfer ? 'transfer' : 'activate';
+
+  try {
+    const response = await fetch(getLicenseApiUrl(endpoint), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        licenseKey: cleanKey,
+        workstationId,
+        appVersion: APP_VERSION,
+        ...(options.confirmTransfer ? { confirmTransfer: true } : {}),
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data.ok || !data.entitlement) {
+      return {
+        ok: false,
+        code: data.code || 'ACTIVATION_FAILED',
+        needsTransfer: data.code === 'WORKSTATION_LIMIT',
+        error: data.error || 'That license key could not be verified.',
+      };
+    }
+
+    const entitlement = applyEntitlementRecord(data.entitlement);
+    return { ok: true, entitlement };
+  } catch {
+    return {
+      ok: false,
+      code: 'SERVICE_UNAVAILABLE',
+      error: 'ExhibitKIT could not reach the license service. Check your connection and try again.',
+    };
+  }
+}
+
+function getLicenseApiUrl(path) {
+  const base = (import.meta.env?.VITE_LICENSE_API_URL || '/api/license').replace(/\/$/, '');
+  return `${base}/${path}`;
+}
+
+export async function requestLicenseRecovery(email) {
+  try {
+    const response = await fetch(getLicenseApiUrl('recover'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: String(email || '').trim() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { ok: false, error: data.error || 'License recovery is temporarily unavailable.' };
+    }
+    return { ok: true, message: data.message };
+  } catch {
+    return { ok: false, error: 'ExhibitKIT could not reach the license service.' };
+  }
+}
+
+export async function refreshVerifiedEntitlementStatus(entitlement = getEntitlement()) {
+  if (entitlement.migratedFromLegacy || (isDevMode() && entitlement.developerOverride)) {
+    return { ok: true, entitlement };
+  }
+  if (!entitlement.serverVerified || !entitlement.activationToken) {
+    return { ok: false, invalid: entitlement.plan !== PLAN_IDS.FREE, entitlement };
+  }
+
+  try {
+    const response = await fetch(getLicenseApiUrl('status'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        activationToken: entitlement.activationToken,
+        workstationId: getWorkstationInfo().deviceId,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status >= 500) {
+      return { ok: false, offline: true, entitlement };
+    }
+    if (!response.ok || !data.active || !data.entitlement) {
+      return { ok: false, invalid: true, entitlement };
+    }
+    return { ok: true, entitlement: applyEntitlementRecord(data.entitlement) };
+  } catch {
+    // Network outages do not immediately remove a previously verified perpetual
+    // entitlement. The next successful status check will reconcile revocations.
+    return { ok: false, offline: true, entitlement };
+  }
+}
+
+export async function deactivateCurrentWorkstation(entitlement = getEntitlement()) {
+  if (entitlement.serverVerified && entitlement.activationToken) {
+    try {
+      await fetch(getLicenseApiUrl('deactivate'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activationToken: entitlement.activationToken,
+          workstationId: getWorkstationInfo().deviceId,
+        }),
+      });
+    } catch {
+      return { ok: false, offline: true };
+    }
+  }
+  return { ok: true };
 }
 
 /**
@@ -296,6 +430,7 @@ export function applyCasePassForTesting(purchasedAt = new Date().toISOString()) 
     updateRenewalStatus: 'none',
     purchasedVersion: APP_VERSION,
     migratedFromLegacy: false,
+    developerOverride: true,
   });
 }
 
@@ -314,6 +449,7 @@ export function applyExpiredCasePassForTesting() {
     updateRenewalStatus: 'none',
     purchasedVersion: APP_VERSION,
     migratedFromLegacy: false,
+    developerOverride: true,
   });
 }
 
@@ -332,6 +468,7 @@ export function applyPendingCasePassForTesting() {
     updateRenewalStatus: 'none',
     purchasedVersion: APP_VERSION,
     migratedFromLegacy: false,
+    developerOverride: true,
   });
 }
 
@@ -357,6 +494,7 @@ export function applyProForTesting(options = {}) {
     updateRenewalStatus: options.updatesLapsed ? 'lapsed' : 'included',
     purchasedVersion: APP_VERSION,
     migratedFromLegacy: false,
+    developerOverride: true,
   });
 }
 

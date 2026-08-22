@@ -1,6 +1,6 @@
-# Founder admin — live testing console
+# Founder admin — local testing console
 
-Use this to switch entitlement stages and app surfaces without Stripe.
+Use this during local development to switch entitlement stages and app surfaces without Stripe. The console is not included in Vercel preview or production builds.
 
 ## Access method
 
@@ -12,12 +12,14 @@ Alternate entry:
 - Hash: `http://localhost:5173/#founder`
 - Keyboard: **Ctrl+Shift+F** (shows the panel if previously hidden)
 
-## Credentials
+## Local credentials
 
 | Build | Secret |
 |-------|--------|
-| Any build (default) | `ekit-founder-2026` |
-| Custom host | Set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` / host env (overrides default) |
+| Local development (default) | `ekit-founder-2026` |
+| Local development (custom) | Set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` |
+
+Do not configure `VITE_FOUNDER_ADMIN_SECRET` in Vercel. Variables with a `VITE_` prefix are browser-visible and cannot provide production access control.
 
 Session unlock is stored in `sessionStorage` for the browser tab only. Click **Lock** to end the session.
 

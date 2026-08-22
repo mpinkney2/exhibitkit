@@ -84,7 +84,8 @@ export function getLicenseStatus() {
 
 /**
  * Validates a license key format.
- * Format allowed: EKIT-XXXX-XXXX-XXXX where X are alphanumeric characters.
+ * Formats allowed: legacy EKIT-XXXX-XXXX-XXXX and the current
+ * EKIT-XXXX-XXXX-XXXX-XXXX format.
  * @param {string} key 
  * @returns {boolean}
  */
@@ -97,9 +98,9 @@ export function validateKeyFormat(key) {
     return true;
   }
 
-  // 2. Standard product license format validation
-  // Matches EKIT-XXXX-XXXX-XXXX
-  const licenseRegex = /^EKIT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+  // Standard product license formats. This is only a local syntax check;
+  // production activation is verified by the server in entitlement.js.
+  const licenseRegex = /^EKIT-(?:[A-Z0-9]{4}-){2,3}[A-Z0-9]{4}$/;
   return licenseRegex.test(cleanKey);
 }
 

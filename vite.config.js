@@ -9,6 +9,7 @@ export default defineConfig({
     include: [
       'src/**/*.{test,spec}.{js,jsx}',
       'test/**/*.{test,spec}.{js,jsx}',
+      'api/**/*.{test,spec}.js',
     ],
   },
 })

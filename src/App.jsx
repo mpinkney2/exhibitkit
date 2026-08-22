@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { ShieldAlert, Info, AlertTriangle, ShieldCheck, ArrowLeft, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
@@ -7,7 +7,6 @@ import ActionPanel from './components/ActionPanel';
 import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
-import FounderAdmin from './components/FounderAdmin';
 import JSZip from 'jszip';
 import {
   getEntitlement,
@@ -16,6 +15,8 @@ import {
   getEntitlementLabel,
   restoreFromLicenseKey,
   clearEntitlement,
+  deactivateCurrentWorkstation,
+  refreshVerifiedEntitlementStatus,
   getWorkstationInfo,
   FREE_MAX_FILES_PER_BATCH,
   migrateLegacyLicenseIfNeeded,
@@ -29,6 +30,10 @@ import {
   formatCase
 } from './utils/renamer';
 import { PRO_PRICE_LABEL } from './utils/payment';
+
+const FounderAdmin = import.meta.env.DEV
+  ? lazy(() => import('./components/FounderAdmin'))
+  : null;
 
 function getInitialAppRoute() {
   const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
@@ -91,6 +96,8 @@ export default function App() {
   const [pricingIntent, setPricingIntent] = useState('purchase');
   const [licenseInputValue, setLicenseInputValue] = useState('');
   const [activationError, setActivationError] = useState('');
+  const [activationInProgress, setActivationInProgress] = useState(false);
+  const [activationNeedsTransfer, setActivationNeedsTransfer] = useState(false);
 
   const openPricing = (intent = 'purchase') => {
     setPricingIntent(intent);
@@ -120,15 +127,23 @@ export default function App() {
     localStorage.setItem('exhibitkit_theme', theme);
   }, [theme]);
 
-  const handleActivateLicense = (key) => {
-    const result = restoreFromLicenseKey(key);
+  const handleActivateLicense = async (key, confirmTransfer = false) => {
+    setActivationInProgress(true);
+    setActivationError('');
+    const result = await restoreFromLicenseKey(key, {
+      workstationId: workstation.deviceId,
+      confirmTransfer,
+    });
+    setActivationInProgress(false);
     if (result.ok) {
+      setActivationNeedsTransfer(false);
       setEntitlement(result.entitlement);
       setIsPricingOpen(false);
       setActivationError('');
       setAppRoute('workspace');
       showNotification("ExhibitKIT Pro restored on this workstation.", "success");
     } else {
+      setActivationNeedsTransfer(Boolean(result.needsTransfer));
       setActivationError(result.error || "Invalid license key. Please double-check your purchase email.");
     }
   };
@@ -140,14 +155,20 @@ export default function App() {
     showNotification("ExhibitKIT Pro restored on this workstation.", "success");
   };
 
-  const handleDeactivate = () => {
+  const handleDeactivate = async () => {
+    const deactivation = await deactivateCurrentWorkstation(entitlement);
     clearEntitlement();
     setEntitlement(getEntitlement());
     setItems([]);
     setDirectoryHandle(null);
     setDirectoryName("");
     setAppRoute('landing');
-    showNotification("Workstation license cleared locally.", "info");
+    showNotification(
+      deactivation.offline
+        ? "License cleared locally. Use your key to transfer if the former seat remains reserved."
+        : "License deactivated on this workstation.",
+      deactivation.offline ? "warning" : "info"
+    );
   };
 
   // Helper to trigger alert notifications
@@ -157,6 +178,33 @@ export default function App() {
       setNotification(prev => ({ ...prev, show: false }));
     }, 4500);
   };
+
+  // Reconcile server-issued activations on startup and periodically. Previously
+  // verified perpetual licenses remain usable during a temporary network outage.
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshLicense = async () => {
+      const current = getEntitlement();
+      const result = await refreshVerifiedEntitlementStatus(current);
+      if (cancelled) return;
+
+      if (result.ok && result.entitlement) {
+        setEntitlement(result.entitlement);
+      } else if (result.invalid) {
+        clearEntitlement();
+        setEntitlement(getEntitlement());
+        setAppRoute('landing');
+      }
+    };
+
+    refreshLicense();
+    const interval = window.setInterval(refreshLicense, 6 * 60 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   // Centralized proposed name update logic
   const updateProposedNames = (itemsList, overrides = {}) => {
@@ -717,16 +765,18 @@ export default function App() {
   };
 
   // Layout Renderings
-  const founderAdmin = (
-    <FounderAdmin
-      appRoute={appRoute}
-      entitlement={entitlement}
-      onEntitlementChange={(next) => setEntitlement(next || getEntitlement())}
-      onSetRoute={setAppRoute}
-      onOpenPricing={() => setIsPricingOpen(true)}
-      onLaunchWorkspace={handleLaunchFree}
-    />
-  );
+  const founderAdmin = FounderAdmin ? (
+    <Suspense fallback={null}>
+      <FounderAdmin
+        appRoute={appRoute}
+        entitlement={entitlement}
+        onEntitlementChange={(next) => setEntitlement(next || getEntitlement())}
+        onSetRoute={setAppRoute}
+        onOpenPricing={() => setIsPricingOpen(true)}
+        onLaunchWorkspace={handleLaunchFree}
+      />
+    </Suspense>
+  ) : null;
 
   if (appRoute === 'landing') {
     return (
@@ -772,12 +822,16 @@ export default function App() {
                 <input 
                   type="text" 
                   value={licenseInputValue} 
-                  onChange={(e) => setLicenseInputValue(e.target.value)} 
-                  placeholder="Format: EKIT-XXXX-XXXX-XXXX"
+                  onChange={(e) => {
+                    setLicenseInputValue(e.target.value);
+                    setActivationError('');
+                    setActivationNeedsTransfer(false);
+                  }}
+                  placeholder="Format: EKIT-XXXX-XXXX-XXXX-XXXX"
                   style={{ flex: 1, fontSize: '13px' }}
                 />
-                <button type="submit" className="btn btn-success" style={{ flexShrink: 0 }}>
-                  Activate Pro
+                <button type="submit" className="btn btn-success" disabled={activationInProgress} style={{ flexShrink: 0 }}>
+                  {activationInProgress ? 'Verifying…' : 'Activate Pro'}
                 </button>
               </div>
             </div>
@@ -787,6 +841,17 @@ export default function App() {
                 <AlertTriangle size={13} style={{ flexShrink: 0 }} />
                 <span>{activationError}</span>
               </div>
+            )}
+
+            {activationNeedsTransfer && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={activationInProgress}
+                onClick={() => handleActivateLicense(licenseInputValue, true)}
+              >
+                Transfer license here and deactivate the former workstation
+              </button>
             )}
           </form>
 

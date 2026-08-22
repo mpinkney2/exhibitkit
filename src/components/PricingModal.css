@@ -2,8 +2,9 @@
   position: fixed;
   inset: 0;
   z-index: 3000;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
   padding: 24px;
   overflow-y: auto;
   background: rgba(5, 10, 20, 0.78);
@@ -13,7 +14,9 @@
 
 .pricing-dialog {
   position: relative;
+  flex: 0 0 auto;
   width: min(580px, 100%);
+  margin: auto 0;
   padding: 34px;
   border: 1px solid var(--color-border);
   border-radius: 18px;
@@ -64,18 +67,35 @@
 .pricing-activation-row input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); outline: none; }
 .pricing-activation-row button { height: 42px; padding: 0 17px; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); background: var(--color-surface-2); font-size: 12px; }
 .pricing-activation-row button:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.pricing-activation-row button:disabled, .pricing-recovery-row button:disabled, .pricing-transfer-button:disabled { cursor: wait; opacity: .62; }
 .pricing-license-error { margin-top: 9px; padding: 8px 10px; }
+.pricing-transfer-panel { margin-top: 10px; padding: 11px; border: 1px solid rgba(245, 158, 11, .28); border-radius: 8px; background: rgba(245, 158, 11, .07); }
+.pricing-transfer-panel p { margin: 0 0 9px; color: var(--color-text-secondary); font-size: 10.5px; line-height: 1.5; }
+.pricing-transfer-button { width: 100%; min-height: 38px; padding: 0 12px; border: 1px solid rgba(245, 158, 11, .45); border-radius: 7px; color: var(--color-text-primary); background: transparent; font-size: 11px; font-weight: 700; }
+.pricing-transfer-button:hover { border-color: rgb(245, 158, 11); }
 .pricing-dev-note { margin: 9px 0 0; color: var(--color-text-muted); font-size: 9px; line-height: 1.5; text-align: center; }
 .pricing-dev-note code { color: var(--color-text-primary); font-family: var(--font-mono); }
+.pricing-recovery-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 12px; border: 0; color: var(--color-text-muted); background: transparent; font-size: 10px; }
+.pricing-recovery-toggle:hover { color: var(--color-accent); }
+.pricing-recovery { margin-top: 10px; padding: 12px; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface-2); }
+.pricing-recovery label { display: block; margin-bottom: 7px; color: var(--color-text-secondary); font-size: 10px; font-weight: 650; }
+.pricing-recovery-row { display: flex; gap: 8px; }
+.pricing-recovery-row input { flex: 1; min-width: 0; height: 39px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: 7px; color: var(--color-text-primary); background: var(--color-surface-1); font-size: 11px; }
+.pricing-recovery-row button { min-height: 39px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 7px; color: var(--color-text-primary); background: var(--color-surface-1); font-size: 10.5px; font-weight: 650; }
+.pricing-recovery-success, .pricing-recovery-error { margin: 9px 0 0; font-size: 10px; line-height: 1.5; }
+.pricing-recovery-success { color: var(--color-success); }
+.pricing-recovery-error { color: var(--color-error); }
 
 @media (max-width: 600px) {
-  .pricing-backdrop { padding: 12px; place-items: start center; }
+  .pricing-backdrop { padding: 12px; }
   .pricing-dialog { margin: 12px 0; padding: 26px 20px; border-radius: 14px; }
   .pricing-header h2 { font-size: 23px; }
   .pricing-benefits { grid-template-columns: 1fr; }
   .pricing-trust-row { flex-direction: column; align-items: center; }
   .pricing-activation-row { flex-direction: column; }
   .pricing-activation-row button { width: 100%; }
+  .pricing-recovery-row { flex-direction: column; }
+  .pricing-recovery-row button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

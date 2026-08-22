@@ -6,16 +6,21 @@
  *   2. Enter the founder secret
  *
  * Secret resolution:
- *   - VITE_FOUNDER_ADMIN_SECRET if set
+ *   - local development builds only
+ *   - VITE_FOUNDER_ADMIN_SECRET if set locally
  *   - otherwise DEFAULT_FOUNDER_SECRET (`ekit-founder-2026`)
  *
- * Prefer setting a custom VITE_FOUNDER_ADMIN_SECRET on public hosts.
- * This is a live-test console for entitlement stages — not customer licensing.
+ * This is a local live-test console for entitlement stages — not customer
+ * licensing. Production builds must never expose or mount it.
  */
 
 export const DEFAULT_FOUNDER_SECRET = 'ekit-founder-2026';
 export const FOUNDER_SESSION_KEY = 'exhibitkit_founder_unlocked';
 export const FOUNDER_QUERY_FLAG = 'founder';
+
+export function isFounderAdminAvailable() {
+  return import.meta.env.DEV;
+}
 
 function envSecret() {
   try {
@@ -30,6 +35,7 @@ function envSecret() {
  * Always resolves to a usable secret so local/preview testing is not blocked.
  */
 export function getFounderSecret() {
+  if (!isFounderAdminAvailable()) return '';
   return envSecret() || DEFAULT_FOUNDER_SECRET;
 }
 
@@ -45,6 +51,7 @@ export function isUsingDefaultFounderSecret() {
  * True when the URL explicitly requests the founder entry surface.
  */
 export function shouldOfferFounderEntry(search = window.location.search, hash = window.location.hash) {
+  if (!isFounderAdminAvailable()) return false;
   const params = new URLSearchParams(search);
   if (params.get(FOUNDER_QUERY_FLAG) === '1' || params.get(FOUNDER_QUERY_FLAG) === 'true') {
     return true;
@@ -56,6 +63,7 @@ export function shouldOfferFounderEntry(search = window.location.search, hash = 
 }
 
 export function isFounderUnlocked() {
+  if (!isFounderAdminAvailable()) return false;
   try {
     return sessionStorage.getItem(FOUNDER_SESSION_KEY) === 'true';
   } catch {
@@ -68,6 +76,9 @@ export function isFounderUnlocked() {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function unlockFounder(candidate) {
+  if (!isFounderAdminAvailable()) {
+    return { ok: false, error: 'Founder admin is available only in local development.' };
+  }
   const expected = getFounderSecret();
   if ((candidate || '').trim() !== expected) {
     return { ok: false, error: 'Incorrect founder secret.' };

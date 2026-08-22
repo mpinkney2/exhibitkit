@@ -12,9 +12,9 @@ ExhibitKIT uses a Stripe-hosted Payment Link for the checkout surface. This keep
 
 The redirect is a convenience screen, not payment verification. Anyone can construct a success URL, so it must never unlock Pro access by itself.
 
-## Required production service
+## Implemented production service
 
-Before calling licensing production-hardened, add a small server-side service that:
+The repository now includes a server-side service that:
 
 1. Receives Stripe's `checkout.session.completed` webhook.
 2. Verifies the raw request body with `STRIPE_WEBHOOK_SECRET`.
@@ -23,6 +23,8 @@ Before calling licensing production-hardened, add a small server-side service th
 5. Issues a random or signed license credential associated with the Stripe customer and `client_reference_id`.
 6. Exposes an activation endpoint that validates the credential, enforces seat policy, and returns signed activation data.
 7. Supports license recovery and workstation transfer without storing exhibit filenames or contents.
+8. Revokes active seats after a full refund or dispute.
+9. Applies database-backed throttling to activation, transfer, and recovery requests.
 
 Recommended server-only variables:
 
@@ -30,6 +32,11 @@ Recommended server-only variables:
 STRIPE_SECRET_KEY=sk_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_ID=price_...
+DATABASE_URL=postgresql://...
+RESEND_API_KEY=re_...
+LICENSE_HASH_SECRET=...
+RATE_LIMIT_HASH_SECRET=...
+LICENSE_ENCRYPTION_KEY=...
 ```
 
 These values must never appear in `.env` variables prefixed with `VITE_`, because Vite exposes those values to the browser bundle.
@@ -44,6 +51,8 @@ These values must never appear in `.env` variables prefixed with `VITE_`, becaus
 - Use Stripe test mode and the Stripe CLI before enabling live webhook fulfillment.
 - Make webhook processing idempotent and retry-safe.
 
-## Known licensing gap
+## Deployment status
 
-The current browser implementation checks license-key format and local state; it does not yet prove that a key was issued after a Stripe payment. Do not market it as tamper-resistant licensing until the activation endpoint above replaces client-only validation.
+New keys are no longer accepted by format alone. The activation endpoint must verify them against the durable license store. Existing local licenses are preserved as a legacy migration.
+
+The code does not become operational until Neon, Resend, the Stripe webhook, the SQL migration, and all server-only Vercel variables are configured. See [`LICENSE_BACKEND_SETUP.md`](LICENSE_BACKEND_SETUP.md).

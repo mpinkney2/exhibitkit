@@ -8,14 +8,19 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "db:migrate": "node --env-file=.env.local scripts/migrate-licensing.mjs",
+    "license:secrets": "node scripts/generate-license-secrets.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "resend": "^6.21.0",
+    "stripe": "^22.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -28,6 +33,7 @@
     "globals": "^17.6.0",
     "happy-dom": "^20.11.1",
     "vite": "^8.0.12",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "ws": "^8.21.3"
   }
 }

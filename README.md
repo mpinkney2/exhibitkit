@@ -28,7 +28,7 @@ The public launch offer is Free or $149 Pro, with Firm licenses handled by conta
 
 ### License restoration
 
-Restore access with your **license key** (format `EKIT-XXXX-XXXX-XXXX`). Existing customers who purchased the former Pro offer are migrated automatically to Pro perpetual access on this workstation.
+Restore access with your **license key** (current format `EKIT-XXXX-XXXX-XXXX-XXXX`; legacy keys remain supported). New keys are verified by the Vercel licensing service and reserve one workstation. Existing customers who activated an older build are migrated automatically to Pro perpetual access on that workstation.
 
 ---
 
@@ -37,8 +37,10 @@ Restore access with your **license key** (format `EKIT-XXXX-XXXX-XXXX`). Existin
 - **Pricing:** $149 USD one-time Pro workstation license. The purchased version remains licensed; 12 months of updates and support are included.
 - **Checkout Flow:** Users transition to a Stripe-hosted Payment Link. ExhibitKIT adds the local workstation ID as Stripe's `client_reference_id` so a future webhook can reconcile payment and fulfillment without receiving exhibit data.
 - **Return Flow:** Configure the Payment Link's post-payment redirect in Stripe to return to `https://YOUR_DOMAIN/?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`.
-- **Manual Activation:** In compliance with security standards, the application remains locked until a valid key is provided manually (no insecure automatic activations).
-- **Important:** A return URL is not proof of payment. Production license verification still requires a server-side webhook and activation service; see [`docs/stripe-hardening.md`](docs/stripe-hardening.md).
+- **License Fulfillment:** A verified Stripe webhook issues an encrypted-at-rest license record and emails the key through Resend.
+- **Manual Activation:** The return URL never unlocks Pro. The emailed key must be verified by the server and activated on a workstation.
+- **Recovery & Transfer:** Buyers can recover a key by purchase email and deliberately transfer a one-workstation license.
+- **Deployment:** The backend code requires Neon, Resend, Stripe webhook, and Vercel environment setup; see [`docs/LICENSE_BACKEND_SETUP.md`](docs/LICENSE_BACKEND_SETUP.md).
 
 ---
 
@@ -69,22 +71,20 @@ Copy `.env.example` to `.env` and configure the public Payment Link:
 ```env
 # Public Stripe Payment Link only. Never put a Stripe secret key in Vite variables.
 VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/dRm4gze2Ob4c4NF3mKg7e01
-
-# Founder live-test console (see docs/FOUNDER_ADMIN.md)
-VITE_FOUNDER_ADMIN_SECRET=replace_with_a_private_value
 ```
 
-Stripe secret keys and webhook secrets must remain server-side only. Do not place them in `VITE_*` variables.
+Stripe secret keys and webhook secrets must remain server-side only. Do not place them in `VITE_*` variables. The full server environment is documented in [`docs/LICENSE_BACKEND_SETUP.md`](docs/LICENSE_BACKEND_SETUP.md).
 
 ### Founder live testing
 
-Open `http://localhost:5173/?founder=1` and unlock with the founder secret (DEV default: `ekit-founder-2026`). Full instructions: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
+The founder console is compiled into local development builds only. Open `http://localhost:5173/?founder=1` and unlock with the local DEV default (`ekit-founder-2026`). It is intentionally absent from Vercel preview and production builds. Full instructions: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
 
 ---
 
 ## Production Hardening
 
 - Developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is available **only** when `import.meta.env.DEV === true`.
+- Founder entitlement controls are loaded **only** when `import.meta.env.DEV === true`.
 - Never trust client-submitted prices or entitlement values for paid access.
 - Do not invent client-side licenses or simulated checkout.
 
@@ -92,7 +92,8 @@ Open `http://localhost:5173/?founder=1` and unlock with the founder secret (DEV 
 
 ## Roadmap (renamer product)
 
-- [ ] Deployable checkout + durable entitlement store + idempotent Stripe webhooks
-- [ ] Signed license restoration API
+- [x] Deployable webhook fulfillment + durable entitlement store + idempotent Stripe processing
+- [x] Server-verified license activation, recovery, deactivation, and transfer
+- [ ] Configure Neon, Resend, Stripe webhook, and live Vercel secrets
 - [ ] Firm team licensing (when implemented)
 - [ ] Optional Updates & Support renewal checkout
