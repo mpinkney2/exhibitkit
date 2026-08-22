@@ -3,6 +3,7 @@ import {
   Building2,
   Check,
   ChevronRight,
+  ExternalLink,
   FileCheck2,
   Files,
   FolderLock,
@@ -202,6 +203,61 @@ export default function LandingPage({
               <p>{step.body}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="landing-suite-promo" aria-labelledby="timeline-promo-title">
+        <div className="landing-suite-copy">
+          <span className="landing-kicker">More from Patent Preppers™</span>
+          <h2 id="timeline-promo-title">Exhibits ready. Now build the chronology.</h2>
+          <p>
+            Move from organized exhibit files to a multi-party litigation timeline. Build Court,
+            Gantt, and Flexible views, then export counsel-ready PPTX and PDF demonstratives.
+          </p>
+
+          <div className="landing-suite-proof" aria-label="Timeline capabilities">
+            <span><Check size={14} /> Court, Gantt, and Flexible views</span>
+            <span><Check size={14} /> Counsel-ready PPTX and PDF</span>
+            <span><Check size={14} /> 14-day free trial</span>
+          </div>
+
+          <a
+            className="landing-suite-cta"
+            href="https://timeline.patentpreppers.com/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Try Timeline free <ExternalLink size={15} />
+          </a>
+        </div>
+
+        <div className="landing-suite-visual" aria-hidden="true">
+          <div className="landing-suite-windowbar">
+            <span><i /><i /><i /></span>
+            <strong>Smith v. Johnson — Patent chronology</strong>
+            <em><Check size={10} /> Ready</em>
+          </div>
+          <div className="landing-suite-board">
+            <div className="landing-suite-board-heading">
+              <span>Multi-party Court view</span>
+              <small>38 events · 3 tracks · 4y span</small>
+            </div>
+            <div className="landing-suite-years">
+              <span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span>
+            </div>
+            <div className="landing-suite-track">
+              <strong>Plaintiff</strong>
+              <div><i className="bar-a" /><i className="bar-b" /><i className="bar-c" /></div>
+            </div>
+            <div className="landing-suite-track">
+              <strong>Defendant</strong>
+              <div><i className="bar-d" /><i className="bar-e" /><i className="bar-f" /></div>
+            </div>
+            <div className="landing-suite-track">
+              <strong>USPTO</strong>
+              <div><i className="bar-g" /><i className="bar-h" /><i className="bar-i" /></div>
+            </div>
+          </div>
         </div>
       </section>
 
