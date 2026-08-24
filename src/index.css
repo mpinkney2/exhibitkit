@@ -412,6 +412,41 @@ input[type="text"]:disabled, input[type="number"]:disabled, select:disabled {
   cursor: not-allowed;
 }
 
+.preset-selector-stacked {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.preset-practice-area {
+  margin-bottom: 14px;
+}
+
+.preset-practice-area:last-child {
+  margin-bottom: 0;
+}
+
+.preset-practice-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.preset-practice-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.preset-practice-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 /* Radio Cards & Toggles */
 .preset-selector {
   display: grid;
@@ -425,14 +460,15 @@ input[type="text"]:disabled, input[type="number"]:disabled, select:disabled {
   background: var(--bg-preset-card);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 12px 6px;
-  text-align: center;
+  padding: 10px 12px;
+  text-align: left;
   cursor: pointer;
   transition: all var(--transition-fast);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
+  width: 100%;
 }
 
 .preset-card:hover {
@@ -455,6 +491,8 @@ input[type="text"]:disabled, input[type="number"]:disabled, select:disabled {
 .preset-card-desc {
   font-size: 10px;
   color: var(--text-secondary);
+  text-align: left;
+  line-height: 1.35;
 }
 
 /* Checkbox Switch Toggle */

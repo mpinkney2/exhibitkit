@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, RefreshCw, X } from 'lucide-react';
 import MatterProfiles from './MatterProfiles';
 import { APP_VERSION } from '../utils/license';
+import { PRACTICE_AREAS, getPresetMeta, CUSTOM_TEMPLATE_TOKENS } from '../config/presets';
 
 const SIDEBAR_WIDTH_KEY = 'exhibitkit_sidebar_width_v1';
 const SIDEBAR_SECTIONS_KEY = 'exhibitkit_sidebar_sections_v1';
@@ -195,6 +196,8 @@ export default function Sidebar({
     setSectionsOpen((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const activePresetMeta = getPresetMeta(preset);
+
   const currentSettings = {
     preset,
     prefix,
@@ -273,40 +276,31 @@ export default function Sidebar({
             open={sectionsOpen.preset}
             onToggle={toggleSection}
           >
-            <div style={{
-              display: 'flex',
-              backgroundColor: 'var(--color-surface-2)',
-              borderRadius: '6px',
-              padding: '2px',
-              width: '100%',
-              marginBottom: '8px'
-            }}>
-              {['oncue', 'trialdirector', 'custom'].map((p) => {
-                const isActive = preset === p;
-                const label = p === 'oncue' ? 'OnCue' : p === 'trialdirector' ? 'TrialDirector' : 'Custom';
-                return (
-                  <button
-                    key={p}
-                    onClick={() => setPreset(p)}
-                    style={{
-                      flex: 1,
-                      padding: '6px 0',
-                      fontSize: '12px',
-                      fontWeight: isActive ? '600' : '400',
-                      color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      backgroundColor: isActive ? 'var(--color-surface-1)' : 'transparent',
-                      borderRadius: '4px',
-                      border: 'none',
-                      boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+            {PRACTICE_AREAS.map((area) => (
+              <div key={area.id} className="preset-practice-area">
+                <div className="preset-practice-header">
+                  <span className="preset-practice-label">{area.label}</span>
+                  <span className="preset-practice-desc">{area.description}</span>
+                </div>
+                <div className="preset-selector preset-selector-stacked">
+                  {area.presets.map((presetOption) => {
+                    const isActive = preset === presetOption.id;
+                    return (
+                      <button
+                        key={presetOption.id}
+                        type="button"
+                        className={`preset-card ${isActive ? 'active' : ''}`}
+                        onClick={() => setPreset(presetOption.id)}
+                        aria-pressed={isActive}
+                      >
+                        <span className="preset-card-title">{presetOption.label}</span>
+                        <span className="preset-card-desc">{presetOption.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -464,7 +458,10 @@ export default function Sidebar({
                   placeholder="{Prefix}{Number} - {Description}"
                 />
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                  Variables: <code style={{ fontSize: '10px' }}>{"{Prefix}"}</code>, <code style={{ fontSize: '10px' }}>{"{Number}"}</code>, <code style={{ fontSize: '10px' }}>{"{Description}"}</code>
+                  Variables:{' '}
+                  {CUSTOM_TEMPLATE_TOKENS.map((token) => (
+                    <code key={token} style={{ fontSize: '10px', marginRight: '4px' }}>{token}</code>
+                  ))}
                 </span>
               </div>
             </CollapsibleSection>
@@ -478,7 +475,7 @@ export default function Sidebar({
           />
 
           <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
-            {preset === 'oncue' && (
+            {activePresetMeta?.guideline && (
               <div style={{
                 background: '#EFF6FF',
                 borderLeft: '3px solid #BFDBFE',
@@ -490,23 +487,17 @@ export default function Sidebar({
                 marginBottom: '12px',
                 fontFamily: 'var(--font-sans)'
               }}>
-                <strong>OnCue Guideline:</strong> Prefers no dashes in the ID, e.g. <code style={{ fontSize: '10px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>PX001 Memo.pdf</code>.
-                The first space separates the ID and Name.
-              </div>
-            )}
-            {preset === 'trialdirector' && (
-              <div style={{
-                background: '#EFF6FF',
-                borderLeft: '3px solid #BFDBFE',
-                borderRadius: '4px',
-                padding: '10px 12px',
-                fontSize: '12px',
-                color: 'var(--color-text-secondary)',
-                lineHeight: '1.5',
-                marginBottom: '12px',
-                fontFamily: 'var(--font-sans)'
-              }}>
-                <strong>TrialDirector Guideline:</strong> Emphasizes leading zero padding (e.g. <code style={{ fontSize: '10px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>PX-0001 - Memo.pdf</code>) for clean alphabetical sorting.
+                <strong>{activePresetMeta.label}:</strong>{' '}
+                {activePresetMeta.guideline}
+                {activePresetMeta.example && (
+                  <>
+                    {' '}
+                    e.g.{' '}
+                    <code style={{ fontSize: '10px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>
+                      {activePresetMeta.example}
+                    </code>
+                  </>
+                )}
               </div>
             )}
 
