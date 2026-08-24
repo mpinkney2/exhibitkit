@@ -1,6 +1,23 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import MatterProfiles from './MatterProfiles';
 import { APP_VERSION } from '../utils/license';
+
+const SIDEBAR_WIDTH_KEY = 'exhibitkit_sidebar_width_v1';
+const DEFAULT_SIDEBAR_WIDTH = 240;
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 480;
+
+function loadSidebarWidth() {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return DEFAULT_SIDEBAR_WIDTH;
+    return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, value));
+  } catch {
+    return DEFAULT_SIDEBAR_WIDTH;
+  }
+}
 
 export default function Sidebar({
   preset,
@@ -33,6 +50,61 @@ export default function Sidebar({
   className = '',
   onCloseMobile
 }) {
+  const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
+  const dragRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
+    } catch {
+      // ignore quota / private mode
+    }
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    const onMove = (event) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const next = Math.min(
+        MAX_SIDEBAR_WIDTH,
+        Math.max(MIN_SIDEBAR_WIDTH, drag.startWidth + (event.clientX - drag.startX)),
+      );
+      setSidebarWidth(next);
+    };
+
+    const onUp = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.body.classList.remove('sidebar-resizing');
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  const startResize = useCallback((event) => {
+    if (window.matchMedia('(max-width: 768px)').matches) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragRef.current = {
+      startX: event.clientX,
+      startWidth: sidebarWidth,
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.body.classList.add('sidebar-resizing');
+  }, [sidebarWidth]);
+
+  const resetSidebarWidth = () => {
+    setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+  };
+
   const currentSettings = {
     preset,
     prefix,
@@ -48,7 +120,24 @@ export default function Sidebar({
   };
 
   return (
-    <div className={`sidebar ${className}`}>
+    <div
+      className={`sidebar ${className}`}
+      style={{
+        '--sidebar-width': `${sidebarWidth}px`,
+        width: sidebarWidth,
+        minWidth: sidebarWidth,
+        maxWidth: sidebarWidth,
+      }}
+    >
+      <div
+        className="sidebar-resizer"
+        onMouseDown={startResize}
+        onDoubleClick={resetSidebarWidth}
+        title="Drag to resize sidebar · Double-click to reset"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize settings sidebar"
+      />
       <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="sidebar-brand-mark">
