@@ -2,6 +2,21 @@
  * Practice-area grouped renaming presets for ExhibitKIT.
  */
 
+/** Map area-specific preset IDs to core renaming engines. */
+export const PRESET_ENGINE_MAP = Object.freeze({
+  'family-oncue': 'oncue',
+  'family-trialdirector': 'trialdirector',
+  'employment-oncue': 'oncue',
+  'employment-trialdirector': 'trialdirector',
+  'bankruptcy-oncue': 'oncue',
+  'bankruptcy-trialdirector': 'trialdirector',
+});
+
+/** @param {string} presetId */
+export function resolvePresetEngine(presetId) {
+  return PRESET_ENGINE_MAP[presetId] || presetId;
+}
+
 export const PRACTICE_AREAS = [
   {
     id: 'litigation',
@@ -35,6 +50,69 @@ export const PRACTICE_AREAS = [
         description: 'DOD - 12 - 2012 - Smith - Report.pdf',
         guideline: 'Matches Patent Preppers DOD output: Prefix - Doc ID - Year - Author - Title. Missing years become n.d.',
         example: 'DOD - 12 - 2012 - Smith - Report.pdf',
+      },
+    ],
+  },
+  {
+    id: 'family',
+    label: 'Family Law',
+    description: 'Domestic relations & family court exhibits',
+    presets: [
+      {
+        id: 'family-oncue',
+        label: 'Family OnCue',
+        description: 'FL001 Parenting Plan.pdf — FL prefix, space-separated ID',
+        guideline: 'OnCue-style naming with a Family Law exhibit prefix (default FL). Adjust prefix for your jurisdiction.',
+        example: 'FL001 Parenting Plan.pdf',
+      },
+      {
+        id: 'family-trialdirector',
+        label: 'Family TrialDirector',
+        description: 'FL-0001 - Parenting Plan.pdf — padded FL prefix',
+        guideline: 'TrialDirector-style dashes with a Family Law prefix for domestic relations matters.',
+        example: 'FL-0001 - Parenting Plan.pdf',
+      },
+    ],
+  },
+  {
+    id: 'employment',
+    label: 'Employment',
+    description: 'Labor, EEOC, and wage-hour document sets',
+    presets: [
+      {
+        id: 'employment-oncue',
+        label: 'Employment OnCue',
+        description: 'EMP001 Termination Letter.pdf — EMP prefix for labor exhibits',
+        guideline: 'OnCue format with an Employment prefix (default EMP) for HR records and EEOC productions.',
+        example: 'EMP001 Termination Letter.pdf',
+      },
+      {
+        id: 'employment-trialdirector',
+        label: 'Employment TrialDirector',
+        description: 'EMP-0001 - Termination Letter.pdf — padded EMP prefix',
+        guideline: 'TrialDirector sequencing for employment litigation and agency-response batches.',
+        example: 'EMP-0001 - Termination Letter.pdf',
+      },
+    ],
+  },
+  {
+    id: 'bankruptcy',
+    label: 'Bankruptcy',
+    description: 'Schedules, claims, and creditor document batches',
+    presets: [
+      {
+        id: 'bankruptcy-oncue',
+        label: 'Bankruptcy OnCue',
+        description: 'BK001 Creditor Schedule.pdf — BK prefix for petition exhibits',
+        guideline: 'OnCue format with a Bankruptcy prefix (default BK) for schedules and claims support.',
+        example: 'BK001 Creditor Schedule.pdf',
+      },
+      {
+        id: 'bankruptcy-trialdirector',
+        label: 'Bankruptcy TrialDirector',
+        description: 'BK-0001 - Creditor Schedule.pdf — four-digit BK padding',
+        guideline: 'TrialDirector padding for large bankruptcy document sets and claims registers.',
+        example: 'BK-0001 - Creditor Schedule.pdf',
       },
     ],
   },
@@ -82,6 +160,18 @@ export function getPresetRuleDefaults(presetId) {
         padLength: 0,
         customTemplate: '{Prefix} - {DocId} - {Year} - {Author} - {Title}',
       };
+    case 'family-oncue':
+      return { prefix: 'FL', padLength: 3 };
+    case 'family-trialdirector':
+      return { prefix: 'FL', padLength: 3 };
+    case 'employment-oncue':
+      return { prefix: 'EMP', padLength: 3 };
+    case 'employment-trialdirector':
+      return { prefix: 'EMP', padLength: 3 };
+    case 'bankruptcy-oncue':
+      return { prefix: 'BK', padLength: 3 };
+    case 'bankruptcy-trialdirector':
+      return { prefix: 'BK', padLength: 4 };
     case 'trialdirector':
       return { prefix: 'PX', padLength: 3 };
     case 'oncue':

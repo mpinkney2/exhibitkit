@@ -3,6 +3,8 @@
  * Standardizes legal exhibit filenames for TrialDirector, OnCue, Patent DOD, and custom setups.
  */
 
+import { resolvePresetEngine } from '../config/presets.js';
+
 /** Calendar years commonly found in exhibit titles (1900–2099). */
 export const YEAR_PATTERN = /\b((?:19|20)\d{2})\b/;
 
@@ -323,8 +325,9 @@ export function generateProposedFilename({
     formattedTitle = shortenDescription(formattedTitle, maxDescLength);
   }
   const yearToken = year ? String(year) : 'n.d.';
+  const engine = resolvePresetEngine(preset);
 
-  if (preset === 'oncue') {
+  if (engine === 'oncue') {
     const id = `${cleanPrefix}${formattedNum}`.trim();
     if (id && formattedDesc) {
       return `${id} ${formattedDesc}.pdf`;
@@ -335,7 +338,7 @@ export function generateProposedFilename({
     return `${formattedDesc || 'Exhibit'}.pdf`;
   }
 
-  if (preset === 'trialdirector') {
+  if (engine === 'trialdirector') {
     const idParts = [];
     if (cleanPrefix) idParts.push(cleanPrefix);
     if (formattedNum) idParts.push(formattedNum);
@@ -421,7 +424,7 @@ export function validateProposedNames(items) {
     } else if (/[\\/:*?"<>|]/.test(proposed.replace('.pdf', ''))) {
       status = 'danger';
       message = 'Filename contains forbidden characters (\\ / : * ? " < > |)';
-    } else if (item.preset === 'oncue' && !proposed.includes(' ') && (item.prefix || item.number) && item.description) {
+    } else if (resolvePresetEngine(item.preset) === 'oncue' && !proposed.includes(' ') && (item.prefix || item.number) && item.description) {
       status = 'warning';
       message = 'OnCue prefers a space between the ID and the description';
     }

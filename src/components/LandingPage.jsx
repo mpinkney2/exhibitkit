@@ -19,30 +19,50 @@ import {
   PRICING_FAQ,
   FREE_MAX_FILES_PER_BATCH,
 } from '../config/pricing.js';
+import { PRACTICE_AREAS } from '../config/presets.js';
 import { PRO_PRICE_LABEL } from '../utils/payment';
 import './LandingPage.css';
 
 const previewRows = [
   ['04 - Jones Photo.pdf', 'PX004 Jones Photo.pdf'],
-  ['Smith Draft Contract.pdf', 'PX005 Smith Draft Contract.pdf'],
-  ['Invoice 1892.pdf', 'PX006 Invoice 1892.pdf'],
+  ['DOD - 12 - 2012 - Smith - Report.pdf', 'DOD - 12 - 2012 - Smith - Report.pdf'],
+  ['Smith 2015 Expert Report.pdf', 'PX005 Smith 2015 Expert Report.pdf'],
 ];
 
 const workflowSteps = [
   {
     number: '01',
     title: 'Choose your exhibits',
-    body: 'Open a local folder or select a batch of PDFs. Nothing is uploaded or copied to a cloud service.',
+    body: 'Open a local folder or drop a batch of PDFs. Parsing, preview, and renaming all happen in your browser—nothing is uploaded.',
   },
   {
     number: '02',
-    title: 'Review the naming map',
-    body: 'Apply an OnCue, TrialDirector, or custom convention, then edit descriptions and resolve conflicts in one preview.',
+    title: 'Pick a practice-area preset',
+    body: 'Select Litigation, Patent/IP, Family, Employment, Bankruptcy, or Custom templates. Sort by year, shorten titles, and edit the proposed map before anything changes.',
   },
   {
     number: '03',
     title: 'Prepare the final set',
-    body: 'Rename in place or download a prepared ZIP with a clear CSV mapping of every original and final filename.',
+    body: 'Rename in place, download a ZIP, or export CSV/JSON audit logs with every original and final filename.',
+  },
+];
+
+const featureHighlights = [
+  {
+    title: 'Multi-practice preset catalog',
+    body: 'OnCue, TrialDirector, Patent DOD, and area-specific prefixes for Family, Employment, and Bankruptcy workflows—each with sensible defaults.',
+  },
+  {
+    title: 'Year-aware parsing & sorting',
+    body: 'Detect 19xx/20xx years in titles, sort batches chronologically, and optionally use the year as the exhibit ID.',
+  },
+  {
+    title: 'Structured patent filenames',
+    body: 'Parse and output DOD-style names—Prefix, Doc ID, Year, Author, Title—with n.d. when a year is missing.',
+  },
+  {
+    title: 'Matter profiles (Pro)',
+    body: 'Save prefix, padding, preset, and template settings per matter and reload them for the next hearing or production.',
   },
 ];
 
@@ -96,15 +116,16 @@ export default function LandingPage({
       <section className="landing-hero" id="top">
         <div className="landing-hero-copy">
           <div className="landing-eyebrow">
-            <span /> Built for litigation support teams
+            <span /> Built for litigation & multi-practice legal teams
           </div>
           <h1>
             Courtroom-ready exhibits,
             <em> without the busywork.</em>
           </h1>
           <p className="landing-hero-lede">
-            Turn inconsistent PDF filenames into a clean, indexed exhibit set for OnCue or
-            TrialDirector—all on your own computer.
+            Standardize messy PDF filenames with practice-area presets for OnCue, TrialDirector,
+            Patent DOD, Family, Employment, and Bankruptcy—plus year detection, title shortening,
+            and a full preview before you rename locally.
           </p>
 
           <div className="landing-hero-actions">
@@ -134,9 +155,24 @@ export default function LandingPage({
 
             <div className="landing-preview-body">
               <aside className="landing-preview-sidebar">
-                <span className="landing-preview-label">Naming preset</span>
-                <button className="active">OnCue <Check size={12} /></button>
-                <button>TrialDirector</button>
+                <span className="landing-preview-label">Practice-area presets</span>
+                <div className="landing-preview-practice-list">
+                  {PRACTICE_AREAS.map((area) => (
+                    <div key={area.id} className="landing-preview-practice-group">
+                      <span className="landing-preview-practice-name">{area.label}</span>
+                      {area.presets.slice(0, area.id === 'litigation' ? 2 : 1).map((presetOption, index) => (
+                        <button
+                          key={presetOption.id}
+                          type="button"
+                          className={area.id === 'litigation' && index === 0 ? 'active' : ''}
+                        >
+                          {presetOption.label}
+                          {area.id === 'litigation' && index === 0 ? <Check size={12} /> : null}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
                 <div className="landing-preview-rule">
                   <span className="landing-preview-label">Starting ID</span>
                   <strong>PX <b>004</b></strong>
@@ -184,8 +220,33 @@ export default function LandingPage({
       </section>
 
       <section className="landing-compatibility" aria-label="Compatible workflows">
-        <span>Fits the tools your trial team already uses</span>
-        <div><strong>ONCUE</strong><i /> <strong>TRIALDIRECTOR</strong><i /> <strong>CUSTOM NAMING</strong></div>
+        <span>Presets for the workflows your team already runs</span>
+        <div>
+          <strong>ONCUE</strong><i />
+          <strong>TRIALDIRECTOR</strong><i />
+          <strong>PATENT DOD</strong><i />
+          <strong>FAMILY</strong><i />
+          <strong>EMPLOYMENT</strong><i />
+          <strong>BANKRUPTCY</strong><i />
+          <strong>CUSTOM TOKENS</strong>
+        </div>
+      </section>
+
+      <section className="landing-section landing-features" aria-label="Product features">
+        <div className="landing-section-heading">
+          <span className="landing-kicker">What ExhibitKIT actually does</span>
+          <h2>Renaming intelligence built for real legal batches.</h2>
+          <p>Not just find-and-replace—parse existing conventions, apply the right preset for your practice area, and review every change first.</p>
+        </div>
+
+        <div className="landing-feature-grid">
+          {featureHighlights.map((feature) => (
+            <article key={feature.title}>
+              <h3>{feature.title}</h3>
+              <p>{feature.body}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="landing-section landing-workflow" id="workflow">
@@ -306,7 +367,7 @@ export default function LandingPage({
             <ul>
               <li><Check size={15} /> Unlimited interactive demo workflow</li>
               <li><Check size={15} /> Up to {FREE_MAX_FILES_PER_BATCH} real PDFs per batch</li>
-              <li><Check size={15} /> Preview and edit proposed filenames</li>
+              <li><Check size={15} /> Practice-area presets & year-aware preview</li>
               <li><Check size={15} /> Local processing with no account</li>
             </ul>
             <button className="landing-secondary-button" onClick={onLaunchFree}>
@@ -321,9 +382,10 @@ export default function LandingPage({
             <p className="landing-price-description">One workstation. Perpetual use of the purchased version, with 12 months of updates and support.</p>
             <ul>
               <li><Check size={15} /> Unlimited exhibit batches</li>
-              <li><Check size={15} /> Direct local-folder renaming</li>
-              <li><Check size={15} /> Matter profiles and custom templates</li>
-              <li><Check size={15} /> CSV, JSON, and printable audit reports</li>
+              <li><Check size={15} /> Direct local-folder renaming & undo</li>
+              <li><Check size={15} /> Full preset catalog + Matter Profiles</li>
+              <li><Check size={15} /> Patent DOD, year sort, title shortener & custom tokens</li>
+              <li><Check size={15} /> CSV, JSON, HTML, and printable audit reports</li>
             </ul>
             <button className="landing-primary-button" id="btn-purchase-pro-pricing" onClick={onOpenPricing}>
               Buy Pro — {PRO_PRICE_LABEL} <ArrowRight size={16} />
@@ -368,7 +430,7 @@ export default function LandingPage({
             <strong>Exhibit<span>KIT</span></strong>
           </span>
         </a>
-        <p>Local-first exhibit filename renaming for litigation teams.</p>
+        <p>Local-first exhibit renaming for litigation, patent, family, employment, and bankruptcy teams.</p>
         <a href="mailto:support@patentpreppers.com">support@patentpreppers.com</a>
       </footer>
     </main>

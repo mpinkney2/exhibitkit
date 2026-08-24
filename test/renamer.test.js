@@ -151,6 +151,26 @@ test('applyTemplateTokens supports structured patent fields', () => {
   expect(result).toBe('DOD - 12 - 2012 - Smith - Report');
 });
 
+test('generateProposedFilename applies area-specific preset aliases', () => {
+  expect(generateProposedFilename({
+    prefix: 'FL',
+    number: '4',
+    description: 'Parenting Plan',
+    preset: 'family-oncue',
+    padLength: 3,
+    caseStyle: 'title',
+  })).toBe('FL004 Parenting Plan.pdf');
+
+  expect(generateProposedFilename({
+    prefix: 'BK',
+    number: '12',
+    description: 'Creditor Schedule',
+    preset: 'bankruptcy-trialdirector',
+    padLength: 4,
+    caseStyle: 'title',
+  })).toBe('BK-0012 - Creditor Schedule.pdf');
+});
+
 test('validateProposedNames blocks duplicate and occupied target names', () => {
   const duplicates = validateProposedNames([
     { originalName: 'one.pdf', proposedName: 'PX001.pdf' },
