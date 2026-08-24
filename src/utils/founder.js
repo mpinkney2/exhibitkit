@@ -5,22 +5,20 @@
  *   1. Open the app with ?founder=1 (or #founder)
  *   2. Enter the founder secret
  *
- * Secret resolution:
- *   - local development builds only
- *   - VITE_FOUNDER_ADMIN_SECRET if set locally
- *   - otherwise DEFAULT_FOUNDER_SECRET (`ekit-founder-2026`)
+ * Availability:
+ *   - Local DEV builds: always available (default secret `ekit-founder-2026`
+ *     unless VITE_FOUNDER_ADMIN_SECRET overrides it)
+ *   - Production / preview builds: available only when
+ *     VITE_FOUNDER_ADMIN_SECRET is set at build time (no default secret)
  *
- * This is a local live-test console for entitlement stages — not customer
- * licensing. Production builds must never expose or mount it.
+ * This is a live-test console for entitlement stages — not customer
+ * licensing. The production secret is baked into the client bundle; treat
+ * it as obscurity, not server-side auth.
  */
 
 export const DEFAULT_FOUNDER_SECRET = 'ekit-founder-2026';
 export const FOUNDER_SESSION_KEY = 'exhibitkit_founder_unlocked';
 export const FOUNDER_QUERY_FLAG = 'founder';
-
-export function isFounderAdminAvailable() {
-  return import.meta.env.DEV;
-}
 
 function envSecret() {
   try {
@@ -31,12 +29,24 @@ function envSecret() {
 }
 
 /**
+ * True when this build may mount / unlock founder admin.
+ * Production builds require an explicit VITE_FOUNDER_ADMIN_SECRET.
+ */
+export function isFounderAdminAvailable() {
+  if (import.meta.env.DEV) return true;
+  return Boolean(envSecret());
+}
+
+/**
  * The secret that unlocks founder admin for this build.
- * Always resolves to a usable secret so local/preview testing is not blocked.
+ * Production never falls back to DEFAULT_FOUNDER_SECRET.
  */
 export function getFounderSecret() {
   if (!isFounderAdminAvailable()) return '';
-  return envSecret() || DEFAULT_FOUNDER_SECRET;
+  const configured = envSecret();
+  if (configured) return configured;
+  if (import.meta.env.DEV) return DEFAULT_FOUNDER_SECRET;
+  return '';
 }
 
 export function isFounderAdminConfigured() {
@@ -44,7 +54,7 @@ export function isFounderAdminConfigured() {
 }
 
 export function isUsingDefaultFounderSecret() {
-  return !envSecret();
+  return import.meta.env.DEV && !envSecret();
 }
 
 /**
@@ -77,9 +87,15 @@ export function isFounderUnlocked() {
  */
 export function unlockFounder(candidate) {
   if (!isFounderAdminAvailable()) {
-    return { ok: false, error: 'Founder admin is available only in local development.' };
+    return {
+      ok: false,
+      error: 'Founder admin is not enabled in this build. Set VITE_FOUNDER_ADMIN_SECRET and redeploy.',
+    };
   }
   const expected = getFounderSecret();
+  if (!expected) {
+    return { ok: false, error: 'Founder admin is not configured.' };
+  }
   if ((candidate || '').trim() !== expected) {
     return { ok: false, error: 'Incorrect founder secret.' };
   }

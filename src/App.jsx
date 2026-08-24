@@ -31,9 +31,11 @@ import {
 } from './utils/renamer';
 import { PRO_PRICE_LABEL } from './utils/payment';
 
-const FounderAdmin = import.meta.env.DEV
-  ? lazy(() => import('./components/FounderAdmin'))
-  : null;
+// Mounted in DEV always; in production/preview only when VITE_FOUNDER_ADMIN_SECRET is set at build time.
+const FounderAdmin =
+  import.meta.env.DEV || Boolean(String(import.meta.env.VITE_FOUNDER_ADMIN_SECRET || '').trim())
+    ? lazy(() => import('./components/FounderAdmin'))
+    : null;
 
 function getInitialAppRoute() {
   const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');

@@ -77,14 +77,16 @@ Stripe secret keys and webhook secrets must remain server-side only. Do not plac
 
 ### Founder live testing
 
-The founder console is compiled into local development builds only. Open `http://localhost:5173/?founder=1` and unlock with the local DEV default (`ekit-founder-2026`). It is intentionally absent from Vercel preview and production builds. Full instructions: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
+**Local:** Open `http://localhost:5173/?founder=1` and unlock with the DEV default (`ekit-founder-2026`), or set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local`.
+
+**Production / preview:** Off by default. Set `VITE_FOUNDER_ADMIN_SECRET` in Vercel and redeploy to enable `https://YOUR_DOMAIN/?founder=1`. The local default secret is never accepted in production builds. Full steps and security notes: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
 
 ---
 
 ## Production Hardening
 
 - Developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is available **only** when `import.meta.env.DEV === true`.
-- Founder entitlement controls are loaded **only** when `import.meta.env.DEV === true`.
+- Founder admin is available in DEV always; in production/preview only when `VITE_FOUNDER_ADMIN_SECRET` is set at build time (client-visible obscurity, not server auth).
 - Never trust client-submitted prices or entitlement values for paid access.
 - Do not invent client-side licenses or simulated checkout.
 

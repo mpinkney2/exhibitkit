@@ -33,7 +33,7 @@ describe('founder admin access', () => {
     expect(isFounderUnlocked()).toBe(false);
   });
 
-  it('always resolves a usable founder secret', async () => {
+  it('always resolves a usable founder secret in DEV', async () => {
     vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', '');
     const { DEFAULT_FOUNDER_SECRET, getFounderSecret, unlockFounder, isFounderAdminConfigured } = await import('./founder.js');
     expect(isFounderAdminConfigured()).toBe(true);
@@ -46,6 +46,45 @@ describe('founder admin access', () => {
     const { DEFAULT_FOUNDER_SECRET, getFounderSecret, unlockFounder } = await import('./founder.js');
     expect(getFounderSecret()).toBe(DEFAULT_FOUNDER_SECRET);
     expect(unlockFounder(DEFAULT_FOUNDER_SECRET).ok).toBe(true);
+  });
+
+  it('is unavailable in production builds without an explicit secret', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('PROD', true);
+    vi.stubEnv('MODE', 'production');
+    vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', '');
+    const {
+      isFounderAdminAvailable,
+      getFounderSecret,
+      shouldOfferFounderEntry,
+      unlockFounder,
+      DEFAULT_FOUNDER_SECRET,
+    } = await import('./founder.js');
+
+    expect(isFounderAdminAvailable()).toBe(false);
+    expect(getFounderSecret()).toBe('');
+    expect(shouldOfferFounderEntry('?founder=1', '')).toBe(false);
+    expect(unlockFounder(DEFAULT_FOUNDER_SECRET).ok).toBe(false);
+  });
+
+  it('allows production unlock only with the explicit env secret', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('PROD', true);
+    vi.stubEnv('MODE', 'production');
+    vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', 'prod-only-secret');
+    const {
+      isFounderAdminAvailable,
+      getFounderSecret,
+      shouldOfferFounderEntry,
+      unlockFounder,
+      DEFAULT_FOUNDER_SECRET,
+    } = await import('./founder.js');
+
+    expect(isFounderAdminAvailable()).toBe(true);
+    expect(getFounderSecret()).toBe('prod-only-secret');
+    expect(shouldOfferFounderEntry('?founder=1', '')).toBe(true);
+    expect(unlockFounder(DEFAULT_FOUNDER_SECRET).ok).toBe(false);
+    expect(unlockFounder('prod-only-secret').ok).toBe(true);
   });
 });
 
