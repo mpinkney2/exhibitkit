@@ -15,35 +15,36 @@ Alternate entry:
 | Build | Secret |
 |-------|--------|
 | Local development (default) | `ekit-founder-2026` |
-| Local development (custom) | Set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` |
+| Local development (custom) | Set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` (DEV override only) |
 
 Optional DEV license key (pricing modal / activation, DEV builds only):
 
 `PATENTPREPPERS-EXHIBITKIT-PRO`
 
-## Production / preview unlock
+## Production / preview unlock (server-only secret)
 
-Founder admin is **off** in production builds unless you explicitly enable it.
+Do **not** put the founder secret in any `VITE_*` variable. Vite inlines those into the browser bundle.
 
-1. In **Vercel → Project → Settings → Environment Variables**, add for Production (and Preview if desired):
+1. In **Vercel → Project → Settings → Environment Variables**, add for Production:
 
    | Name | Value |
    |------|-------|
-   | `VITE_FOUNDER_ADMIN_SECRET` | A long random secret you choose (not the local default) |
+   | `FOUNDER_ADMIN_SECRET` | A long random secret (≥16 chars). **No `VITE_` prefix.** |
 
-2. **Redeploy** the production deployment so Vite bakes the variable into the client bundle. Changing the env var alone does not update an already-built deploy.
+2. Redeploy production so the serverless function picks up the env var.
 
 3. Open: `https://YOUR_DOMAIN/?founder=1`
 
-4. Enter the same secret you set in Vercel.
+4. Enter the same secret. The client POSTs to `/api/founder/unlock`; the server compares with `FOUNDER_ADMIN_SECRET` using a timing-safe check.
 
-5. When finished testing, remove `VITE_FOUNDER_ADMIN_SECRET` from Vercel and redeploy to strip the console from the next build.
+5. When finished testing, remove `FOUNDER_ADMIN_SECRET` from Vercel (or rotate it) and redeploy.
 
-### Security note
+### Security notes
 
-`VITE_*` values are visible in the browser bundle. This gate is **obscurity for a founder testing console**, not server-side authorization. Do **not** reuse this secret for Stripe, database, or license crypto. Prefer a unique random value and remove it when you no longer need production stage switching.
-
-The local default (`ekit-founder-2026`) is **never** accepted in production builds.
+- Production unlock never reads a client-side founder secret.
+- Session unlock is stored in `sessionStorage` for the browser tab only (click **Lock** to clear).
+- Stage helpers only mutate local entitlement cache; they are not Stripe purchases.
+- Keep `FOUNDER_ADMIN_SECRET` distinct from Stripe, database, and license crypto secrets.
 
 ## What you can test
 
@@ -57,5 +58,3 @@ App surfaces:
 - Landing, Workspace, Stripe success, Stripe cancel
 - Pricing modal
 - Checkout configuration status
-
-Session unlock is stored in `sessionStorage` for the browser tab only. Click **Lock** to end the session.

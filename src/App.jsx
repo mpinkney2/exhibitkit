@@ -31,11 +31,8 @@ import {
 } from './utils/renamer';
 import { PRO_PRICE_LABEL } from './utils/payment';
 
-// Mounted in DEV always; in production/preview only when VITE_FOUNDER_ADMIN_SECRET is set at build time.
-const FounderAdmin =
-  import.meta.env.DEV || Boolean(String(import.meta.env.VITE_FOUNDER_ADMIN_SECRET || '').trim())
-    ? lazy(() => import('./components/FounderAdmin'))
-    : null;
+// Always available; production unlock is server-gated via /api/founder/unlock.
+const FounderAdmin = lazy(() => import('./components/FounderAdmin'));
 
 function getInitialAppRoute() {
   const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
@@ -767,7 +764,7 @@ export default function App() {
   };
 
   // Layout Renderings
-  const founderAdmin = FounderAdmin ? (
+  const founderAdmin = (
     <Suspense fallback={null}>
       <FounderAdmin
         appRoute={appRoute}
@@ -778,7 +775,7 @@ export default function App() {
         onLaunchWorkspace={handleLaunchFree}
       />
     </Suspense>
-  ) : null;
+  );
 
   if (appRoute === 'landing') {
     return (

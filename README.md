@@ -77,16 +77,16 @@ Stripe secret keys and webhook secrets must remain server-side only. Do not plac
 
 ### Founder live testing
 
-**Local:** Open `http://localhost:5173/?founder=1` and unlock with the DEV default (`ekit-founder-2026`), or set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local`.
+**Local:** Open `http://localhost:5173/?founder=1` and unlock with the DEV default (`ekit-founder-2026`), or set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` (local only).
 
-**Production / preview:** Off by default. Set `VITE_FOUNDER_ADMIN_SECRET` in Vercel and redeploy to enable `https://YOUR_DOMAIN/?founder=1`. The local default secret is never accepted in production builds. Full steps and security notes: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
+**Production / preview:** Set server-only `FOUNDER_ADMIN_SECRET` in Vercel (no `VITE_` prefix), redeploy, then open `https://YOUR_DOMAIN/?founder=1`. Unlock calls `POST /api/founder/unlock`. Never put the founder secret in a `VITE_*` variable — Vite exposes those in the browser bundle. Full steps: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
 
 ---
 
 ## Production Hardening
 
 - Developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is available **only** when `import.meta.env.DEV === true`.
-- Founder admin is available in DEV always; in production/preview only when `VITE_FOUNDER_ADMIN_SECRET` is set at build time (client-visible obscurity, not server auth).
+- Founder admin production unlock uses server-only `FOUNDER_ADMIN_SECRET` via `/api/founder/unlock` — never a `VITE_*` secret.
 - Never trust client-submitted prices or entitlement values for paid access.
 - Do not invent client-side licenses or simulated checkout.
 

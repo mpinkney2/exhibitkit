@@ -6,9 +6,9 @@ All notable changes to the **ExhibitKIT** litigation preparation utility will be
 
 ## [0.10.2] - 2026-08-24
 
-### Changed — Optional production founder admin
-- Production/preview builds can mount founder admin when `VITE_FOUNDER_ADMIN_SECRET` is set at build time
-- Local DEV default secret (`ekit-founder-2026`) is never accepted outside DEV
+### Changed — Production founder admin via server unlock
+- Production unlock uses `POST /api/founder/unlock` with server-only `FOUNDER_ADMIN_SECRET` (never a `VITE_*` value)
+- Local DEV still uses the default secret or optional `.env.local` override
 - Docs updated: `docs/FOUNDER_ADMIN.md`, README, `.env.example`
 
 ---

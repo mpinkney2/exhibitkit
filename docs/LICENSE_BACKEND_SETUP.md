@@ -75,6 +75,9 @@ RATE_LIMIT_HASH_SECRET=...
 LICENSE_ENCRYPTION_KEY=...
 LICENSE_TRANSFER_COOLDOWN_HOURS=24
 EXHIBITKIT_VERSION=v0.10.0
+
+# Optional — production founder live-test unlock (see docs/FOUNDER_ADMIN.md)
+# FOUNDER_ADMIN_SECRET=...
 ```
 
 Generate the three license secrets locally with:

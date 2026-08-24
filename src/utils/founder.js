@@ -5,15 +5,13 @@
  *   1. Open the app with ?founder=1 (or #founder)
  *   2. Enter the founder secret
  *
- * Availability:
- *   - Local DEV builds: always available (default secret `ekit-founder-2026`
- *     unless VITE_FOUNDER_ADMIN_SECRET overrides it)
- *   - Production / preview builds: available only when
- *     VITE_FOUNDER_ADMIN_SECRET is set at build time (no default secret)
+ * Unlock paths:
+ *   - Local DEV: compares against DEFAULT_FOUNDER_SECRET or optional
+ *     VITE_FOUNDER_ADMIN_SECRET (local override only — never set in Vercel)
+ *   - Production / preview: POST /api/founder/unlock, which checks
+ *     server-only FOUNDER_ADMIN_SECRET (no VITE_ prefix, never in the bundle)
  *
- * This is a live-test console for entitlement stages — not customer
- * licensing. The production secret is baked into the client bundle; treat
- * it as obscurity, not server-side auth.
+ * This is a live-test console for entitlement stages — not customer licensing.
  */
 
 export const DEFAULT_FOUNDER_SECRET = 'ekit-founder-2026';
@@ -28,29 +26,23 @@ function envSecret() {
   }
 }
 
-/**
- * True when this build may mount / unlock founder admin.
- * Production builds require an explicit VITE_FOUNDER_ADMIN_SECRET.
- */
+/** Founder admin UI may mount in every build; unlock is gated separately. */
 export function isFounderAdminAvailable() {
-  if (import.meta.env.DEV) return true;
-  return Boolean(envSecret());
+  return true;
 }
 
 /**
- * The secret that unlocks founder admin for this build.
- * Production never falls back to DEFAULT_FOUNDER_SECRET.
+ * Local DEV secret only. Production never reads a client-side founder secret.
  */
 export function getFounderSecret() {
-  if (!isFounderAdminAvailable()) return '';
-  const configured = envSecret();
-  if (configured) return configured;
-  if (import.meta.env.DEV) return DEFAULT_FOUNDER_SECRET;
-  return '';
+  if (!import.meta.env.DEV) return '';
+  return envSecret() || DEFAULT_FOUNDER_SECRET;
 }
 
 export function isFounderAdminConfigured() {
-  return Boolean(getFounderSecret());
+  if (import.meta.env.DEV) return Boolean(getFounderSecret());
+  // Production unlock is server-configured; show the form and let the API decide.
+  return true;
 }
 
 export function isUsingDefaultFounderSecret() {
@@ -61,7 +53,6 @@ export function isUsingDefaultFounderSecret() {
  * True when the URL explicitly requests the founder entry surface.
  */
 export function shouldOfferFounderEntry(search = window.location.search, hash = window.location.hash) {
-  if (!isFounderAdminAvailable()) return false;
   const params = new URLSearchParams(search);
   if (params.get(FOUNDER_QUERY_FLAG) === '1' || params.get(FOUNDER_QUERY_FLAG) === 'true') {
     return true;
@@ -73,7 +64,6 @@ export function shouldOfferFounderEntry(search = window.location.search, hash = 
 }
 
 export function isFounderUnlocked() {
-  if (!isFounderAdminAvailable()) return false;
   try {
     return sessionStorage.getItem(FOUNDER_SESSION_KEY) === 'true';
   } catch {
@@ -81,30 +71,50 @@ export function isFounderUnlocked() {
   }
 }
 
-/**
- * @param {string} candidate
- * @returns {{ ok: boolean, error?: string }}
- */
-export function unlockFounder(candidate) {
-  if (!isFounderAdminAvailable()) {
-    return {
-      ok: false,
-      error: 'Founder admin is not enabled in this build. Set VITE_FOUNDER_ADMIN_SECRET and redeploy.',
-    };
-  }
-  const expected = getFounderSecret();
-  if (!expected) {
-    return { ok: false, error: 'Founder admin is not configured.' };
-  }
-  if ((candidate || '').trim() !== expected) {
-    return { ok: false, error: 'Incorrect founder secret.' };
-  }
+function persistUnlock() {
   try {
     sessionStorage.setItem(FOUNDER_SESSION_KEY, 'true');
+    return { ok: true };
   } catch {
     return { ok: false, error: 'Unable to persist founder session.' };
   }
-  return { ok: true };
+}
+
+/**
+ * @param {string} candidate
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+export async function unlockFounder(candidate) {
+  const trimmed = (candidate || '').trim();
+  if (!trimmed) {
+    return { ok: false, error: 'Enter the founder secret.' };
+  }
+
+  if (import.meta.env.DEV) {
+    const expected = getFounderSecret();
+    if (trimmed !== expected) {
+      return { ok: false, error: 'Incorrect founder secret.' };
+    }
+    return persistUnlock();
+  }
+
+  try {
+    const response = await fetch('/api/founder/unlock', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ secret: trimmed }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      return {
+        ok: false,
+        error: data.error || 'Unlock failed.',
+      };
+    }
+    return persistUnlock();
+  } catch {
+    return { ok: false, error: 'Unable to reach founder unlock service.' };
+  }
 }
 
 export function lockFounder() {

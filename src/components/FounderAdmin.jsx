@@ -83,6 +83,7 @@ export default function FounderAdmin({
   const [secret, setSecret] = useState('');
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -110,18 +111,23 @@ export default function FounderAdmin({
     setError('');
   };
 
-  const handleUnlock = (e) => {
+  const handleUnlock = async (e) => {
     e.preventDefault();
-    const result = unlockFounder(secret);
-    if (!result.ok) {
-      setError(result.error || 'Unlock failed');
-      setUnlocked(false);
-      return;
-    }
-    setUnlocked(true);
+    setUnlocking(true);
     setError('');
-    setNote('Founder admin unlocked for this browser session.');
-    clearFounderQueryFromUrl();
+    try {
+      const result = await unlockFounder(secret);
+      if (!result.ok) {
+        setError(result.error || 'Unlock failed');
+        setUnlocked(false);
+        return;
+      }
+      setUnlocked(true);
+      setNote('Founder admin unlocked for this browser session.');
+      clearFounderQueryFromUrl();
+    } finally {
+      setUnlocking(false);
+    }
   };
 
   const handleLock = () => {
@@ -182,9 +188,9 @@ export default function FounderAdmin({
               }}
             />
           </label>
-          <button type="submit" style={btnPrimary} disabled={!configured}>
+          <button type="submit" style={btnPrimary} disabled={!configured || unlocking}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Unlock size={13} /> Unlock founder admin
+              <Unlock size={13} /> {unlocking ? 'Checking…' : 'Unlock founder admin'}
             </span>
           </button>
           {usingDefaultSecret && (
