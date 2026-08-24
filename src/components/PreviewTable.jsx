@@ -314,6 +314,7 @@ export default function PreviewTable({
               {columns.map((col, index) => (
                 <th
                   key={col.id}
+                  className={col.id === 'proposed' ? 'exhibit-th-proposed' : undefined}
                   style={{ width: col.width, textAlign: col.align || 'left' }}
                   aria-colindex={index + 1}
                 >

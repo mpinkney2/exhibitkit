@@ -75,6 +75,18 @@
   --status-warning-border: rgba(198, 167, 106, 0.3);
   --status-danger-bg: rgba(181, 111, 111, 0.12);
   --status-danger-border: rgba(181, 111, 111, 0.3);
+
+  /* Proposed output filename — high-contrast highlight */
+  --proposed-filename-fg: #D6EBFF;
+  --proposed-filename-bg: rgba(79, 131, 194, 0.22);
+  --proposed-filename-border: rgba(168, 208, 255, 0.42);
+  --proposed-filename-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  --proposed-filename-warning-fg: #FFE6A8;
+  --proposed-filename-warning-bg: rgba(198, 167, 106, 0.22);
+  --proposed-filename-warning-border: rgba(255, 230, 168, 0.38);
+  --proposed-filename-danger-fg: #FFC8C8;
+  --proposed-filename-danger-bg: rgba(181, 111, 111, 0.24);
+  --proposed-filename-danger-border: rgba(255, 200, 200, 0.36);
   
   /* Backward Compatibility Mappings */
   --bg-primary: var(--color-surface-0);
@@ -124,6 +136,18 @@
   --status-warning-border: rgba(138, 107, 46, 0.24);
   --status-danger-bg: rgba(152, 75, 75, 0.1);
   --status-danger-border: rgba(152, 75, 75, 0.24);
+
+  /* Proposed output filename — high-contrast highlight */
+  --proposed-filename-fg: #0A3560;
+  --proposed-filename-bg: #DDEBFA;
+  --proposed-filename-border: rgba(20, 58, 102, 0.28);
+  --proposed-filename-shadow: 0 1px 2px rgba(20, 58, 102, 0.08);
+  --proposed-filename-warning-fg: #6B4E12;
+  --proposed-filename-warning-bg: #F9EFD6;
+  --proposed-filename-warning-border: rgba(138, 107, 46, 0.34);
+  --proposed-filename-danger-fg: #7A2424;
+  --proposed-filename-danger-bg: #FBEAEA;
+  --proposed-filename-danger-border: rgba(152, 75, 75, 0.32);
 
   /* Backward Compatibility Mappings */
   --bg-primary: var(--color-surface-0);
@@ -1427,20 +1451,20 @@ table.exhibit-table tr.has-error {
 .cell-proposed {
   font-family: var(--font-mono);
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 600;
   word-break: break-all;
   max-width: 280px;
-  color: var(--text-primary);
+  color: var(--proposed-filename-fg);
 }
 
 .cell-proposed.success {
-  color: #34d399;
+  color: var(--proposed-filename-fg);
 }
 .cell-proposed.warning {
-  color: #fbbf24;
+  color: var(--proposed-filename-warning-fg);
 }
 .cell-proposed.danger {
-  color: #f87171;
+  color: var(--proposed-filename-danger-fg);
 }
 
 /* Action Execution Bar */
@@ -1786,21 +1810,49 @@ table.exhibit-table tr.has-error {
 }
 
 .proposed-filename-cell {
+  display: inline-block;
+  max-width: 100%;
+  padding: 5px 10px;
+  border-radius: 6px;
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--color-accent);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  color: var(--proposed-filename-fg);
+  background: var(--proposed-filename-bg);
+  border: 1px solid var(--proposed-filename-border);
+  box-shadow: var(--proposed-filename-shadow);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
+}
+
+.proposed-filename-cell.success {
+  color: var(--proposed-filename-fg);
+  background: var(--proposed-filename-bg);
+  border-color: var(--proposed-filename-border);
 }
 
 .proposed-filename-cell.warning {
-  color: var(--color-warning);
+  color: var(--proposed-filename-warning-fg);
+  background: var(--proposed-filename-warning-bg);
+  border-color: var(--proposed-filename-warning-border);
 }
 
 .proposed-filename-cell.danger {
-  color: var(--color-error);
+  color: var(--proposed-filename-danger-fg);
+  background: var(--proposed-filename-danger-bg);
+  border-color: var(--proposed-filename-danger-border);
+}
+
+table.exhibit-table th.exhibit-th-proposed .exhibit-th-label {
+  color: var(--proposed-filename-fg);
+  font-weight: 700;
+}
+
+table.exhibit-table th.exhibit-th-proposed {
+  background: color-mix(in srgb, var(--proposed-filename-bg) 72%, transparent);
 }
 
 /* Table inline inputs — rest state (replaces dashed outline) */

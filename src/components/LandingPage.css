@@ -137,7 +137,20 @@ body:not(.light-theme) .landing-icon-button:hover { color: #fff; border-color: r
 .landing-file-row:nth-child(3) { animation-delay: 1300ms; }
 .landing-file-row:nth-child(4) { animation-delay: 1380ms; }
 .landing-file-row > span:first-child { display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.landing-file-row > span:nth-child(2) { color: #225c9b; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.landing-file-header span:nth-child(2) { color: #143a66; font-weight: 800; }
+.landing-file-row > span:nth-child(2) {
+  display: inline-block;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: #0a3560;
+  font-weight: 700;
+  background: #ddebfa;
+  border: 1px solid rgba(20, 58, 102, 0.22);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .landing-file-row:nth-child(2) > span:nth-child(2) { animation: landing-filename-write 580ms steps(12,end) 1460ms both; }
 .landing-file-row:nth-child(3) > span:nth-child(2) { animation: landing-filename-write 580ms steps(12,end) 1580ms both; }
 .landing-file-row:nth-child(4) > span:nth-child(2) { animation: landing-filename-write 580ms steps(12,end) 1700ms both; }
