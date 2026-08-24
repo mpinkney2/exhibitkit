@@ -32,6 +32,7 @@ import {
   resolveExhibitNumber,
   extractYear,
 } from './utils/renamer';
+import { getPresetRuleDefaults } from './config/presets';
 import { PRO_PRICE_LABEL } from './utils/payment';
 
 // Always available; production unlock is server-gated via /api/founder/unlock.
@@ -246,6 +247,10 @@ export default function App() {
         prefix: rules.prefix,
         number: currentNumber,
         description: item.description,
+        year: year || null,
+        docId: item.docId || item.number || currentNumber,
+        author: item.author || '',
+        title: item.title || '',
         preset: rules.preset,
         padLength: rules.padLength,
         caseStyle: rules.caseStyle,
@@ -284,6 +289,9 @@ export default function App() {
       originalName: name,
       year: year || null,
       number,
+      docId: parsed.docId || parsed.number || '',
+      author: parsed.author || '',
+      title: parsed.title || '',
       description: shouldClean ? cleanDescription(parsed.description) : parsed.description,
       isNumberManuallyEdited: Boolean(number),
       file,
@@ -309,9 +317,19 @@ export default function App() {
     };
 
     setters[ruleName](value);
+
+    const overrides = { [ruleName]: value };
+    if (ruleName === 'preset') {
+      const presetDefaults = getPresetRuleDefaults(value);
+      Object.entries(presetDefaults).forEach(([key, presetValue]) => {
+        if (setters[key]) setters[key](presetValue);
+      });
+      Object.assign(overrides, presetDefaults);
+    }
+
     setItems(prevItems => (
       prevItems.length > 0
-        ? updateProposedNames(prevItems, { [ruleName]: value })
+        ? updateProposedNames(prevItems, overrides)
         : prevItems
     ));
   };

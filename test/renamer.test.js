@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import {
+  applyTemplateTokens,
   extractYear,
   generateProposedFilename,
   parseFilename,
@@ -16,18 +17,26 @@ test('parseFilename recognizes common exhibit conventions', () => {
     number: '1',
     description: 'Contract',
     year: null,
+    docId: '1',
+    author: '',
+    title: '',
   });
   expect(parseFilename('04 - Jones Photo.pdf')).toEqual({
     prefix: '',
     number: '04',
     description: 'Jones Photo',
     year: null,
+    docId: '04',
+    author: '',
+    title: '',
   });
 });
 
 test('parseFilename extracts years already present in titles', () => {
   expect(parseFilename('Smith 2012 Memo.pdf')).toMatchObject({
     year: '2012',
+    author: 'Smith',
+    title: 'Memo',
     description: 'Smith 2012 Memo',
   });
   expect(parseFilename('2019 - Board Minutes.pdf')).toMatchObject({
@@ -36,13 +45,25 @@ test('parseFilename extracts years already present in titles', () => {
     description: '2019 Board Minutes',
   });
   expect(parseFilename('DOD - 12 - 2012 - Smith - Report.pdf')).toMatchObject({
+    prefix: 'DOD',
     year: '2012',
     number: '12',
+    docId: '12',
+    author: 'Smith',
+    title: 'Report',
+    description: 'Smith Report',
   });
   expect(parseFilename('PX-4 - 2021 Settlement Agreement.pdf')).toMatchObject({
     year: '2021',
     number: '4',
   });
+});
+
+test('parseFilename prefers structured DOD pattern over generic DOD prefix match', () => {
+  const parsed = parseFilename('DOD - 12 - 2012 - Smith - Report.pdf');
+  expect(parsed.author).toBe('Smith');
+  expect(parsed.title).toBe('Report');
+  expect(parsed.description).not.toMatch(/2012 Smith Report/);
 });
 
 test('extractYear and resolveExhibitNumber support year-as-ID renaming', () => {
@@ -79,6 +100,32 @@ test('generateProposedFilename applies OnCue and TrialDirector rules', () => {
   expect(generateProposedFilename({ ...base, preset: 'trialdirector' })).toBe('PX-004 - Jones Photo.pdf');
 });
 
+test('generateProposedFilename applies Patent DOD preset matching PP output', () => {
+  expect(generateProposedFilename({
+    prefix: 'DOD',
+    number: '12',
+    docId: '12',
+    year: '2012',
+    author: 'Smith',
+    title: 'Report',
+    description: 'Smith Report',
+    preset: 'patent-dod',
+    caseStyle: 'as-is',
+  })).toBe('DOD - 12 - 2012 - Smith - Report.pdf');
+
+  expect(generateProposedFilename({
+    prefix: 'DOC',
+    number: '5',
+    docId: '5',
+    year: null,
+    author: 'Jones',
+    title: 'Memo',
+    description: 'Jones Memo',
+    preset: 'patent-dod',
+    caseStyle: 'as-is',
+  })).toBe('DOC - 5 - n.d. - Jones - Memo.pdf');
+});
+
 test('generateProposedFilename can shorten titles and leave years unpadded', () => {
   const long = 'Comprehensive Settlement Agreement Between Parties Regarding Licensing';
   expect(generateProposedFilename({
@@ -91,6 +138,37 @@ test('generateProposedFilename can shorten titles and leave years unpadded', () 
     shortenDesc: true,
     maxDescLength: 32,
   })).toBe('PX2019 Comprehensive Settlement.pdf');
+});
+
+test('applyTemplateTokens supports structured patent fields', () => {
+  const result = applyTemplateTokens('{Prefix} - {DocId} - {Year} - {Author} - {Title}', {
+    Prefix: 'DOD',
+    DocId: '12',
+    Year: '2012',
+    Author: 'Smith',
+    Title: 'Report',
+  });
+  expect(result).toBe('DOD - 12 - 2012 - Smith - Report');
+});
+
+test('generateProposedFilename applies area-specific preset aliases', () => {
+  expect(generateProposedFilename({
+    prefix: 'FL',
+    number: '4',
+    description: 'Parenting Plan',
+    preset: 'family-oncue',
+    padLength: 3,
+    caseStyle: 'title',
+  })).toBe('FL004 Parenting Plan.pdf');
+
+  expect(generateProposedFilename({
+    prefix: 'BK',
+    number: '12',
+    description: 'Creditor Schedule',
+    preset: 'bankruptcy-trialdirector',
+    padLength: 4,
+    caseStyle: 'title',
+  })).toBe('BK-0012 - Creditor Schedule.pdf');
 });
 
 test('validateProposedNames blocks duplicate and occupied target names', () => {

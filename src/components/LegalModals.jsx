@@ -195,7 +195,10 @@ export default function LegalModals({ activeModal, onClose }) {
                     <strong>TrialDirector Preset (Dash-Separated):</strong> Focuses on rigid dash alignments (e.g., <code>PX-001 - Contract.pdf</code>) to enforce proper database sequencing.
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    <strong>Zero-Padding Requirement:</strong> Ensure your ID is padded (e.g., <code>001</code> for up to 999 files) so court presentation systems display exhibits in sequential order during live testimony.
+                    <strong>Patent DOD Preset:</strong> Outputs structured discovery filenames (e.g., <code>DOD - 12 - 2012 - Smith - Report.pdf</code>) with author, title, and year tokens parsed from existing names.
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <strong>Practice-Area Presets:</strong> Litigation (OnCue/TrialDirector), Patent/IP, Family, Employment, Bankruptcy, and Custom token templates—each with sensible prefix defaults.
                   </div>
                 </div>
               </div>
@@ -207,7 +210,7 @@ export default function LegalModals({ activeModal, onClose }) {
                   <div>
                     <h5 style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>Verify Rules & Zero-Padding</h5>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: 0 }}>
-                      Set your naming preset (OnCue, TrialDirector, or Custom pattern). Adjust the starting number and digit padding count in the sidebar configuration.
+                      Choose a practice-area preset in the sidebar (Litigation, Patent/IP, Family, Employment, Bankruptcy, or Custom). Adjust prefix, starting number, padding, year sort, and title shortener before renaming.
                     </p>
                   </div>
                 </div>
