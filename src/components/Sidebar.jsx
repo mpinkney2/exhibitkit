@@ -17,6 +17,14 @@ export default function Sidebar({
   setCustomTemplate,
   cleanDesc,
   setCleanDesc,
+  sortMode,
+  setSortMode,
+  useYearAsNumber,
+  setUseYearAsNumber,
+  shortenDesc,
+  setShortenDesc,
+  maxDescLength,
+  setMaxDescLength,
   onReset,
   isPro,
   onApplySettings,
@@ -32,7 +40,11 @@ export default function Sidebar({
     padLength,
     caseStyle,
     cleanDesc,
-    customTemplate
+    customTemplate,
+    sortMode,
+    useYearAsNumber,
+    shortenDesc,
+    maxDescLength,
   };
 
   return (
@@ -148,6 +160,37 @@ export default function Sidebar({
           </div>
         </div>
 
+        {/* Year-aware ordering */}
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Title Year Detection</div>
+
+          <div className="form-group">
+            <label className="form-label">Sort Batch By</label>
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value)}
+            >
+              <option value="filename">Filename (A–Z)</option>
+              <option value="year">Year in title (oldest first)</option>
+            </select>
+          </div>
+
+          <div className="switch-container">
+            <span className="switch-label">Use year as exhibit ID</span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={useYearAsNumber}
+                onChange={(e) => setUseYearAsNumber(e.target.checked)}
+              />
+              <span className="slider"></span>
+            </label>
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '-4px', lineHeight: 1.4 }}>
+            When a 19xx/20xx year already appears in the title, sort by that year and optionally rename with it as the exhibit number (e.g. PX2019 …).
+          </span>
+        </div>
+
         {/* Description Formatting */}
         <div className="sidebar-section">
           <div className="sidebar-section-title">Description Styling</div>
@@ -179,6 +222,34 @@ export default function Sidebar({
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '-4px' }}>
             Automatically removes double spaces, underscores, and special characters from descriptions.
           </span>
+
+          <div className="switch-container" style={{ marginTop: '12px' }}>
+            <span className="switch-label">Shorten titles</span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={shortenDesc}
+                onChange={(e) => setShortenDesc(e.target.checked)}
+              />
+              <span className="slider"></span>
+            </label>
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '-4px', lineHeight: 1.4 }}>
+            Trim long descriptions at a word boundary for cleaner OnCue / TrialDirector names.
+          </span>
+
+          {shortenDesc && (
+            <div className="form-group" style={{ marginTop: '8px' }}>
+              <label className="form-label">Max title length</label>
+              <input
+                type="number"
+                min="12"
+                max="120"
+                value={maxDescLength}
+                onChange={(e) => setMaxDescLength(Math.max(12, Math.min(120, parseInt(e.target.value, 10) || 48)))}
+              />
+            </div>
+          )}
         </div>
 
         {/* Custom Template builder */}

@@ -27,7 +27,10 @@ import {
   validateProposedNames, 
   resolveDuplicates, 
   cleanDescription,
-  formatCase
+  formatCase,
+  sortItems,
+  resolveExhibitNumber,
+  extractYear,
 } from './utils/renamer';
 import { PRO_PRICE_LABEL } from './utils/payment';
 
@@ -75,6 +78,10 @@ export default function App() {
   const [caseStyle, setCaseStyle] = useState('title');
   const [customTemplate, setCustomTemplate] = useState('{Prefix}{Number} - {Description}');
   const [cleanDesc, setCleanDesc] = useState(true);
+  const [sortMode, setSortMode] = useState('filename'); // 'filename' | 'year'
+  const [useYearAsNumber, setUseYearAsNumber] = useState(false);
+  const [shortenDesc, setShortenDesc] = useState(false);
+  const [maxDescLength, setMaxDescLength] = useState(48);
 
   // Ingested Items State
   const [items, setItems] = useState([]);
@@ -215,14 +222,25 @@ export default function App() {
       caseStyle,
       customTemplate,
       cleanDesc,
+      sortMode,
+      useYearAsNumber,
+      shortenDesc,
+      maxDescLength,
       ...overrides
     };
 
-    const updated = itemsList.map((item, idx) => {
-      // Calculate dynamic sequenced number if not manually edited by the user
-      const currentNumber = item.isNumberManuallyEdited 
-        ? item.number 
-        : String(rules.startNumber + idx);
+    const sorted = sortItems(itemsList, rules.sortMode);
+
+    const updated = sorted.map((item, idx) => {
+      const year = item.year || extractYear(item.description) || extractYear(item.originalName);
+      let currentNumber;
+      if (rules.useYearAsNumber && year) {
+        currentNumber = String(year);
+      } else if (item.isNumberManuallyEdited) {
+        currentNumber = item.number;
+      } else {
+        currentNumber = String(rules.startNumber + idx);
+      }
 
       const proposed = generateProposedFilename({
         prefix: rules.prefix,
@@ -231,12 +249,18 @@ export default function App() {
         preset: rules.preset,
         padLength: rules.padLength,
         caseStyle: rules.caseStyle,
-        customTemplate: rules.customTemplate
+        customTemplate: rules.customTemplate,
+        shortenDesc: rules.shortenDesc,
+        maxDescLength: rules.maxDescLength,
       });
 
       return {
         ...item,
+        year: year || null,
         number: currentNumber,
+        isNumberManuallyEdited: (rules.useYearAsNumber && year)
+          ? true
+          : item.isNumberManuallyEdited,
         proposedName: proposed,
         preset: rules.preset,
         prefix: rules.prefix
@@ -244,6 +268,27 @@ export default function App() {
     });
 
     return validateProposedNames(updated);
+  };
+
+  const buildIngestedItem = (name, file = null, handle = null, rulesOverride = {}) => {
+    const parsed = parseFilename(name);
+    const year = parsed.year || extractYear(parsed.description) || extractYear(name);
+    const useYear = rulesOverride.useYearAsNumber ?? useYearAsNumber;
+    const shouldClean = rulesOverride.cleanDesc ?? cleanDesc;
+    const number = resolveExhibitNumber({
+      parsedNumber: parsed.number,
+      year,
+      useYearAsNumber: useYear,
+    });
+    return {
+      originalName: name,
+      year: year || null,
+      number,
+      description: shouldClean ? cleanDescription(parsed.description) : parsed.description,
+      isNumberManuallyEdited: Boolean(number),
+      file,
+      handle,
+    };
   };
 
   const handleRuleChange = (ruleName, value) => {
@@ -256,7 +301,11 @@ export default function App() {
       padLength: setPadLength,
       caseStyle: setCaseStyle,
       customTemplate: setCustomTemplate,
-      cleanDesc: setCleanDesc
+      cleanDesc: setCleanDesc,
+      sortMode: setSortMode,
+      useYearAsNumber: setUseYearAsNumber,
+      shortenDesc: setShortenDesc,
+      maxDescLength: setMaxDescLength,
     };
 
     setters[ruleName](value);
@@ -277,6 +326,10 @@ export default function App() {
     setCaseStyle(settings.caseStyle);
     setCleanDesc(settings.cleanDesc);
     setCustomTemplate(settings.customTemplate);
+    if (settings.sortMode) setSortMode(settings.sortMode);
+    if (typeof settings.useYearAsNumber === 'boolean') setUseYearAsNumber(settings.useYearAsNumber);
+    if (typeof settings.shortenDesc === 'boolean') setShortenDesc(settings.shortenDesc);
+    if (settings.maxDescLength) setMaxDescLength(settings.maxDescLength);
     setItems(prevItems => (
       prevItems.length > 0 ? updateProposedNames(prevItems, settings) : prevItems
     ));
@@ -294,22 +347,13 @@ export default function App() {
       { name: "DEP Jones Exhibit 3.pdf" },
       { name: "DOD - 12 - 2012 - Smith - Report.pdf" },
       { name: "04 - Jones Photo.pdf" },
-      { name: "Unstructured Document.pdf" }
+      { name: "Unstructured Document.pdf" },
+      { name: "Jones 2015 Expert Report.pdf" },
+      { name: "2019 - Board Minutes.pdf" },
+      { name: "Smith 2021 Settlement Agreement Long Title.pdf" },
     ];
 
-    const parsedSamples = sampleFiles.map(file => {
-      const parsed = parseFilename(file.name);
-      return {
-        originalName: file.name,
-        number: parsed.number,
-        description: cleanDesc ? cleanDescription(parsed.description) : parsed.description,
-        isNumberManuallyEdited: parsed.number ? true : false,
-        file: null, // Mocks have no file handles
-        handle: null
-      };
-    });
-
-    parsedSamples.sort((a, b) => a.originalName.localeCompare(b.originalName, undefined, { numeric: true }));
+    const parsedSamples = sampleFiles.map(file => buildIngestedItem(file.name));
     setItems(updateProposedNames(parsedSamples));
     showNotification("📊 Mock exhibit dataset loaded. Test presets and sequences above.", "success");
   };
@@ -323,16 +367,7 @@ export default function App() {
       for await (const entry of handle.values()) {
         if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.pdf')) {
           const file = await entry.getFile();
-          const parsed = parseFilename(entry.name);
-          
-          files.push({
-            originalName: entry.name,
-            number: parsed.number,
-            description: cleanDesc ? cleanDescription(parsed.description) : parsed.description,
-            isNumberManuallyEdited: parsed.number ? true : false,
-            file: file,
-            handle: entry
-          });
+          files.push(buildIngestedItem(entry.name, file, entry));
         }
       }
 
@@ -353,9 +388,6 @@ export default function App() {
 
       setDirectoryHandle(handle);
       setDirectoryName(handle.name);
-
-      // Sort files alphabetically to ensure consistent auto-sequencing
-      files.sort((a, b) => a.originalName.localeCompare(b.originalName, undefined, { numeric: true }));
 
       const itemsWithProposed = updateProposedNames(files);
       setItems(itemsWithProposed);
@@ -382,19 +414,7 @@ export default function App() {
     setDirectoryHandle(null);
     setDirectoryName("Batch Ingestion (Download Mode)");
 
-    const newItems = filesList.map(file => {
-      const parsed = parseFilename(file.name);
-      return {
-        originalName: file.name,
-        number: parsed.number,
-        description: cleanDesc ? cleanDescription(parsed.description) : parsed.description,
-        isNumberManuallyEdited: parsed.number ? true : false,
-        file: file,
-        handle: null
-      };
-    });
-
-    newItems.sort((a, b) => a.originalName.localeCompare(b.originalName, undefined, { numeric: true }));
+    const newItems = filesList.map(file => buildIngestedItem(file.name, file, null));
     setItems(updateProposedNames(newItems));
     showNotification(`Added ${newItems.length} PDF files for batch preparation.`, "success");
   };
@@ -736,7 +756,11 @@ export default function App() {
       padLength: 3,
       caseStyle: 'title',
       customTemplate: '{Prefix}{Number} - {Description}',
-      cleanDesc: true
+      cleanDesc: true,
+      sortMode: 'filename',
+      useYearAsNumber: false,
+      shortenDesc: false,
+      maxDescLength: 48,
     };
     setPreset(defaults.preset);
     setPrefix(defaults.prefix);
@@ -745,6 +769,10 @@ export default function App() {
     setCaseStyle(defaults.caseStyle);
     setCustomTemplate(defaults.customTemplate);
     setCleanDesc(defaults.cleanDesc);
+    setSortMode(defaults.sortMode);
+    setUseYearAsNumber(defaults.useYearAsNumber);
+    setShortenDesc(defaults.shortenDesc);
+    setMaxDescLength(defaults.maxDescLength);
     setItems(prevItems => (
       prevItems.length > 0 ? updateProposedNames(prevItems, defaults) : prevItems
     ));
@@ -928,6 +956,14 @@ export default function App() {
         setCustomTemplate={(value) => handleRuleChange('customTemplate', value)}
         cleanDesc={cleanDesc}
         setCleanDesc={(value) => handleRuleChange('cleanDesc', value)}
+        sortMode={sortMode}
+        setSortMode={(value) => handleRuleChange('sortMode', value)}
+        useYearAsNumber={useYearAsNumber}
+        setUseYearAsNumber={(value) => handleRuleChange('useYearAsNumber', value)}
+        shortenDesc={shortenDesc}
+        setShortenDesc={(value) => handleRuleChange('shortenDesc', value)}
+        maxDescLength={maxDescLength}
+        setMaxDescLength={(value) => handleRuleChange('maxDescLength', value)}
         onReset={handleResetRules}
         isPro={isPro}
         onApplySettings={handleApplyProfileSettings}

@@ -3,27 +3,39 @@
  * Standardizes legal exhibit filenames for TrialDirector, OnCue, and custom setups.
  */
 
+/** Calendar years commonly found in exhibit titles (1900–2099). */
+export const YEAR_PATTERN = /\b((?:19|20)\d{2})\b/;
+
 /**
- * Attempts to parse an existing filename into prefix, exhibit number, and description.
+ * Extract the first calendar year (19xx/20xx) from a filename or title.
+ * @param {string} text
+ * @returns {string|null} Four-digit year or null
+ */
+export function extractYear(text) {
+  if (!text) return null;
+  const match = String(text).match(YEAR_PATTERN);
+  return match ? match[1] : null;
+}
+
+/**
+ * Attempts to parse an existing filename into prefix, exhibit number, description, and year.
  * @param {string} filename - The original file name (with or without extension)
- * @returns {object} { prefix: string, number: string, description: string }
+ * @returns {object} { prefix: string, number: string, description: string, year: string|null }
  */
 export function parseFilename(filename) {
   // Strip extension and trim
   const base = filename.replace(/\.pdf$/i, "").trim();
 
   // 1. Try matching structured exhibit patterns (e.g. PX-001 - Memo, DX_102 - Invoice, PLTF 5 - Contract)
-  // Group 1: Common exhibit prefixes (PX, DX, EX, D, P, PLTF, DEFT, DEF, DEP, GFX, EXB) or words like "Exhibit"
-  // Group 2: The exhibit number (can include letters like 1A, 25b, etc.)
-  // Group 3: Optional separator
-  // Group 4: The rest as description
   const stdPattern = /^(PX|DX|EX|PLTF|DEFT|DEF|DEP|GFX|EXB|DOD|DOC|EXHIBIT)\s*[-_]?\s*(\d+[A-Z]?)\s*(?:[-_–—\s]+)\s*(.+)$/i;
   let match = base.match(stdPattern);
   if (match) {
+    const description = cleanDescription(match[3]);
     return {
       prefix: match[1].toUpperCase(),
       number: match[2],
-      description: cleanDescription(match[3])
+      description,
+      year: extractYear(description) || extractYear(base),
     };
   }
 
@@ -34,7 +46,8 @@ export function parseFilename(filename) {
     return {
       prefix: match[1].toUpperCase(),
       number: match[2],
-      description: ""
+      description: "",
+      year: null,
     };
   }
 
@@ -42,10 +55,15 @@ export function parseFilename(filename) {
   const leadingNumPattern = /^(\d+[A-Z]?)\s*[-_–—\s]+\s*(.+)$/i;
   match = base.match(leadingNumPattern);
   if (match) {
+    const description = cleanDescription(match[2]);
+    const leading = match[1];
+    // A standalone 4-digit leading token is treated as a year title, not an exhibit ID.
+    const leadingIsYear = /^(?:19|20)\d{2}$/.test(leading);
     return {
       prefix: "",
-      number: match[1],
-      description: cleanDescription(match[2])
+      number: leadingIsYear ? "" : leading,
+      description: leadingIsYear ? cleanDescription(`${leading} ${description}`) : description,
+      year: leadingIsYear ? leading : (extractYear(description) || null),
     };
   }
 
@@ -63,7 +81,8 @@ export function parseFilename(filename) {
     return {
       prefix: prefix.toUpperCase(),
       number: docId,
-      description: cleanDescription(desc)
+      description: cleanDescription(desc),
+      year: year || extractYear(desc) || null,
     };
   }
 
@@ -78,15 +97,18 @@ export function parseFilename(filename) {
     return {
       prefix: "",
       number: "",
-      description: cleanDescription(`${author} - ${year} - ${rest}`)
+      description: cleanDescription(`${author} - ${year} - ${rest}`),
+      year,
     };
   }
 
   // 6. Default fallback: treat the entire filename as description
+  const description = cleanDescription(base);
   return {
     prefix: "",
     number: "",
-    description: cleanDescription(base)
+    description,
+    year: extractYear(description),
   };
 }
 
@@ -103,6 +125,27 @@ export function cleanDescription(text) {
     .replace(/[\s_.-]+/g, " ") // replace multiple separators with a single space
     .replace(/["'<>|\\:*?]/g, "") // strip standard OS forbidden filename characters
     .trim();
+}
+
+/**
+ * Shorten a title/description at a word boundary when it exceeds maxLength.
+ * @param {string} text
+ * @param {number} maxLength
+ * @returns {string}
+ */
+export function shortenDescription(text, maxLength = 48) {
+  const cleaned = String(text || "").trim();
+  const limit = Number(maxLength);
+  if (!cleaned) return "";
+  if (!Number.isFinite(limit) || limit <= 0) return cleaned;
+  if (cleaned.length <= limit) return cleaned;
+
+  const slice = cleaned.slice(0, limit);
+  const lastSpace = slice.lastIndexOf(" ");
+  const trimmed = lastSpace >= Math.floor(limit * 0.5)
+    ? slice.slice(0, lastSpace)
+    : slice;
+  return trimmed.replace(/[-_,.;:]+$/g, "").trim();
 }
 
 /**
@@ -146,6 +189,10 @@ export function padNumber(num, padLength) {
   if (numericMatch) {
     const digits = numericMatch[1];
     const suffix = numericMatch[2] || "";
+    // Do not zero-pad calendar years (keeps 2012 as 2012, not 012 / 2012).
+    if (/^(?:19|20)\d{2}$/.test(digits) && !suffix) {
+      return digits;
+    }
     if (digits.length < padLength) {
       return digits.padStart(padLength, "0") + suffix;
     }
@@ -155,8 +202,41 @@ export function padNumber(num, padLength) {
 }
 
 /**
+ * Compare ingest items for sorting.
+ * @param {'filename'|'year'} sortMode
+ */
+export function compareItemsForSort(a, b, sortMode = 'filename') {
+  if (sortMode === 'year') {
+    const yearA = a.year || extractYear(a.description) || extractYear(a.originalName);
+    const yearB = b.year || extractYear(b.description) || extractYear(b.originalName);
+    const numA = yearA ? Number(yearA) : Number.POSITIVE_INFINITY;
+    const numB = yearB ? Number(yearB) : Number.POSITIVE_INFINITY;
+    if (numA !== numB) return numA - numB;
+  }
+  return String(a.originalName || '').localeCompare(String(b.originalName || ''), undefined, { numeric: true });
+}
+
+/**
+ * Sort a copy of items by the active sort mode.
+ * @param {Array} items
+ * @param {'filename'|'year'} sortMode
+ */
+export function sortItems(items, sortMode = 'filename') {
+  return [...items].sort((a, b) => compareItemsForSort(a, b, sortMode));
+}
+
+/**
+ * Resolve exhibit number for an ingested/parsed item.
+ * When useYearAsNumber is on and a year is present in the title, use that year.
+ */
+export function resolveExhibitNumber({ parsedNumber = '', year = null, useYearAsNumber = false } = {}) {
+  if (useYearAsNumber && year) return String(year);
+  return parsedNumber ? String(parsedNumber) : '';
+}
+
+/**
  * Standardizes and generates a proposed filename according to presets and custom rules.
- * @param {object} params - { prefix, number, description, preset, padLength, customTemplate, caseStyle }
+ * @param {object} params - { prefix, number, description, preset, padLength, customTemplate, caseStyle, shortenDesc, maxDescLength }
  * @returns {string} Proposed filename with .pdf extension
  */
 export function generateProposedFilename({
@@ -166,17 +246,20 @@ export function generateProposedFilename({
   preset = "oncue",
   padLength = 0,
   caseStyle = "as-is",
-  customTemplate = "{Prefix}{Number} - {Description}"
+  customTemplate = "{Prefix}{Number} - {Description}",
+  shortenDesc = false,
+  maxDescLength = 48,
 }) {
   const cleanPrefix = prefix.trim();
-  const formattedDesc = formatCase(cleanDescription(description), caseStyle);
+  let formattedDesc = formatCase(cleanDescription(description), caseStyle);
+  if (shortenDesc) {
+    formattedDesc = shortenDescription(formattedDesc, maxDescLength);
+  }
   const formattedNum = padNumber(number, padLength);
 
   // Apply naming preset rules
   if (preset === "oncue") {
     // ONCUE Rule: [ID][Space][Description].pdf
-    // Important: OnCue drops punctuation and dashes in the ID, so it prefers a clean, solid prefix+number.
-    // By default, first space separates the ID and the description name.
     const id = `${cleanPrefix}${formattedNum}`.trim();
     if (id && formattedDesc) {
       return `${id} ${formattedDesc}.pdf`;
@@ -187,7 +270,6 @@ export function generateProposedFilename({
     }
   } else if (preset === "trialdirector") {
     // TRIALDIRECTOR Rule: [Prefix]-[Number] [Description].pdf (standard best practice)
-    // TrialDirector handles delimiters like dash or underscore cleanly.
     const idParts = [];
     if (cleanPrefix) idParts.push(cleanPrefix);
     if (formattedNum) idParts.push(formattedNum);
@@ -202,7 +284,6 @@ export function generateProposedFilename({
     }
   } else {
     // CUSTOM Preset: Uses user-defined string template
-    // e.g. "{Prefix}-{Number}_{Description}"
     let result = customTemplate
       .replace(/{Prefix}/gi, cleanPrefix)
       .replace(/{Number}/gi, formattedNum)
