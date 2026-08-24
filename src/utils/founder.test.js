@@ -96,6 +96,35 @@ describe('founder admin access', () => {
     expect(result.error).toMatch(/Incorrect founder secret/);
     expect(isFounderUnlocked()).toBe(false);
   });
+
+  it('grants Pro features from founder override only while founder is unlocked in production', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('PROD', true);
+    vi.stubEnv('MODE', 'production');
+    localStorage.clear();
+    sessionStorage.clear();
+
+    const { FOUNDER_SESSION_KEY } = await import('./founder.js');
+    const {
+      applyFounderUnlimitedPro,
+      hasProFeatures,
+      refreshVerifiedEntitlementStatus,
+    } = await import('./entitlement.js');
+
+    applyFounderUnlimitedPro();
+    expect(hasProFeatures()).toBe(false);
+
+    sessionStorage.setItem(FOUNDER_SESSION_KEY, 'true');
+    expect(hasProFeatures()).toBe(true);
+
+    const refresh = await refreshVerifiedEntitlementStatus();
+    expect(refresh.ok).toBe(true);
+    expect(refresh.invalid).toBeFalsy();
+    expect(hasProFeatures()).toBe(true);
+
+    sessionStorage.removeItem(FOUNDER_SESSION_KEY);
+    expect(hasProFeatures()).toBe(false);
+  });
 });
 
 describe('founder entitlement stage helpers', () => {

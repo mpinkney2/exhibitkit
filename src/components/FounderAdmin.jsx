@@ -17,6 +17,7 @@ import {
   applyExpiredCasePassForTesting,
   applyPendingCasePassForTesting,
   applyProForTesting,
+  applyFounderUnlimitedPro,
   getEntitlementLabel,
   hasProFeatures,
   areUpdatesIncluded,
@@ -76,6 +77,7 @@ export default function FounderAdmin({
   onEntitlementChange,
   onSetRoute,
   onOpenPricing,
+  onClosePricing,
   onLaunchWorkspace,
 }) {
   const [visible, setVisible] = useState(() => shouldOfferFounderEntry() || isFounderUnlocked());
@@ -104,9 +106,14 @@ export default function FounderAdmin({
   const current = entitlement || getEntitlement();
   const workstation = getWorkstationInfo();
 
-  const applyStage = (label, fn) => {
+  const applyStage = (label, fn, { enterWorkspace = false } = {}) => {
     const next = fn();
     onEntitlementChange?.(next);
+    if (enterWorkspace) {
+      onClosePricing?.();
+      onLaunchWorkspace?.();
+      onSetRoute?.('workspace');
+    }
     setNote(`Applied: ${label}`);
     setError('');
   };
@@ -244,6 +251,26 @@ export default function FounderAdmin({
 
           <section style={{ display: 'grid', gap: 6 }}>
             <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
+              Founder unlimited
+            </strong>
+            <button
+              type="button"
+              style={btnPrimary}
+              onClick={() => applyStage(
+                'Founder unlimited Pro (no payment)',
+                () => applyFounderUnlimitedPro(),
+                { enterWorkspace: true },
+              )}
+            >
+              Founder Pro — unlimited renaming (skip payment)
+            </button>
+            <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
+              Grants Pro renaming + unlimited batches on this browser while founder admin stays unlocked. Not a Stripe purchase.
+            </div>
+          </section>
+
+          <section style={{ display: 'grid', gap: 6 }}>
+            <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
               Entitlement stages
             </strong>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -259,10 +286,14 @@ export default function FounderAdmin({
               <button type="button" style={btn} onClick={() => applyStage('Case Pass pending', () => applyPendingCasePassForTesting())}>
                 Case Pass pending
               </button>
-              <button type="button" style={btn} onClick={() => applyStage('Pro (updates included)', () => applyProForTesting())}>
+              <button
+                type="button"
+                style={btn}
+                onClick={() => applyStage('Pro (updates included)', () => applyProForTesting(), { enterWorkspace: true })}
+              >
                 Pro + updates
               </button>
-              <button type="button" style={btn} onClick={() => applyStage('Pro (updates lapsed)', () => applyProForTesting({ updatesLapsed: true }))}>
+              <button type="button" style={btn} onClick={() => applyStage('Pro (updates lapsed)', () => applyProForTesting({ updatesLapsed: true }), { enterWorkspace: true })}>
                 Pro updates lapsed
               </button>
             </div>

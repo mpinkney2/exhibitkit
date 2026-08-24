@@ -48,6 +48,12 @@ Do **not** put the founder secret in any `VITE_*` variable. Vite inlines those i
 
 ## What you can test
 
+**Founder unlimited (recommended for live product testing):**
+1. Unlock founder admin.
+2. Click **Founder Pro — unlimited renaming (skip payment)**.
+3. Workspace opens with Pro renaming, unlimited batches, and no payment screen.
+4. Access lasts for this browser while the founder session stays unlocked. Click **Lock** (or clear site data) to end it.
+
 Entitlement stages:
 - Free
 - Case Pass active / expired / payment pending

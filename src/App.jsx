@@ -772,6 +772,7 @@ export default function App() {
         onEntitlementChange={(next) => setEntitlement(next || getEntitlement())}
         onSetRoute={setAppRoute}
         onOpenPricing={() => setIsPricingOpen(true)}
+        onClosePricing={() => setIsPricingOpen(false)}
         onLaunchWorkspace={handleLaunchFree}
       />
     </Suspense>

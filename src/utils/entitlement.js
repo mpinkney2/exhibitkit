@@ -26,9 +26,19 @@ import {
   DEV_TEST_KEY,
   APP_VERSION,
 } from './license.js';
+import { isFounderUnlocked } from './founder.js';
 
 const ENTITLEMENT_STORAGE = 'exhibitkit_entitlement_v1';
 const MIGRATION_FLAG = 'exhibitkit_entitlement_migrated_v1';
+
+/**
+ * Founder/DEV local overrides are trusted only while founder admin is unlocked
+ * (production) or while running a DEV build. They are never treated as Stripe purchases.
+ */
+function trustsDeveloperOverride(entitlement) {
+  if (!entitlement?.developerOverride) return false;
+  return isDevMode() || isFounderUnlocked();
+}
 
 /**
  * @typedef {'free'|'case_pass'|'pro_perpetual'|'firm'} EntitlementPlan
@@ -206,7 +216,7 @@ export function isProPerpetual(entitlement = getEntitlement()) {
 export function hasPaidRenamingAccess(entitlement = getEntitlement()) {
   const trusted = entitlement.serverVerified
     || entitlement.migratedFromLegacy
-    || (isDevMode() && entitlement.developerOverride);
+    || trustsDeveloperOverride(entitlement);
   if (!trusted) return false;
   if (entitlement.plan === PLAN_IDS.PRO) return true;
   if (entitlement.plan === PLAN_IDS.FIRM) return true;
@@ -264,7 +274,7 @@ export function applyEntitlementRecord(record) {
   if (
     next.plan === PLAN_IDS.PRO
     && next.licenseKey
-    && (next.migratedFromLegacy || (isDevMode() && next.developerOverride))
+    && (next.migratedFromLegacy || trustsDeveloperOverride(next))
   ) {
     legacyActivateLicense(next.licenseKey, 'pro_perpetual');
   }
@@ -366,11 +376,12 @@ export async function requestLicenseRecovery(email) {
 }
 
 export async function refreshVerifiedEntitlementStatus(entitlement = getEntitlement()) {
-  if (entitlement.migratedFromLegacy || (isDevMode() && entitlement.developerOverride)) {
+  if (entitlement.migratedFromLegacy || trustsDeveloperOverride(entitlement)) {
     return { ok: true, entitlement };
   }
   if (!entitlement.serverVerified || !entitlement.activationToken) {
-    return { ok: false, invalid: entitlement.plan !== PLAN_IDS.FREE, entitlement };
+    // Do not wipe local founder/test records or Free — only reconcile server seats.
+    return { ok: false, invalid: false, entitlement };
   }
 
   try {
@@ -495,7 +506,16 @@ export function applyProForTesting(options = {}) {
     purchasedVersion: APP_VERSION,
     migratedFromLegacy: false,
     developerOverride: true,
+    serverVerified: false,
   });
+}
+
+/**
+ * Founder helper: one-click unlimited Pro renaming for live testing.
+ * Requires an unlocked founder session on production builds.
+ */
+export function applyFounderUnlimitedPro() {
+  return applyProForTesting({ updatesLapsed: false });
 }
 
 /**
