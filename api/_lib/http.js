@@ -54,15 +54,41 @@ export function isAllowedBrowserOrigin(request) {
   if (!origin) return true;
 
   const allowed = new Set();
-  if (process.env.APP_URL) {
+
+  // Same-origin: whatever host served this request (custom domain or *.vercel.app).
+  try {
+    allowed.add(new URL(request.url).origin);
+  } catch {
+    // ignore invalid request URLs
+  }
+
+  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0].trim();
+    const proto = (request.headers.get('x-forwarded-proto') || 'https').split(',')[0].trim();
     try {
-      allowed.add(new URL(process.env.APP_URL).origin);
+      allowed.add(new URL(`${proto}://${host}`).origin);
     } catch {
-      return false;
+      // ignore malformed host headers
     }
   }
-  if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
-  if (process.env.VERCEL_BRANCH_URL) allowed.add(`https://${process.env.VERCEL_BRANCH_URL}`);
+
+  for (const raw of [
+    process.env.APP_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+    process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : '',
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : '',
+  ]) {
+    if (!raw) continue;
+    try {
+      allowed.add(new URL(raw).origin);
+    } catch {
+      // skip invalid env values; do not reject the whole request
+    }
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     allowed.add('http://localhost:5173');
     allowed.add('http://127.0.0.1:5173');
