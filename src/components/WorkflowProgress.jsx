@@ -20,15 +20,13 @@ export default function WorkflowProgress({ steps, currentIndex = 0, className = 
           const isCurrent = index === currentIndex;
           const Icon = isDone && !isCurrent ? Check : (ICONS[step.id] || Check);
           const stateClass = isCurrent ? 'is-current' : isDone ? 'is-done' : 'is-upcoming';
+          const lineComplete = index < currentIndex;
 
           return (
-            <li key={step.id} className="workflow-progress-item">
-              {index > 0 && (
-                <span
-                  className={`workflow-progress-line ${index <= currentIndex ? 'is-complete' : ''}`}
-                  aria-hidden="true"
-                />
-              )}
+            <li
+              key={step.id}
+              className={`workflow-progress-item ${lineComplete ? 'has-complete-line' : ''}`}
+            >
               <div
                 className={`workflow-progress-step ${stateClass}`}
                 aria-current={isCurrent ? 'step' : undefined}

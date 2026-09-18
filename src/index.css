@@ -1138,34 +1138,30 @@ body.sidebar-resizing {
   list-style: none;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
   margin: 0;
-  padding: 0;
+  padding: 2px 8px 0;
   width: 100%;
-  max-width: 420px;
-  margin-inline: auto;
 }
 
 .workflow-progress-item {
-  display: flex;
-  align-items: flex-start;
   flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
   min-width: 0;
 }
 
-.workflow-progress-item:first-child {
-  flex: 0 0 auto;
-}
-
-.workflow-progress-line {
-  flex: 1;
+.workflow-progress-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 13px;
+  left: calc(50% + 16px);
+  width: calc(100% - 32px);
   height: 1px;
-  margin: 13px 8px 0;
   background: var(--border-color);
-  min-width: 16px;
 }
 
-.workflow-progress-line.is-complete {
+.workflow-progress-item.has-complete-line:not(:last-child)::after {
   background: var(--accent-primary);
 }
 
@@ -1794,7 +1790,7 @@ table.exhibit-table tr.has-error {
   }
 
   .workflow-progress-list {
-    max-width: none;
+    padding: 0 8px;
   }
   
   .stats-grid {
