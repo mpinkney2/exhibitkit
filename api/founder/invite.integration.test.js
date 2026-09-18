@@ -10,9 +10,6 @@ const h = vi.hoisted(() => {
   const fakeSql = (strings, ...values) => {
     const text = strings.join(' ');
     captured.push({ text, values });
-    if (text.includes('exhibitkit_consume_rate_limit')) {
-      return Promise.resolve([{ allowed: true }]);
-    }
     if (text.includes('INSERT INTO exhibitkit_licenses')) {
       return Promise.resolve([{
         id: 'lic_int_1',
@@ -53,6 +50,7 @@ const ORIGIN = 'https://exhibitkit.patentpreppers.com';
 beforeEach(() => {
   process.env.FOUNDER_ADMIN_SECRET = 'production-founder-secret-ok';
   process.env.APP_URL = ORIGIN;
+  process.env.DATABASE_URL = 'postgres://test';
   process.env.LICENSE_HASH_SECRET = 'x'.repeat(48);
   process.env.LICENSE_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString('base64');
   process.env.RESEND_API_KEY = 'test-resend-key';
@@ -65,6 +63,7 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.FOUNDER_ADMIN_SECRET;
   delete process.env.APP_URL;
+  delete process.env.DATABASE_URL;
   delete process.env.LICENSE_HASH_SECRET;
   delete process.env.LICENSE_ENCRYPTION_KEY;
   delete process.env.RESEND_API_KEY;
