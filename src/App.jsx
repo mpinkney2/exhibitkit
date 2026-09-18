@@ -9,7 +9,9 @@ import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
 import MessageWorkspace from './components/MessageWorkspace';
 import WorkflowProgress from './components/WorkflowProgress';
+import HowToBot from './components/HowToBot';
 import './components/MessageWorkspace.css';
+import './components/HowToBot.css';
 import JSZip from 'jszip';
 import {
   getEntitlement,
@@ -1032,6 +1034,7 @@ export default function App() {
 
       {/* Main Workspace */}
       <div className="main-content">
+        <HowToBot onOpenGuide={() => setActiveModal('how')} />
         {/* Top Header info bar */}
         <div className="top-bar">
           <div className="top-bar-brand">
