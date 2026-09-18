@@ -1,11 +1,8 @@
 .howto-bot {
   position: absolute;
-  top: 6px;
+  top: 4px;
   left: 168px;
   z-index: 40;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
   pointer-events: none;
 }
 
@@ -20,9 +17,8 @@
 
 .howto-bot-launcher {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   border: none;
   background: transparent;
   padding: 0;
@@ -35,8 +31,11 @@
 }
 
 .howto-bot-panel {
-  width: min(360px, calc(100vw - 280px));
-  max-height: min(420px, calc(100vh - 96px));
+  position: absolute;
+  top: 62px;
+  left: 0;
+  width: min(380px, calc(100vw - 220px));
+  height: min(440px, calc(100vh - 120px));
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-color);
@@ -172,12 +171,14 @@
   border: none;
   border-radius: 8px;
   background: var(--accent-primary);
-  color: #fff;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .howto-bot-send:disabled {
@@ -204,7 +205,7 @@
   }
 
   .howto-bot-panel {
-    width: min(320px, calc(100vw - 96px));
+    width: min(340px, calc(100vw - 96px));
   }
 }
 
@@ -217,9 +218,11 @@
   }
 
   .howto-bot-panel {
-    position: absolute;
-    bottom: 72px;
+    top: auto;
+    bottom: 64px;
+    left: auto;
     right: 0;
     width: min(320px, calc(100vw - 24px));
+    height: min(380px, calc(100vh - 120px));
   }
 }

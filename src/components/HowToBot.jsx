@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Send, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { HOWTO_BOT_NAME, HOWTO_STARTER_QUESTIONS } from '../config/howtoKnowledge';
 import { answerHowTo } from '../utils/howtoBot';
 
@@ -163,7 +163,7 @@ export default function HowToBot({ onOpenGuide }) {
               aria-label="How-to question"
             />
             <button type="submit" className="howto-bot-send" aria-label="Send question" disabled={!draft.trim()}>
-              <Send size={14} />
+              →
             </button>
           </form>
 
