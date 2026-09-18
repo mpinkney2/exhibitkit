@@ -72,6 +72,7 @@ const publicPricingFaq = PRICING_FAQ.filter(
 
 export default function LandingPage({
   onLaunchFree,
+  onLaunchMessages,
   onOpenPricing,
   onRestoreLicense,
   theme,
@@ -132,6 +133,15 @@ export default function LandingPage({
             <button className="landing-primary-button" id="btn-launch-free" onClick={onLaunchFree}>
               Rename exhibits free <ArrowRight size={16} />
             </button>
+            {typeof onLaunchMessages === 'function' && (
+              <button
+                className="landing-text-button"
+                id="btn-launch-messages"
+                onClick={onLaunchMessages}
+              >
+                Build a message exhibit <ChevronRight size={16} />
+              </button>
+            )}
             <button className="landing-text-button" id="btn-view-pricing" onClick={onOpenPricing}>
               View pricing <ChevronRight size={16} />
             </button>

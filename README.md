@@ -99,3 +99,21 @@ Stripe secret keys and webhook secrets must remain server-side only. Do not plac
 - [ ] Configure Neon, Resend, Stripe webhook, and live Vercel secrets
 - [ ] Firm team licensing (when implemented)
 - [ ] Optional Updates & Support renewal checkout
+
+---
+
+## Message-evidence workspace (additive)
+
+In addition to PDF exhibit renaming, ExhibitKit includes a local message-evidence workflow:
+
+- Import conversation exports (JSON, CSV, plain text, SMS XML)
+- True redaction, SHA-256 source fingerprints, declaration template
+- Free single-conversation PDF export; Pro/Case Pass/Guest unlock multi-exhibit packages
+- Open from the landing page: **Build a message exhibit**
+
+Capacity benchmarks: [`docs/benchmarks/README.md`](docs/benchmarks/README.md)  
+Guest demo credentials (10-day law-firm trial): [`docs/guest-demo-credentials.md`](docs/guest-demo-credentials.md)
+
+```bash
+npm run benchmark
+```

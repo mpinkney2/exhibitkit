@@ -7,6 +7,8 @@ import ActionPanel from './components/ActionPanel';
 import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
+import MessageWorkspace from './components/MessageWorkspace';
+import './components/MessageWorkspace.css';
 import JSZip from 'jszip';
 import {
   getEntitlement,
@@ -809,6 +811,11 @@ export default function App() {
     );
   };
 
+  const handleLaunchMessages = () => {
+    setAppRoute('messages');
+    showNotification('Message exhibit workspace ready. Evidence stays on this device.', 'info');
+  };
+
   // Layout Renderings
   const founderAdmin = (
     <Suspense fallback={null}>
@@ -829,6 +836,7 @@ export default function App() {
       <>
         <LandingPage
           onLaunchFree={handleLaunchFree}
+          onLaunchMessages={handleLaunchMessages}
           onOpenPricing={() => openPricing('purchase')}
           onRestoreLicense={() => openPricing('restore')}
           theme={theme}
@@ -841,6 +849,31 @@ export default function App() {
           workstationId={workstation.deviceId}
           initialView={pricingIntent}
         />
+        {founderAdmin}
+      </>
+    );
+  }
+
+  if (appRoute === 'messages') {
+    return (
+      <>
+        <MessageWorkspace
+          onBack={() => setAppRoute('landing')}
+          onOpenPricing={() => openPricing('purchase')}
+          showNotification={showNotification}
+        />
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+          onActivated={handleEntitlementActivated}
+          workstationId={workstation.deviceId}
+          initialView={pricingIntent}
+        />
+        {notification.show && (
+          <div className={`notification ${notification.type}`}>
+            <div className="notification-message">{notification.message}</div>
+          </div>
+        )}
         {founderAdmin}
       </>
     );

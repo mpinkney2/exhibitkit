@@ -1,0 +1,98 @@
+{
+  "generatedAt": "2026-09-18T04:36:48.897Z",
+  "environment": {
+    "node": "v22.14.0",
+    "platform": "linux",
+    "capacityGuidance": {
+      "comfortableExhibits": 25,
+      "recommendedMaxExhibits": 75,
+      "multipageMessageThreshold": 40,
+      "recommendedMaxMessagesPerExhibit": 400,
+      "recommendedMaxTotalMessages": 8000,
+      "exportBatchSize": 10
+    }
+  },
+  "results": [
+    {
+      "label": "1 short",
+      "exhibitCount": 1,
+      "totalMessages": 25,
+      "totalPages": 4,
+      "elapsedMs": 60,
+      "exhibitsPerMinute": 1001.88,
+      "messagesPerSecond": 417.45,
+      "zipBytes": 13453,
+      "heapDeltaMb": -1.78,
+      "mode": "pro"
+    },
+    {
+      "label": "5 mixed",
+      "exhibitCount": 5,
+      "totalMessages": 240,
+      "totalPages": 29,
+      "elapsedMs": 86,
+      "exhibitsPerMinute": 3495.57,
+      "messagesPerSecond": 2796.45,
+      "zipBytes": 72956,
+      "heapDeltaMb": 7.8,
+      "mode": "pro"
+    },
+    {
+      "label": "10 mixed",
+      "exhibitCount": 10,
+      "totalMessages": 530,
+      "totalPages": 63,
+      "elapsedMs": 130,
+      "exhibitsPerMinute": 4610,
+      "messagesPerSecond": 4072.17,
+      "zipBytes": 153134,
+      "heapDeltaMb": 1.17,
+      "mode": "pro"
+    },
+    {
+      "label": "25 mixed",
+      "exhibitCount": 25,
+      "totalMessages": 1500,
+      "totalPages": 175,
+      "elapsedMs": 345,
+      "exhibitsPerMinute": 4346.08,
+      "messagesPerSecond": 4346.08,
+      "zipBytes": 413260,
+      "heapDeltaMb": 4.35,
+      "mode": "pro"
+    },
+    {
+      "label": "50 multipage-heavy",
+      "exhibitCount": 50,
+      "totalMessages": 4000,
+      "totalPages": 400,
+      "elapsedMs": 757,
+      "exhibitsPerMinute": 3963.29,
+      "messagesPerSecond": 5284.39,
+      "zipBytes": 998124,
+      "heapDeltaMb": 28.32,
+      "mode": "pro"
+    },
+    {
+      "label": "75 stress",
+      "exhibitCount": 75,
+      "totalMessages": 7500,
+      "totalPages": 750,
+      "elapsedMs": 1625,
+      "exhibitsPerMinute": 2768.87,
+      "messagesPerSecond": 4614.78,
+      "zipBytes": 1816526,
+      "heapDeltaMb": -33.23,
+      "mode": "pro"
+    }
+  ],
+  "recommendations": {
+    "comfortableInteractive": "≤ 25 exhibits",
+    "recommendedMaxInteractive": "≤ 75 exhibits",
+    "notes": [
+      "Times are local PDF generation (Pro package with binder + ZIP), not network upload.",
+      "Multipage exhibits use ≥40 messages and inflate page counts and binder merge time.",
+      "For >75 exhibits, split into batches or export without a single combined binder."
+    ]
+  }
+}

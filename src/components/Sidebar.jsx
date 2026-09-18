@@ -276,31 +276,34 @@ export default function Sidebar({
             open={sectionsOpen.preset}
             onToggle={toggleSection}
           >
-            {PRACTICE_AREAS.map((area) => (
-              <div key={area.id} className="preset-practice-area">
-                <div className="preset-practice-header">
-                  <span className="preset-practice-label">{area.label}</span>
-                  <span className="preset-practice-desc">{area.description}</span>
-                </div>
-                <div className="preset-selector preset-selector-stacked">
+            <div className="preset-list" role="listbox" aria-label="Renaming presets">
+              {PRACTICE_AREAS.map((area) => (
+                <div key={area.id} className="preset-list-group" role="group" aria-label={area.label}>
+                  <div className="preset-list-group-label" title={area.description}>
+                    {area.label}
+                  </div>
                   {area.presets.map((presetOption) => {
                     const isActive = preset === presetOption.id;
                     return (
                       <button
                         key={presetOption.id}
                         type="button"
-                        className={`preset-card ${isActive ? 'active' : ''}`}
+                        role="option"
+                        className={`preset-list-item ${isActive ? 'active' : ''}`}
                         onClick={() => setPreset(presetOption.id)}
-                        aria-pressed={isActive}
+                        aria-selected={isActive}
+                        title={presetOption.description}
                       >
-                        <span className="preset-card-title">{presetOption.label}</span>
-                        <span className="preset-card-desc">{presetOption.description}</span>
+                        <span className="preset-list-item-label">{presetOption.label}</span>
+                        <span className="preset-list-item-example">
+                          {presetOption.example || presetOption.description}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection

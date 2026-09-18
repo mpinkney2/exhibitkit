@@ -27,6 +27,13 @@ import {
   APP_VERSION,
 } from './license.js';
 import { isFounderUnlocked } from './founder.js';
+import {
+  GUEST_DEMO_DURATION_DAYS,
+  GUEST_DEMO_ID,
+  GUEST_DEMO_KEY,
+  GUEST_DEMO_PASSPHRASE,
+  resolveGuestCredentials,
+} from './licenseFormat.js';
 
 const ENTITLEMENT_STORAGE = 'exhibitkit_entitlement_v1';
 const MIGRATION_FLAG = 'exhibitkit_entitlement_migrated_v1';
@@ -80,6 +87,9 @@ function emptyEntitlement() {
     activationToken: null,
     verifiedAt: null,
     licenseFingerprint: null,
+    guestDemo: false,
+    guestLabel: null,
+    guestDemoExpired: false,
   };
 }
 
@@ -169,8 +179,10 @@ function normalizeEntitlement(record) {
       // leave pending
     } else if (Number.isFinite(exp) && exp <= now) {
       base.casePassStatus = 'expired';
+      if (base.guestDemo) base.guestDemoExpired = true;
     } else if (Number.isFinite(exp) && exp > now) {
       base.casePassStatus = 'active';
+      if (base.guestDemo) base.guestDemoExpired = false;
     }
   }
 
@@ -251,6 +263,7 @@ export function isWithinFreeFileLimit(fileCount, entitlement = getEntitlement())
 export function getEntitlementLabel(entitlement = getEntitlement()) {
   if (entitlement.plan === PLAN_IDS.PRO && hasPaidRenamingAccess(entitlement)) return 'Pro';
   if (entitlement.plan === PLAN_IDS.FIRM && hasPaidRenamingAccess(entitlement)) return 'Firm';
+  if (isCasePassActive(entitlement) && entitlement.guestDemo) return 'Guest Demo';
   if (isCasePassActive(entitlement)) return 'Case Pass';
   if (entitlement.plan === PLAN_IDS.CASE_PASS && entitlement.casePassStatus === 'expired') {
     return 'Free';
@@ -281,6 +294,47 @@ export function applyEntitlementRecord(record) {
 
   return next;
 }
+
+/**
+ * Activate the issued 10-day law-firm guest demo pack locally.
+ * Evidence stays on-device; this is not a cloud account and does not call Stripe.
+ */
+export function applyGuestDemoLocally(key = GUEST_DEMO_KEY, guestLabel = 'Law Firm Guest') {
+  const purchasedAt = new Date().toISOString();
+  return applyEntitlementRecord({
+    plan: PLAN_IDS.CASE_PASS,
+    licenseKey: (key || GUEST_DEMO_KEY).trim().toUpperCase(),
+    purchasedAt,
+    expiresAt: addDays(purchasedAt, GUEST_DEMO_DURATION_DAYS),
+    casePassStatus: 'active',
+    updatesIncludedUntil: null,
+    updateRenewalStatus: 'none',
+    purchasedVersion: APP_VERSION,
+    migratedFromLegacy: false,
+    serverVerified: false,
+    developerOverride: true,
+    guestDemo: true,
+    guestLabel,
+    guestDemoExpired: false,
+  });
+}
+
+/**
+ * Activate using guest id + passphrase from docs/guest-demo-credentials.md.
+ */
+export function activateGuestCredentials(guestId, passphrase) {
+  const key = resolveGuestCredentials(guestId, passphrase);
+  if (!key) return null;
+  return applyGuestDemoLocally(key, 'Law Firm Guest');
+}
+
+export {
+  GUEST_DEMO_DURATION_DAYS,
+  GUEST_DEMO_ID,
+  GUEST_DEMO_KEY,
+  GUEST_DEMO_PASSPHRASE,
+  resolveGuestCredentials,
+};
 
 /**
  * Restore access via a server-verified license key.
@@ -314,6 +368,16 @@ export async function restoreFromLicenseKey(key, options = {}) {
       migratedFromLegacy: false,
       developerOverride: true,
     });
+    return { ok: true, entitlement };
+  }
+
+  // Issued 10-day law-firm guest demo pack (local activation; not Stripe).
+  if (
+    cleanKey === GUEST_DEMO_KEY ||
+    cleanKey === 'EKIT-GUEST-TEST-0001' ||
+    cleanKey.startsWith('EKIT-GUEST-')
+  ) {
+    const entitlement = applyGuestDemoLocally(cleanKey, options.guestLabel || 'Law Firm Guest');
     return { ok: true, entitlement };
   }
 
