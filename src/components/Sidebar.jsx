@@ -278,32 +278,29 @@ export default function Sidebar({
           >
             <div className="preset-list" role="listbox" aria-label="Renaming presets">
               {PRACTICE_AREAS.map((area) => (
-                <div key={area.id} className="preset-list-group">
+                <div key={area.id} className="preset-list-group" role="group" aria-label={area.label}>
                   <div className="preset-list-group-label" title={area.description}>
                     {area.label}
                   </div>
-                  <ul className="preset-list-items">
-                    {area.presets.map((presetOption) => {
-                      const isActive = preset === presetOption.id;
-                      return (
-                        <li key={presetOption.id}>
-                          <button
-                            type="button"
-                            role="option"
-                            className={`preset-list-item ${isActive ? 'active' : ''}`}
-                            onClick={() => setPreset(presetOption.id)}
-                            aria-selected={isActive}
-                            title={presetOption.description}
-                          >
-                            <span className="preset-list-item-label">{presetOption.label}</span>
-                            <span className="preset-list-item-example">
-                              {presetOption.example || presetOption.description}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  {area.presets.map((presetOption) => {
+                    const isActive = preset === presetOption.id;
+                    return (
+                      <button
+                        key={presetOption.id}
+                        type="button"
+                        role="option"
+                        className={`preset-list-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setPreset(presetOption.id)}
+                        aria-selected={isActive}
+                        title={presetOption.description}
+                      >
+                        <span className="preset-list-item-label">{presetOption.label}</span>
+                        <span className="preset-list-item-example">
+                          {presetOption.example || presetOption.description}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               ))}
             </div>
