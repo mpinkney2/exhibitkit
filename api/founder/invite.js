@@ -10,13 +10,13 @@ import {
 } from '../_lib/http.js';
 import { createBetaInvite } from '../_lib/beta-invite-service.js';
 
-/** Server settings the beta-invite pipeline needs (DB + license crypto + email). */
+/** Server settings the beta-invite pipeline needs to mint a license (DB + license
+ *  crypto). Email delivery (RESEND_API_KEY, LICENSE_EMAIL_FROM) is optional — when
+ *  it is not configured, the key is still minted and returned for manual delivery. */
 const REQUIRED_BACKEND_ENV = [
   'DATABASE_URL',
   'LICENSE_HASH_SECRET',
   'LICENSE_ENCRYPTION_KEY',
-  'RESEND_API_KEY',
-  'LICENSE_EMAIL_FROM',
 ];
 
 /** In-process rate limit (per isolate). Enough to slow casual abuse; does not

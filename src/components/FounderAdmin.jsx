@@ -328,7 +328,7 @@ export default function FounderAdmin({
               Beta invites
             </strong>
             <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
-              Mints a real, server-verified Pro license and emails the key. The tester activates it via “Restore license.” Requires the deployed API (Neon + Resend configured).
+              Mints a real, server-verified Pro license; the tester activates it via “Restore license.” Emails the key when email is configured — otherwise copy the key below and send it yourself. Requires the deployed API with a database + license secrets.
             </div>
             <form onSubmit={handleInvite} style={{ display: 'grid', gap: 6 }}>
               <input
