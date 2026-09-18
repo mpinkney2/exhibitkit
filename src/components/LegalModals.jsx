@@ -84,7 +84,7 @@ export default function LegalModals({ activeModal, onClose }) {
 
               <div className="legal-block">
                 <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>2. Stripe Payment Processing</h4>
-                <p style={{ color: 'var(--text-secondary)' }}>Transactions for ExhibitKIT Pro licenses are handled securely by Stripe. ExhibitKIT does not capture, store, or have access to your full credit card information. Stripe provides secure, PCI-compliant payment gateways.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>Paid ExhibitKIT plans (Case Pass and Pro) are handled securely by Stripe when checkout is configured. ExhibitKIT does not capture, store, or have access to your full credit card information. Filenames, matter names, and document contents are never sent to the payment processor.</p>
               </div>
 
               <div className="legal-block">
@@ -132,9 +132,9 @@ export default function LegalModals({ activeModal, onClose }) {
               </div>
 
               <div className="legal-block">
-                <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>Enterprise Site Licenses</h4>
+                <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>Firm Licensing</h4>
                 <p style={{ color: 'var(--text-secondary)' }}>
-                  For multi-device deployments, automated corporate setups, custom database plugins, or priority firm-wide support SLAs, please contact the licensing desk at our support email above.
+                  Firm team licensing is not available for self-serve purchase yet. Contact the licensing desk at the support email above for availability. Planned team capabilities are not offered as working features today.
                 </p>
               </div>
             </div>
@@ -195,7 +195,10 @@ export default function LegalModals({ activeModal, onClose }) {
                     <strong>TrialDirector Preset (Dash-Separated):</strong> Focuses on rigid dash alignments (e.g., <code>PX-001 - Contract.pdf</code>) to enforce proper database sequencing.
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    <strong>Zero-Padding Requirement:</strong> Ensure your ID is padded (e.g., <code>001</code> for up to 999 files) so court presentation systems display exhibits in sequential order during live testimony.
+                    <strong>Patent DOD Preset:</strong> Outputs structured discovery filenames (e.g., <code>DOD - 12 - 2012 - Smith - Report.pdf</code>) with author, title, and year tokens parsed from existing names.
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <strong>Practice-Area Presets:</strong> Litigation (OnCue/TrialDirector), Patent/IP, Family, Employment, Bankruptcy, and Custom token templates—each with sensible prefix defaults.
                   </div>
                 </div>
               </div>
@@ -207,7 +210,7 @@ export default function LegalModals({ activeModal, onClose }) {
                   <div>
                     <h5 style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>Verify Rules & Zero-Padding</h5>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: 0 }}>
-                      Set your naming preset (OnCue, TrialDirector, or Custom pattern). Adjust the starting number and digit padding count in the sidebar configuration.
+                      Choose a practice-area preset in the sidebar (Litigation, Patent/IP, Family, Employment, Bankruptcy, or Custom). Adjust prefix, starting number, padding, year sort, and title shortener before renaming.
                     </p>
                   </div>
                 </div>

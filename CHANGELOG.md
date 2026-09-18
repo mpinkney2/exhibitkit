@@ -23,6 +23,45 @@ All notable changes to **ExhibitKit** will be documented in this file.
 
 ---
 
+## [0.10.2] - 2026-08-24
+
+### Changed — Production founder admin via server unlock
+- Production unlock uses `POST /api/founder/unlock` with server-only `FOUNDER_ADMIN_SECRET` (never a `VITE_*` value)
+- Local DEV still uses the default secret or optional `.env.local` override
+- Docs updated: `docs/FOUNDER_ADMIN.md`, README, `.env.example`
+
+---
+
+## [0.10.1] - 2026-08-21
+
+### Added — Founder admin live-test console
+- Secret-gated founder panel (`/?founder=1`, `#founder`, or Ctrl+Shift+F)
+- Stage switches: Free, Case Pass (active/expired/pending), Pro (updates included/lapsed)
+- Surface jumps: landing, workspace, Stripe success/cancel, pricing modal
+- Docs: `docs/FOUNDER_ADMIN.md`, `.env.example` (`VITE_FOUNDER_ADMIN_SECRET`)
+
+---
+
+## [0.10.0] - 2026-08-02
+
+### Changed — Pricing model migration
+- Replaced the former single **$150 lifetime** Pro SKU with:
+  - **Free** ($0): unlimited sample workflow; up to **5 files per batch** (not a one-time consume limit); preview/edit; CSV/HTML export
+  - **Case Pass** ($39 one-time): Pro renaming for 30 consecutive days; no auto-renew
+  - **ExhibitKit Pro** ($149 one-time): perpetual Pro renaming access; 12 months updates/support included; optional renewal afterward
+  - **Firm** (starting at $399): Contact us / Coming soon — no self-serve purchase button
+- Centralized plan IDs, prices, CTAs, feature matrices, and FAQ copy in `src/config/pricing.js`
+- Introduced entitlement states (`free`, `case_pass`, `pro_perpetual`) with legacy-license migration to `pro_perpetual`
+- Configuration-aware checkout adapter: paid CTAs disabled until a verified billing backend is configured (`docs/BILLING_BACKEND.md`)
+- Customer-facing copy now uses **perpetual license** (never “lifetime license”)
+- Primary Free CTA: “Rename exhibits free”
+
+### Added
+- Pricing FAQ on the landing page and in the pricing modal
+- Vitest coverage for pricing config, Free file limit, Case Pass expiry, Pro after updates window, Firm non-purchase, checkout gating, FAQ presence, banned copy, and legacy migration
+
+---
+
 ## [0.9.3] - 2026-05-23
 
 ### Added

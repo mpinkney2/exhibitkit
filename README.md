@@ -1,109 +1,119 @@
-# ExhibitKit | Message Evidence Exhibits
+# ExhibitKIT | Legal Exhibit Filename Renaming
 
-ExhibitKit is a privacy-first browser application that turns exported text-message conversations into organized, tamper-evident, court-ready PDF exhibits — without uploading your evidence.
-
-**Headline:** Turn message history into organized, tamper-evident exhibits.
-
-**Supporting copy:** Import exported conversations, review and redact what matters, and create a clean PDF tied to the original source—all without uploading your evidence.
+ExhibitKIT is a local-first legal exhibit renaming and indexing utility for litigation operations, hot-seat trial operators, paralegals, and legal teams preparing databases for **OnCue** and **TrialDirector**.
 
 ---
 
-## What ExhibitKit does
+## Trust Architecture: Local-First & Confidential
 
-- Native parsing of supported message exports (JSON, CSV, plain text, SMS XML)
-- Local browser processing — no evidence uploaded or stored on ExhibitKit servers
-- True redaction (content removed), not visual overlays
-- SHA-256 fingerprinting of source files
-- Sequential message and page references
-- Declaration-of-authenticity template
-- Verifiable source integrity materials
-- Honest language about admissibility: ExhibitKit does **not** certify authorship or guarantee court admissibility. The hash establishes whether the source file has changed, not who authored the messages.
-
-A legacy PDF exhibit renaming workspace (OnCue / TrialDirector naming) remains available for Pro/ops testing from the app chrome.
+- **Zero Document Uploads:** Filename parsing, sequencing, and directory restructuring run in your browser.
+- **Offline Operations:** Live renaming uses browser File System Access APIs on your workstation.
+- **Metadata Protection:** Legal document content is not sent to ExhibitKIT servers. Payment checkout never receives filenames, matter names, or export data.
 
 ---
 
-## Pricing
+## Pricing & Access Model
 
-| Plan | Price | Notes |
-|------|-------|-------|
-| **Free** | $0 | One conversation at a time, true redaction, clean PDF, sequential refs, no watermark, no account |
-| **Case Pass** | $39 one time | All Pro capabilities for 30 days. No recurring billing |
-| **ExhibitKit Pro** | $149 one time | **Perpetual license** — keep the purchased version permanently; 12 months of updates & support |
-| **Optional updates** | $49 / year | After year one; not an automatic subscription |
-| **Firm** | From $399 | Coming soon / contact us |
+| Plan | Price | Access |
+|------|-------|--------|
+| **Free** | $0 | Unlimited sample/demo workflow; **up to 5 files per batch**; parse, preview, edit; basic sequential numbering; standard CSV/HTML export; local processing; no account or watermark |
+| **ExhibitKit Pro** | $149 one-time | **Perpetual license** — Pro renaming access does not expire; 12 months of updates and support included; optional renewal afterward |
+| **Firm** | Starting at $399 | Contact us / Coming soon — not available for self-serve purchase |
 
-Payment is processed separately. Your evidence never enters the payment system.
+**Required Pro clarification:** Your Pro access does not expire. Your purchase includes 12 months of updates and support. Renewal after that period is optional.
 
----
+Optional Updates & Support (informational until renewal checkout is implemented): Pro $49/year · Firm $129/year. Renewal is never required to keep entitled renaming access.
 
-## Trust architecture
+The public launch offer is Free or $149 Pro, with Firm licenses handled by contact. The entitlement model retains Case Pass support for a possible future offer. Central pricing values live in [`src/config/pricing.js`](src/config/pricing.js).
 
-- Message files and generated exhibits remain on the user’s device
-- Payment requests never include filenames, case names, captions, message contents, or hashes
-- No server-side evidence uploads
-- Optional project save is an explicit local JSON download (message bodies omitted by default)
-- Content Security Policy restricts unexpected network destinations from the evidence UI
+### License restoration
+
+Restore access with your **license key** (current format `EKIT-XXXX-XXXX-XXXX-XXXX`; legacy keys remain supported). New keys are verified by the Vercel licensing service and reserve one workstation. Existing customers who activated an older build are migrated automatically to Pro perpetual access on that workstation.
 
 ---
 
-## Developer setup
+## Stripe Purchase & License Fulfillment
 
+- **Pricing:** $149 USD one-time Pro workstation license. The purchased version remains licensed; 12 months of updates and support are included.
+- **Checkout Flow:** Users transition to a Stripe-hosted Payment Link. ExhibitKIT adds the local workstation ID as Stripe's `client_reference_id` so a future webhook can reconcile payment and fulfillment without receiving exhibit data.
+- **Return Flow:** Configure the Payment Link's post-payment redirect in Stripe to return to `https://YOUR_DOMAIN/?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`.
+- **License Fulfillment:** A verified Stripe webhook issues an encrypted-at-rest license record and emails the key through Resend.
+- **Manual Activation:** The return URL never unlocks Pro. The emailed key must be verified by the server and activated on a workstation.
+- **Recovery & Transfer:** Buyers can recover a key by purchase email and deliberately transfer a one-workstation license.
+- **Deployment:** The backend code requires Neon, Resend, Stripe webhook, and Vercel environment setup; see [`docs/LICENSE_BACKEND_SETUP.md`](docs/LICENSE_BACKEND_SETUP.md).
+
+---
+
+## Developer Setup & Environment Variables
+
+### Local Installation
 ```bash
+# Install dependencies
 npm install
+
+# Run the local Vite dev server
 npm run dev
-npm test
+
+# Lint
 npm run lint
+
+# Unit tests
+npm test
+
+# Production bundle
 npm run build
 ```
 
-### Environment variables
+### Environment Variables
 
-Copy `.env.example` to `.env.local` and set Payment Link URLs:
+Copy `.env.example` to `.env` and configure the public Payment Link:
 
 ```env
-VITE_STRIPE_CASE_PASS_LINK=https://buy.stripe.com/...
-VITE_STRIPE_PRO_LINK=https://buy.stripe.com/...
-# optional legacy alias:
-VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/...
+# Public Stripe Payment Link only. Never put a Stripe secret key in Vite variables.
+VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/dRm4gze2Ob4c4NF3mKg7e01
 ```
 
-### Payment configuration notes
+Stripe secret keys and webhook secrets must remain server-side only. Do not place them in `VITE_*` variables. The full server environment is documented in [`docs/LICENSE_BACKEND_SETUP.md`](docs/LICENSE_BACKEND_SETUP.md).
 
-Current hosting is a static Vite SPA. Checkout uses **Stripe Payment Links** (no secret keys in the client).
+### Founder live testing
 
-**Configured today**
-- Client opens Stripe-hosted Payment Links for Pro (and Case Pass when `VITE_STRIPE_CASE_PASS_LINK` is set)
-- Manual license activation with keys (`EKIT-XXXX-XXXX-XXXX` or `EKIT-CASE-XXXX-XXXX`)
-- Entitlements stored locally: `free` | `case_pass` | `pro_perpetual` (+ future `firm`)
+**Local:** Open `http://localhost:5173/?founder=1` and unlock with the DEV default (`ekit-founder-2026`), or set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` (local only).
 
-**Production hardening blocker (documented, not implemented in this static SPA)**
-- Server-side Checkout Session creation
-- Stripe webhook verification with idempotent event handling
-- Issuing signed license keys only after verified payment
-- Never trust client-supplied entitlement values in a multi-device seat model
-
-Until a secure backend exists, treat Payment Links + emailed keys as the fulfillment path, and keep secret keys off the client.
-
-### Development activation keys
-
-Only available when `import.meta.env.DEV === true`:
-
-- Pro: `PATENTPREPPERS-EXHIBITKIT-PRO`
-- Case Pass: `EKIT-CASE-TEST-0001`
+**Production / preview:** Set server-only `FOUNDER_ADMIN_SECRET` in Vercel (no `VITE_` prefix), redeploy, then open `https://YOUR_DOMAIN/?founder=1`. Unlock calls `POST /api/founder/unlock`. Never put the founder secret in a `VITE_*` variable — Vite exposes those in the browser bundle. Full steps: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
 
 ---
 
-## Scripts
+## Production Hardening
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | Local Vite server |
-| `npm test` | Vitest suite |
-| `npm run benchmark` | Large-volume exhibit capacity benchmarks + charts |
-| `npm run lint` | ESLint |
-| `npm run build` | Production bundle |
+- Developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is available **only** when `import.meta.env.DEV === true`.
+- Founder admin production unlock uses server-only `FOUNDER_ADMIN_SECRET` via `/api/founder/unlock` — never a `VITE_*` secret.
+- Never trust client-submitted prices or entitlement values for paid access.
+- Do not invent client-side licenses or simulated checkout.
 
-### Guest demo (10-day law-firm trial)
+---
 
-See [docs/guest-demo-credentials.md](docs/guest-demo-credentials.md) for Guest ID / passphrase issued for family law-firm trials.
+## Roadmap (renamer product)
+
+- [x] Deployable webhook fulfillment + durable entitlement store + idempotent Stripe processing
+- [x] Server-verified license activation, recovery, deactivation, and transfer
+- [ ] Configure Neon, Resend, Stripe webhook, and live Vercel secrets
+- [ ] Firm team licensing (when implemented)
+- [ ] Optional Updates & Support renewal checkout
+
+---
+
+## Message-evidence workspace (additive)
+
+In addition to PDF exhibit renaming, ExhibitKit includes a local message-evidence workflow:
+
+- Import conversation exports (JSON, CSV, plain text, SMS XML)
+- True redaction, SHA-256 source fingerprints, declaration template
+- Free single-conversation PDF export; Pro/Case Pass/Guest unlock multi-exhibit packages
+- Open from the landing page: **Build a message exhibit**
+
+Capacity benchmarks: [`docs/benchmarks/README.md`](docs/benchmarks/README.md)  
+Guest demo credentials (10-day law-firm trial): [`docs/guest-demo-credentials.md`](docs/guest-demo-credentials.md)
+
+```bash
+npm run benchmark
+```

@@ -13,6 +13,9 @@ export const GUEST_DEMO_ID = 'pinkney.guest';
 /** Passphrase accepted with guest id for law-firm trial activation. */
 export const GUEST_DEMO_PASSPHRASE = 'ExhibitKit-Trial-10';
 
+/** Guest demo duration in consecutive days from first activation. */
+export const GUEST_DEMO_DURATION_DAYS = 10;
+
 export function isDevMode() {
   return import.meta.env.DEV === true;
 }

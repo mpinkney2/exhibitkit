@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { ShieldAlert, Info, AlertTriangle, ShieldCheck, ArrowLeft, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
@@ -10,64 +10,68 @@ import LegalModals from './components/LegalModals';
 import MessageWorkspace from './components/MessageWorkspace';
 import './components/MessageWorkspace.css';
 import JSZip from 'jszip';
-import { 
-  hasProAccess, 
-  hasTrialAvailable, 
-  markTrialUsed, 
-  getWorkstationInfo, 
-  activateLicense, 
-  deactivateLicense,
-  getEffectiveEntitlement,
+import {
+  getEntitlement,
+  hasProFeatures,
+  isWithinFreeFileLimit,
   getEntitlementLabel,
-  TIERS,
-} from './utils/license';
-import { startCheckout } from './utils/payment';
-import { installEvidenceNetworkGuard } from './utils/privacyGuard';
+  restoreFromLicenseKey,
+  clearEntitlement,
+  deactivateCurrentWorkstation,
+  refreshVerifiedEntitlementStatus,
+  getWorkstationInfo,
+  FREE_MAX_FILES_PER_BATCH,
+  migrateLegacyLicenseIfNeeded,
+} from './utils/entitlement';
 import { 
   parseFilename, 
   generateProposedFilename, 
   validateProposedNames, 
   resolveDuplicates, 
   cleanDescription,
-  formatCase
+  formatCase,
+  sortItems,
+  resolveExhibitNumber,
+  extractYear,
 } from './utils/renamer';
+import { getPresetRuleDefaults } from './config/presets';
+import { PRO_PRICE_LABEL } from './utils/payment';
 
-function readStripeRouteFromLocation() {
-  if (typeof window === 'undefined') {
-    return { route: 'landing', product: null, shouldCleanUrl: false };
-  }
-  const params = new URLSearchParams(window.location.search);
-  const stripeStatus = params.get('stripe_status');
-  const product = params.get('product');
-  if (stripeStatus === 'success') {
-    return { route: 'stripe_success', product, shouldCleanUrl: true };
-  }
-  if (stripeStatus === 'cancel') {
-    return { route: 'stripe_cancel', product, shouldCleanUrl: true };
-  }
-  return { route: 'landing', product: null, shouldCleanUrl: false };
+// Always available; production unlock is server-gated via /api/founder/unlock.
+const FounderAdmin = lazy(() => import('./components/FounderAdmin'));
+
+function getInitialAppRoute() {
+  const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
+  if (stripeStatus === 'success') return 'stripe_success';
+  if (stripeStatus === 'cancel') return 'stripe_cancel';
+  return hasProFeatures(getEntitlement()) ? 'workspace' : 'landing';
+}
+
+function escapeCsvCell(value) {
+  let text = String(value ?? '');
+  if (/^[=+@-]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 export default function App() {
-  const initialStripe = readStripeRouteFromLocation();
-
-  // Application Mode Routing: 'landing' | 'messages' | 'workspace' | 'stripe_success' | 'stripe_cancel'
-  const [appRoute, setAppRoute] = useState(initialStripe.route);
+  // Application Mode Routing: 'landing' | 'workspace' | 'stripe_success' | 'stripe_cancel'
+  const [appRoute, setAppRoute] = useState(getInitialAppRoute);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [renameStats, setRenameStats] = useState({ count: 0, conflicts: 0, time: "0.0s" });
-  const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'dark');
-  const [checkoutProduct] = useState(initialStripe.product);
+  const [theme, setTheme] = useState(() => localStorage.getItem('exhibitkit_theme') || 'light');
   
-  // Workspace Tier States
-  const [isPro, setIsPro] = useState(() => hasProAccess());
-  const [tierLabel, setTierLabel] = useState(() => getEntitlementLabel());
-  const [isTrialMode, setIsTrialMode] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  // Entitlement (free | case_pass | pro_perpetual)
+  const [entitlement, setEntitlement] = useState(() => {
+    migrateLegacyLicenseIfNeeded();
+    return getEntitlement();
+  });
+  const isPro = hasProFeatures(entitlement);
+  const planLabel = getEntitlementLabel(entitlement);
 
   // Workstation Profile Info
-  const [workstation, setWorkstation] = useState(() => getWorkstationInfo());
+  const [workstation] = useState(getWorkstationInfo);
 
   // Naming Rule States
   const [preset, setPreset] = useState('oncue');
@@ -77,6 +81,10 @@ export default function App() {
   const [caseStyle, setCaseStyle] = useState('title');
   const [customTemplate, setCustomTemplate] = useState('{Prefix}{Number} - {Description}');
   const [cleanDesc, setCleanDesc] = useState(true);
+  const [sortMode, setSortMode] = useState('filename'); // 'filename' | 'year'
+  const [useYearAsNumber, setUseYearAsNumber] = useState(false);
+  const [shortenDesc, setShortenDesc] = useState(false);
+  const [maxDescLength, setMaxDescLength] = useState(48);
 
   // Ingested Items State
   const [items, setItems] = useState([]);
@@ -94,25 +102,29 @@ export default function App() {
 
   // Stripe & Pricing Modal
   const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [pricingIntent, setPricingIntent] = useState('purchase');
   const [licenseInputValue, setLicenseInputValue] = useState('');
   const [activationError, setActivationError] = useState('');
+  const [activationInProgress, setActivationInProgress] = useState(false);
+  const [activationNeedsTransfer, setActivationNeedsTransfer] = useState(false);
+
+  const openPricing = (intent = 'purchase') => {
+    setPricingIntent(intent);
+    setIsPricingOpen(true);
+  };
 
   // Active Legal/Support Modals: null | 'terms' | 'privacy' | 'support' | 'how'
   const [activeModal, setActiveModal] = useState(null);
 
   const isDirectoryApiSupported = 'showDirectoryPicker' in window;
 
-  // Privacy: block unexpected evidence upload attempts from the processing context
+  // Clear Stripe status params after the initial route has been derived.
   useEffect(() => {
-    return installEvidenceNetworkGuard();
-  }, []);
-
-  // Clean Stripe query params after initial route hydration
-  useEffect(() => {
-    if (initialStripe.shouldCleanUrl) {
+    const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
+    if (stripeStatus === 'success' || stripeStatus === 'cancel') {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [initialStripe.shouldCleanUrl]);
+  }, []);
 
   // Apply theme class to document body
   useEffect(() => {
@@ -124,65 +136,48 @@ export default function App() {
     localStorage.setItem('exhibitkit_theme', theme);
   }, [theme]);
 
-  const refreshEntitlementState = () => {
-    setIsPro(hasProAccess());
-    setTierLabel(getEntitlementLabel());
-    setWorkstation(getWorkstationInfo());
-  };
-
-  const handleActivateLicense = (key) => {
-    const success = activateLicense(key);
-    if (success) {
-      refreshEntitlementState();
-      setIsTrialMode(false);
-      setIsDemoMode(false);
+  const handleActivateLicense = async (key, confirmTransfer = false) => {
+    setActivationInProgress(true);
+    setActivationError('');
+    const result = await restoreFromLicenseKey(key, {
+      workstationId: workstation.deviceId,
+      confirmTransfer,
+    });
+    setActivationInProgress(false);
+    if (result.ok) {
+      setActivationNeedsTransfer(false);
+      setEntitlement(result.entitlement);
       setIsPricingOpen(false);
       setActivationError('');
-      setAppRoute('messages');
-      const entitlement = getEffectiveEntitlement();
-      const label =
-        entitlement.tier === TIERS.CASE_PASS
-          ? 'Case Pass'
-          : entitlement.tier === TIERS.GUEST_DEMO
-            ? '10-day Guest Demo'
-            : 'ExhibitKit Pro';
-      showNotification(`${label} activated. Evidence still stays on this device.`, 'success');
+      setAppRoute('workspace');
+      showNotification("ExhibitKIT Pro restored on this workstation.", "success");
     } else {
-      setActivationError('Invalid license key format. Please double-check your purchase email.');
+      setActivationNeedsTransfer(Boolean(result.needsTransfer));
+      setActivationError(result.error || "Invalid license key. Please double-check your purchase email.");
     }
   };
 
-  const handleDeactivate = () => {
-    deactivateLicense();
-    refreshEntitlementState();
+  const handleEntitlementActivated = (next) => {
+    setEntitlement(next || getEntitlement());
+    setIsPricingOpen(false);
+    setAppRoute('workspace');
+    showNotification("ExhibitKIT Pro restored on this workstation.", "success");
+  };
+
+  const handleDeactivate = async () => {
+    const deactivation = await deactivateCurrentWorkstation(entitlement);
+    clearEntitlement();
+    setEntitlement(getEntitlement());
     setItems([]);
     setDirectoryHandle(null);
-    setDirectoryName('');
+    setDirectoryName("");
     setAppRoute('landing');
-    showNotification('License deactivated. Local exhibits on disk were not deleted.', 'info');
-  };
-
-  const handlePurchaseCasePass = () => {
-    const result = startCheckout('case_pass');
-    if (result.status === 'configuration_required') {
-      setIsPricingOpen(true);
-      showNotification(
-        'Case Pass checkout link is not configured yet. You can still activate with a Case Pass key, or set VITE_STRIPE_CASE_PASS_LINK.',
-        'warning'
-      );
-      return;
-    }
-    showNotification('Opening Case Pass checkout. Evidence is not sent to payment.', 'info');
-  };
-
-  const handlePurchasePro = () => {
-    const result = startCheckout('pro_perpetual');
-    if (result.status === 'configuration_required') {
-      setIsPricingOpen(true);
-      showNotification(result.error, 'warning');
-      return;
-    }
-    showNotification('Opening ExhibitKit Pro checkout. Evidence is not sent to payment.', 'info');
+    showNotification(
+      deactivation.offline
+        ? "License cleared locally. Use your key to transfer if the former seat remains reserved."
+        : "License deactivated on this workstation.",
+      deactivation.offline ? "warning" : "info"
+    );
   };
 
   // Helper to trigger alert notifications
@@ -192,6 +187,33 @@ export default function App() {
       setNotification(prev => ({ ...prev, show: false }));
     }, 4500);
   };
+
+  // Reconcile server-issued activations on startup and periodically. Previously
+  // verified perpetual licenses remain usable during a temporary network outage.
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshLicense = async () => {
+      const current = getEntitlement();
+      const result = await refreshVerifiedEntitlementStatus(current);
+      if (cancelled) return;
+
+      if (result.ok && result.entitlement) {
+        setEntitlement(result.entitlement);
+      } else if (result.invalid) {
+        clearEntitlement();
+        setEntitlement(getEntitlement());
+        setAppRoute('landing');
+      }
+    };
+
+    refreshLicense();
+    const interval = window.setInterval(refreshLicense, 6 * 60 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   // Centralized proposed name update logic
   const updateProposedNames = (itemsList, overrides = {}) => {
@@ -203,28 +225,49 @@ export default function App() {
       caseStyle,
       customTemplate,
       cleanDesc,
+      sortMode,
+      useYearAsNumber,
+      shortenDesc,
+      maxDescLength,
       ...overrides
     };
 
-    const updated = itemsList.map((item, idx) => {
-      // Calculate dynamic sequenced number if not manually edited by the user
-      const currentNumber = item.isNumberManuallyEdited 
-        ? item.number 
-        : String(rules.startNumber + idx);
+    const sorted = sortItems(itemsList, rules.sortMode);
+
+    const updated = sorted.map((item, idx) => {
+      const year = item.year || extractYear(item.description) || extractYear(item.originalName);
+      let currentNumber;
+      if (rules.useYearAsNumber && year) {
+        currentNumber = String(year);
+      } else if (item.isNumberManuallyEdited) {
+        currentNumber = item.number;
+      } else {
+        currentNumber = String(rules.startNumber + idx);
+      }
 
       const proposed = generateProposedFilename({
         prefix: rules.prefix,
         number: currentNumber,
         description: item.description,
+        year: year || null,
+        docId: item.docId || item.number || currentNumber,
+        author: item.author || '',
+        title: item.title || '',
         preset: rules.preset,
         padLength: rules.padLength,
         caseStyle: rules.caseStyle,
-        customTemplate: rules.customTemplate
+        customTemplate: rules.customTemplate,
+        shortenDesc: rules.shortenDesc,
+        maxDescLength: rules.maxDescLength,
       });
 
       return {
         ...item,
+        year: year || null,
         number: currentNumber,
+        isNumberManuallyEdited: (rules.useYearAsNumber && year)
+          ? true
+          : item.isNumberManuallyEdited,
         proposedName: proposed,
         preset: rules.preset,
         prefix: rules.prefix
@@ -234,14 +277,64 @@ export default function App() {
     return validateProposedNames(updated);
   };
 
-  // Re-run proposed name generation when sidebar options update (if not frozen)
-  useEffect(() => {
-    if (items.length === 0 || isPreviewFreezed) return undefined;
-    const frame = requestAnimationFrame(() => {
-      setItems((prevItems) => updateProposedNames(prevItems));
+  const buildIngestedItem = (name, file = null, handle = null, rulesOverride = {}) => {
+    const parsed = parseFilename(name);
+    const year = parsed.year || extractYear(parsed.description) || extractYear(name);
+    const useYear = rulesOverride.useYearAsNumber ?? useYearAsNumber;
+    const shouldClean = rulesOverride.cleanDesc ?? cleanDesc;
+    const number = resolveExhibitNumber({
+      parsedNumber: parsed.number,
+      year,
+      useYearAsNumber: useYear,
     });
-    return () => cancelAnimationFrame(frame);
-  }, [preset, prefix, startNumber, padLength, caseStyle, customTemplate, cleanDesc, isPreviewFreezed, items.length]);
+    return {
+      originalName: name,
+      year: year || null,
+      number,
+      docId: parsed.docId || parsed.number || '',
+      author: parsed.author || '',
+      title: parsed.title || '',
+      description: shouldClean ? cleanDescription(parsed.description) : parsed.description,
+      isNumberManuallyEdited: Boolean(number),
+      file,
+      handle,
+    };
+  };
+
+  const handleRuleChange = (ruleName, value) => {
+    if (isPreviewFreezed) return;
+
+    const setters = {
+      preset: setPreset,
+      prefix: setPrefix,
+      startNumber: setStartNumber,
+      padLength: setPadLength,
+      caseStyle: setCaseStyle,
+      customTemplate: setCustomTemplate,
+      cleanDesc: setCleanDesc,
+      sortMode: setSortMode,
+      useYearAsNumber: setUseYearAsNumber,
+      shortenDesc: setShortenDesc,
+      maxDescLength: setMaxDescLength,
+    };
+
+    setters[ruleName](value);
+
+    const overrides = { [ruleName]: value };
+    if (ruleName === 'preset') {
+      const presetDefaults = getPresetRuleDefaults(value);
+      Object.entries(presetDefaults).forEach(([key, presetValue]) => {
+        if (setters[key]) setters[key](presetValue);
+      });
+      Object.assign(overrides, presetDefaults);
+    }
+
+    setItems(prevItems => (
+      prevItems.length > 0
+        ? updateProposedNames(prevItems, overrides)
+        : prevItems
+    ));
+  };
 
   // Apply Matter Profile settings
   const handleApplyProfileSettings = (settings) => {
@@ -253,6 +346,13 @@ export default function App() {
     setCaseStyle(settings.caseStyle);
     setCleanDesc(settings.cleanDesc);
     setCustomTemplate(settings.customTemplate);
+    if (settings.sortMode) setSortMode(settings.sortMode);
+    if (typeof settings.useYearAsNumber === 'boolean') setUseYearAsNumber(settings.useYearAsNumber);
+    if (typeof settings.shortenDesc === 'boolean') setShortenDesc(settings.shortenDesc);
+    if (settings.maxDescLength) setMaxDescLength(settings.maxDescLength);
+    setItems(prevItems => (
+      prevItems.length > 0 ? updateProposedNames(prevItems, settings) : prevItems
+    ));
   };
 
   // Load sample data exhibits for interactive demo workflow
@@ -267,34 +367,19 @@ export default function App() {
       { name: "DEP Jones Exhibit 3.pdf" },
       { name: "DOD - 12 - 2012 - Smith - Report.pdf" },
       { name: "04 - Jones Photo.pdf" },
-      { name: "Unstructured Document.pdf" }
+      { name: "Unstructured Document.pdf" },
+      { name: "Jones 2015 Expert Report.pdf" },
+      { name: "2019 - Board Minutes.pdf" },
+      { name: "Smith 2021 Settlement Agreement Long Title.pdf" },
     ];
 
-    const parsedSamples = sampleFiles.map(file => {
-      const parsed = parseFilename(file.name);
-      return {
-        originalName: file.name,
-        number: parsed.number,
-        description: cleanDesc ? cleanDescription(parsed.description) : parsed.description,
-        isNumberManuallyEdited: parsed.number ? true : false,
-        file: null, // Mocks have no file handles
-        handle: null
-      };
-    });
-
-    parsedSamples.sort((a, b) => a.originalName.localeCompare(b.originalName, undefined, { numeric: true }));
+    const parsedSamples = sampleFiles.map(file => buildIngestedItem(file.name));
     setItems(updateProposedNames(parsedSamples));
     showNotification("📊 Mock exhibit dataset loaded. Test presets and sequences above.", "success");
   };
 
   // Handle native folder picking
   const handleDirectorySelect = async () => {
-    if (isDemoMode) {
-      showNotification("🔒 Direct folder ingestion is restricted in Demo mode. Load Sample Exhibits or upgrade to Pro.", "warning");
-      setIsPricingOpen(true);
-      return;
-    }
-
     try {
       const handle = await window.showDirectoryPicker();
       
@@ -302,16 +387,7 @@ export default function App() {
       for await (const entry of handle.values()) {
         if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.pdf')) {
           const file = await entry.getFile();
-          const parsed = parseFilename(entry.name);
-          
-          files.push({
-            originalName: entry.name,
-            number: parsed.number,
-            description: cleanDesc ? cleanDescription(parsed.description) : parsed.description,
-            isNumberManuallyEdited: parsed.number ? true : false,
-            file: file,
-            handle: entry
-          });
+          files.push(buildIngestedItem(entry.name, file, entry));
         }
       }
 
@@ -320,9 +396,12 @@ export default function App() {
         return;
       }
 
-      // Enforce Trial volume bounds: max 5 files total
-      if (isTrialMode && files.length > 5) {
-        showNotification("⚠️ Trial tier is restricted to a maximum of 5 files. Please reduce your batch or purchase Pro.", "danger");
+      // Free: up to 5 real files per batch (not a one-time consume limit)
+      if (!isWithinFreeFileLimit(files.length, entitlement)) {
+        showNotification(
+          `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
+          "danger"
+        );
         setIsPricingOpen(true);
         return;
       }
@@ -330,30 +409,24 @@ export default function App() {
       setDirectoryHandle(handle);
       setDirectoryName(handle.name);
 
-      // Sort files alphabetically to ensure consistent auto-sequencing
-      files.sort((a, b) => a.originalName.localeCompare(b.originalName, undefined, { numeric: true }));
-
       const itemsWithProposed = updateProposedNames(files);
       setItems(itemsWithProposed);
-      showNotification(`✨ Loaded ${files.length} PDF exhibits from "${handle.name}".`, "success");
+      showNotification(`Loaded ${files.length} PDF exhibits from "${handle.name}".`, "success");
     } catch (err) {
       if (err.name !== 'AbortError') {
-        showNotification("❌ Directory picker error: " + err.message, "danger");
+        showNotification("Directory picker error: " + err.message, "danger");
       }
     }
   };
 
   // Handle drag and drop file ingestion
   const handleFilesDrop = (filesList) => {
-    if (isDemoMode) {
-      showNotification("🔒 Real file ingestion is restricted in Demo mode. Load Sample Exhibits or upgrade to Pro.", "warning");
-      setIsPricingOpen(true);
-      return;
-    }
-
-    // Enforce Trial volume bounds: max 5 files total
-    if (isTrialMode && filesList.length > 5) {
-      showNotification("⚠️ Trial tier is restricted to a maximum of 5 files. Please reduce your batch or purchase Pro.", "danger");
+    // Free: up to 5 real files per batch (not a one-time consume limit)
+    if (!isWithinFreeFileLimit(filesList.length, entitlement)) {
+      showNotification(
+        `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
+        "danger"
+      );
       setIsPricingOpen(true);
       return;
     }
@@ -361,21 +434,9 @@ export default function App() {
     setDirectoryHandle(null);
     setDirectoryName("Batch Ingestion (Download Mode)");
 
-    const newItems = filesList.map(file => {
-      const parsed = parseFilename(file.name);
-      return {
-        originalName: file.name,
-        number: parsed.number,
-        description: cleanDesc ? cleanDescription(parsed.description) : parsed.description,
-        isNumberManuallyEdited: parsed.number ? true : false,
-        file: file,
-        handle: null
-      };
-    });
-
-    newItems.sort((a, b) => a.originalName.localeCompare(b.originalName, undefined, { numeric: true }));
+    const newItems = filesList.map(file => buildIngestedItem(file.name, file, null));
     setItems(updateProposedNames(newItems));
-    showNotification(`✨ Added ${newItems.length} PDF files for batch preparation.`, "success");
+    showNotification(`Added ${newItems.length} PDF files for batch preparation.`, "success");
   };
 
   // Inline edit callback for individual cells
@@ -439,12 +500,18 @@ export default function App() {
   // Trigger Backup Dialog check first
   const handleRenameTrigger = () => {
     if (items.length === 0) return;
-    
-    // In Demo Mode, block actual rename executions completely
-    if (isDemoMode) {
-      showNotification("🔒 Renaming real files is restricted in Demo mode. Upgrade to Pro to process exhibits.", "warning");
-      setIsPricingOpen(true);
-      return;
+
+    // In-place rename and ZIP batch export require Case Pass or Pro
+    if (!isPro) {
+      const hasRealFiles = items.some((item) => item.file || item.handle);
+      if (hasRealFiles) {
+        showNotification(
+          "In-place renaming and ZIP export require a Case Pass or ExhibitKit Pro. Free includes preview and CSV/HTML export (up to 5 files per batch).",
+          "warning"
+        );
+        setIsPricingOpen(true);
+        return;
+      }
     }
 
     // Open backup checkbox confirmation
@@ -455,12 +522,22 @@ export default function App() {
   // Rename Execution
   const handleRenameExecute = async () => {
     setShowBackupModal(false);
+
+    if (items.some(item => item.status !== 'success')) {
+      showNotification("⚠️ The batch changed and now contains filename issues. Review the preview before trying again.", "warning");
+      return;
+    }
     
     // Freeze preview state before renaming to block mid-operation changes
     setIsPreviewFreezed(true);
 
-    const conflictCount = items.filter(item => item.hasConflict || item.status === 'conflict').length;
+    const conflictCount = items.filter(item => item.status === 'warning').length;
     const startTime = performance.now();
+    const renameMap = items.map(item => ({
+      originalName: item.originalName,
+      number: item.number,
+      proposedName: item.proposedName
+    }));
 
     if (!directoryHandle) {
       // Fallback: Zipped batch download since there is no local folder handle
@@ -475,9 +552,8 @@ export default function App() {
 
         // Add CSV Rename Report to the zip archive
         const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
-        const rows = items.map(item => {
-          const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-          return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        const rows = renameMap.map(item => {
+          return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
         }).join("\n");
         zip.file("exhibit_rename_report.csv", headers + rows);
 
@@ -495,17 +571,7 @@ export default function App() {
         const endTime = performance.now();
         const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
 
-        // Consume Trial if in Trial Mode
-        if (isTrialMode) {
-          markTrialUsed();
-          setIsTrialMode(false);
-          setIsDemoMode(true);
-          setItems([]);
-          showNotification("✨ Free trial batch completed! Upgrade to Pro for unlimited local renames.", "success");
-          setIsPricingOpen(true);
-        } else {
-          showNotification("✨ Successfully exported prepared exhibits folder ZIP!", "success");
-        }
+        showNotification("Successfully exported prepared exhibits ZIP.", "success");
 
         // Trigger Success Stats Popup
         setRenameStats({
@@ -515,7 +581,7 @@ export default function App() {
         });
         setShowSuccessModal(true);
       } catch (err) {
-        showNotification("❌ Zipped batch download failed: " + err.message, "danger");
+        showNotification("Zipped batch download failed: " + err.message, "danger");
       } finally {
         setIsPreviewFreezed(false);
       }
@@ -526,6 +592,18 @@ export default function App() {
     try {
       const history = [];
       const updatedItems = [...items];
+
+      // Fail before changing any files if a target name already exists.
+      for (const item of updatedItems) {
+        if (item.originalName.toLowerCase() === item.proposedName.toLowerCase()) continue;
+
+        try {
+          await directoryHandle.getFileHandle(item.proposedName);
+          throw new Error(`A file named "${item.proposedName}" already exists in this folder.`);
+        } catch (error) {
+          if (error.name !== 'NotFoundError') throw error;
+        }
+      }
 
       for (let i = 0; i < updatedItems.length; i++) {
         const item = updatedItems[i];
@@ -565,9 +643,8 @@ export default function App() {
       // Automatically write CSV Rename Report directly inside the local folder
       try {
         const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
-        const rows = updatedItems.map(item => {
-          const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-          return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        const rows = renameMap.map(item => {
+          return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
         }).join("\n");
         const reportContent = headers + rows;
 
@@ -585,17 +662,7 @@ export default function App() {
       const endTime = performance.now();
       const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
 
-      // Consume Trial if in Trial Mode
-      if (isTrialMode) {
-        markTrialUsed();
-        setIsTrialMode(false);
-        setIsDemoMode(true);
-        setItems([]);
-        showNotification("✨ Free trial batch completed! Upgrade to Pro for unlimited local renames.", "success");
-        setIsPricingOpen(true);
-      } else {
-        showNotification(`✨ Successfully renamed ${history.length} exhibits directly inside "${directoryName}"!`, "success");
-      }
+      showNotification(`Successfully renamed ${history.length} exhibits inside "${directoryName}".`, "success");
 
       // Trigger Success Stats Popup
       setRenameStats({
@@ -605,17 +672,17 @@ export default function App() {
       });
       setShowSuccessModal(true);
     } catch (err) {
-      showNotification("❌ Renaming operation failed: " + err.message, "danger");
+      showNotification("Renaming operation failed: " + err.message, "danger");
       console.error(err);
     } finally {
       setIsPreviewFreezed(false);
     }
   };
 
-  // Undo Rename (Only allowed in Pro)
+  // Undo Rename (Case Pass or Pro)
   const handleUndo = async () => {
     if (!isPro) {
-      showNotification("🔒 Reverting renames is an ExhibitKIT Pro feature.", "warning");
+      showNotification("Reverting renames requires a Case Pass or ExhibitKit Pro.", "warning");
       setIsPricingOpen(true);
       return;
     }
@@ -673,22 +740,14 @@ export default function App() {
     showNotification("🧹 Ingestion cleared successfully.", "success");
   };
 
-  // CSV Map Export utility
+  // CSV Map Export utility (available on Free, including real files within the Free batch limit)
   const handleExportCsv = () => {
     if (items.length === 0) return;
-
-    // Demo Mode can export sample CSV only
-    if (isDemoMode && items[0].file !== null) {
-      showNotification("🔒 CSV exporting for real files is restricted in Demo mode. Upgrade to Pro.", "warning");
-      setIsPricingOpen(true);
-      return;
-    }
 
     try {
       const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
       const rows = items.map(item => {
-        const escape = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-        return `${escape(item.originalName)},${escape(item.number)},${escape(item.proposedName)},${escape(preset)}`;
+        return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
       }).join("\n");
 
       const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
@@ -710,68 +769,87 @@ export default function App() {
   // Reset rules back to default
   const handleResetRules = () => {
     if (isPreviewFreezed) return;
-    setPreset('oncue');
-    setPrefix('PX');
-    setStartNumber(1);
-    setPadLength(3);
-    setCaseStyle('title');
-    setCustomTemplate('{Prefix}{Number} - {Description}');
-    setCleanDesc(true);
+    const defaults = {
+      preset: 'oncue',
+      prefix: 'PX',
+      startNumber: 1,
+      padLength: 3,
+      caseStyle: 'title',
+      customTemplate: '{Prefix}{Number} - {Description}',
+      cleanDesc: true,
+      sortMode: 'filename',
+      useYearAsNumber: false,
+      shortenDesc: false,
+      maxDescLength: 48,
+    };
+    setPreset(defaults.preset);
+    setPrefix(defaults.prefix);
+    setStartNumber(defaults.startNumber);
+    setPadLength(defaults.padLength);
+    setCaseStyle(defaults.caseStyle);
+    setCustomTemplate(defaults.customTemplate);
+    setCleanDesc(defaults.cleanDesc);
+    setSortMode(defaults.sortMode);
+    setUseYearAsNumber(defaults.useYearAsNumber);
+    setShortenDesc(defaults.shortenDesc);
+    setMaxDescLength(defaults.maxDescLength);
+    setItems(prevItems => (
+      prevItems.length > 0 ? updateProposedNames(prevItems, defaults) : prevItems
+    ));
     showNotification("🔄 Naming rules reset to default OnCue PX-001.", "success");
   };
 
   // Route Launchers
-  const handleStartFree = () => {
-    setIsDemoMode(false);
-    setIsTrialMode(false);
+  const handleLaunchFree = () => {
+    setItems([]);
+    setDirectoryHandle(null);
+    setDirectoryName("");
+    setAppRoute('workspace');
+    showNotification(
+      `Free workspace ready — up to ${FREE_MAX_FILES_PER_BATCH} files per batch, or load sample exhibits.`,
+      "info"
+    );
+  };
+
+  const handleLaunchMessages = () => {
     setAppRoute('messages');
-    showNotification('Free message exhibit workspace ready. Nothing is uploaded.', 'info');
-  };
-
-  const handleLaunchDemoMode = () => {
-    // Legacy rename sandbox retained for Pro/ops testing
-    setIsDemoMode(true);
-    setIsTrialMode(false);
-    setItems([]);
-    setAppRoute('workspace');
-    showNotification('Legacy rename demo opened. Message exhibits are available from Home.', 'info');
-  };
-
-  const handleLaunchTrialMode = () => {
-    if (!hasTrialAvailable()) {
-      showNotification('Legacy rename trial used. Use Free message exhibits or purchase Pro.', 'warning');
-      setIsPricingOpen(true);
-      return;
-    }
-    setIsTrialMode(true);
-    setIsDemoMode(false);
-    setItems([]);
-    setAppRoute('workspace');
-    showNotification('Legacy rename trial active (max 5 PDF files).', 'info');
+    showNotification('Message exhibit workspace ready. Evidence stays on this device.', 'info');
   };
 
   // Layout Renderings
+  const founderAdmin = (
+    <Suspense fallback={null}>
+      <FounderAdmin
+        appRoute={appRoute}
+        entitlement={entitlement}
+        onEntitlementChange={(next) => setEntitlement(next || getEntitlement())}
+        onSetRoute={setAppRoute}
+        onOpenPricing={() => setIsPricingOpen(true)}
+        onClosePricing={() => setIsPricingOpen(false)}
+        onLaunchWorkspace={handleLaunchFree}
+      />
+    </Suspense>
+  );
+
   if (appRoute === 'landing') {
     return (
       <>
         <LandingPage
-          onStartFree={handleStartFree}
-          onOpenPricing={() => setIsPricingOpen(true)}
-          onPurchaseCasePass={handlePurchaseCasePass}
-          onPurchasePro={handlePurchasePro}
+          onLaunchFree={handleLaunchFree}
+          onLaunchMessages={handleLaunchMessages}
+          onOpenPricing={() => openPricing('purchase')}
+          onRestoreLicense={() => openPricing('restore')}
           theme={theme}
-          onToggleTheme={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+          onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
         />
         <PricingModal
           isOpen={isPricingOpen}
           onClose={() => setIsPricingOpen(false)}
-          onActivate={handleActivateLicense}
+          onActivated={handleEntitlementActivated}
+          workstationId={workstation.deviceId}
+          initialView={pricingIntent}
         />
-        {notification.show && (
-          <div className={`notification ${notification.type}`}>
-            <div className="notification-message">{notification.message}</div>
-          </div>
-        )}
+        {founderAdmin}
       </>
     );
   }
@@ -781,53 +859,58 @@ export default function App() {
       <>
         <MessageWorkspace
           onBack={() => setAppRoute('landing')}
-          onOpenPricing={() => setIsPricingOpen(true)}
+          onOpenPricing={() => openPricing('purchase')}
           showNotification={showNotification}
         />
         <PricingModal
           isOpen={isPricingOpen}
           onClose={() => setIsPricingOpen(false)}
-          onActivate={handleActivateLicense}
+          onActivated={handleEntitlementActivated}
+          workstationId={workstation.deviceId}
+          initialView={pricingIntent}
         />
         {notification.show && (
           <div className={`notification ${notification.type}`}>
             <div className="notification-message">{notification.message}</div>
           </div>
         )}
+        {founderAdmin}
       </>
     );
   }
 
   if (appRoute === 'stripe_success') {
-    const productLabel =
-      checkoutProduct === 'case_pass' ? 'Case Pass' : 'ExhibitKit Pro perpetual license';
     return (
+      <>
       <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div className="glass-panel" style={{ maxWidth: '520px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', border: '1px solid var(--status-success-border)' }}>
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--status-success-bg)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
               <ShieldCheck size={26} />
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Payment received</h2>
+            <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Checkout Complete</h2>
             <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-              Your {productLabel} key will be emailed after checkout. Enter it below to activate this browser. Payment is processed separately — your evidence never enters the payment system.
+              Your license key will be delivered to the email used at checkout. Enter the key below to restore access on this workstation. Pro access does not expire; Case Pass access lasts 30 consecutive days from purchase.
             </p>
           </div>
 
           <form onSubmit={(e) => { e.preventDefault(); handleActivateLicense(licenseInputValue); }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor="stripe-success-key">Activation license key</label>
+              <label className="form-label">Activation License Key</label>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input 
-                  id="stripe-success-key"
                   type="text" 
                   value={licenseInputValue} 
-                  onChange={(e) => setLicenseInputValue(e.target.value)} 
-                  placeholder="EKIT-XXXX-XXXX-XXXX or EKIT-CASE-XXXX-XXXX"
+                  onChange={(e) => {
+                    setLicenseInputValue(e.target.value);
+                    setActivationError('');
+                    setActivationNeedsTransfer(false);
+                  }}
+                  placeholder="Format: EKIT-XXXX-XXXX-XXXX-XXXX"
                   style={{ flex: 1, fontSize: '13px' }}
                 />
-                <button type="submit" className="btn btn-success" style={{ flexShrink: 0 }}>
-                  Activate
+                <button type="submit" className="btn btn-success" disabled={activationInProgress} style={{ flexShrink: 0 }}>
+                  {activationInProgress ? 'Verifying…' : 'Activate Pro'}
                 </button>
               </div>
             </div>
@@ -838,47 +921,67 @@ export default function App() {
                 <span>{activationError}</span>
               </div>
             )}
+
+            {activationNeedsTransfer && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={activationInProgress}
+                onClick={() => handleActivateLicense(licenseInputValue, true)}
+              >
+                Transfer license here and deactivate the former workstation
+              </button>
+            )}
           </form>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11.5px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-            <span>License recovery: <a href="mailto:support@patentpreppers.com" style={{ color: 'var(--text-secondary)' }}>support@patentpreppers.com</a></span>
+            <span>📧 Technical issues or license recovery? Contact <a href="mailto:support@patentpreppers.com" style={{ color: 'var(--text-secondary)' }}>support@patentpreppers.com</a></span>
           </div>
 
-          <button className="btn btn-secondary" onClick={() => setAppRoute('messages')} style={{ width: '100%', fontSize: '13px' }}>
-            <ArrowLeft size={14} /> Continue to exhibit workspace
+          <button className="btn btn-secondary" onClick={() => setAppRoute('workspace')} style={{ width: '100%', fontSize: '13px' }}>
+            <ArrowLeft size={14} /> Continue to Demo Workspace
           </button>
         </div>
       </div>
+      {founderAdmin}
+      </>
     );
   }
 
   if (appRoute === 'stripe_cancel') {
     return (
+      <>
       <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'center' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
             <Info size={24} />
           </div>
-          <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Checkout canceled</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Checkout Canceled</h2>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-            No charge was made. You can keep building exhibits on the free plan or return to pricing when ready.
+            Checkout was canceled. You can continue with Free (up to 5 files per batch) or return to pricing when you are ready.
           </p>
           
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn btn-primary" onClick={() => setIsPricingOpen(true)} style={{ flex: 1, fontSize: '13px' }}>
-              View pricing
+            <button className="btn btn-primary" onClick={() => openPricing('purchase')} style={{ flex: 1, fontSize: '13px' }}>
+              Buy Pro — {PRO_PRICE_LABEL}
             </button>
-            <button className="btn btn-secondary" onClick={handleStartFree} style={{ flex: 1, fontSize: '13px' }}>
-              Build an exhibit free
+            <button className="btn btn-secondary" onClick={handleLaunchFree} style={{ flex: 1, fontSize: '13px' }}>
+              Rename exhibits free
             </button>
           </div>
         </div>
-        <PricingModal
-          isOpen={isPricingOpen}
-          onClose={() => setIsPricingOpen(false)}
-          onActivate={handleActivateLicense}
-        />
       </div>
+      {isPricingOpen && (
+        <PricingModal 
+          isOpen={isPricingOpen} 
+          onClose={() => setIsPricingOpen(false)} 
+          onActivated={handleEntitlementActivated}
+          workstationId={workstation.deviceId}
+          initialView={pricingIntent}
+        />
+      )}
+      {founderAdmin}
+      </>
     );
   }
 
@@ -891,19 +994,27 @@ export default function App() {
       {/* Configuration Sidebar */}
       <Sidebar 
         preset={preset}
-        setPreset={setPreset}
+        setPreset={(value) => handleRuleChange('preset', value)}
         prefix={prefix}
-        setPrefix={setPrefix}
+        setPrefix={(value) => handleRuleChange('prefix', value)}
         startNumber={startNumber}
-        setStartNumber={setStartNumber}
+        setStartNumber={(value) => handleRuleChange('startNumber', value)}
         padLength={padLength}
-        setPadLength={setPadLength}
+        setPadLength={(value) => handleRuleChange('padLength', value)}
         caseStyle={caseStyle}
-        setCaseStyle={setCaseStyle}
+        setCaseStyle={(value) => handleRuleChange('caseStyle', value)}
         customTemplate={customTemplate}
-        setCustomTemplate={setCustomTemplate}
+        setCustomTemplate={(value) => handleRuleChange('customTemplate', value)}
         cleanDesc={cleanDesc}
-        setCleanDesc={setCleanDesc}
+        setCleanDesc={(value) => handleRuleChange('cleanDesc', value)}
+        sortMode={sortMode}
+        setSortMode={(value) => handleRuleChange('sortMode', value)}
+        useYearAsNumber={useYearAsNumber}
+        setUseYearAsNumber={(value) => handleRuleChange('useYearAsNumber', value)}
+        shortenDesc={shortenDesc}
+        setShortenDesc={(value) => handleRuleChange('shortenDesc', value)}
+        maxDescLength={maxDescLength}
+        setMaxDescLength={(value) => handleRuleChange('maxDescLength', value)}
         onReset={handleResetRules}
         isPro={isPro}
         onApplySettings={handleApplyProfileSettings}
@@ -911,7 +1022,6 @@ export default function App() {
         onShowNotification={showNotification}
         className={isMobileSidebarOpen ? 'mobile-open' : ''}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        theme={theme}
       />
 
       {isMobileSidebarOpen && (
@@ -951,16 +1061,19 @@ export default function App() {
               }}
             >
               <div className="top-bar-logo-mark" aria-hidden="true">⚖</div>
-              <span className="top-bar-logo-text">ExhibitKit</span>
+              <span className="top-bar-logo-copy">
+                <small>Patent Preppers™</small>
+                <strong className="top-bar-logo-text">ExhibitKIT</strong>
+              </span>
             </div>
 
             <div className="top-bar-badge">
-              {isPro ? (
-                <span className="badge badge-success">{tierLabel}</span>
-              ) : isTrialMode ? (
-                <span className="badge badge-warning">Trial</span>
+              {planLabel === 'Pro' || planLabel === 'Firm' ? (
+                <span className="badge badge-success">{planLabel}</span>
+              ) : planLabel === 'Case Pass' ? (
+                <span className="badge badge-warning">Case Pass</span>
               ) : (
-                <span className="badge badge-info">Demo</span>
+                <span className="badge badge-info">Free</span>
               )}
             </div>
 
@@ -1000,7 +1113,7 @@ export default function App() {
                 className="top-bar-upgrade"
                 onClick={() => {
                   setIsMobileNavOpen(false);
-                  setIsPricingOpen(true);
+                  openPricing('purchase');
                 }}
               >
                 <span className="top-bar-upgrade-full">Upgrade to Pro</span>
@@ -1016,13 +1129,6 @@ export default function App() {
                 onClick={() => setAppRoute('landing')}
               >
                 Home
-              </button>
-              <button
-                type="button"
-                className="top-bar-link text-link-hover"
-                onClick={() => setAppRoute('messages')}
-              >
-                Message exhibits
               </button>
               <button
                 type="button"
@@ -1092,36 +1198,6 @@ export default function App() {
                       role="menuitem"
                       onClick={() => {
                         setIsMobileNavOpen(false);
-                        setAppRoute('messages');
-                      }}
-                    >
-                      Message exhibits
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsMobileNavOpen(false);
-                        handleLaunchDemoMode();
-                      }}
-                    >
-                      Legacy rename demo
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsMobileNavOpen(false);
-                        handleLaunchTrialMode();
-                      }}
-                    >
-                      Legacy rename trial
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsMobileNavOpen(false);
                         setActiveModal('how');
                       }}
                     >
@@ -1153,8 +1229,12 @@ export default function App() {
                 onFilesDrop={handleFilesDrop}
                 isSupported={isDirectoryApiSupported}
               />
-              {/* Quick load sample exhibits button in Demo mode */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+                {!isPro && (
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Free: up to {FREE_MAX_FILES_PER_BATCH} files per batch
+                  </span>
+                )}
                 <button 
                   onClick={handleLoadSampleData} 
                   style={{ 
@@ -1168,7 +1248,7 @@ export default function App() {
                     padding: '4px 8px'
                   }}
                 >
-                  Load Sample Exhibits (Demo)
+                  Load Sample Exhibits
                 </button>
               </div>
             </div>
@@ -1191,7 +1271,7 @@ export default function App() {
                 onClear={handleClear}
                 onExportCsv={handleExportCsv}
                 isPro={isPro}
-                isTrial={isTrialMode}
+                planLabel={planLabel}
                 workstationId={workstation.deviceId}
                 preset={preset}
               />
@@ -1353,7 +1433,9 @@ export default function App() {
       <PricingModal 
         isOpen={isPricingOpen} 
         onClose={() => setIsPricingOpen(false)} 
-        onActivate={handleActivateLicense}
+        onActivated={handleEntitlementActivated}
+        workstationId={workstation.deviceId}
+        initialView={pricingIntent}
       />
 
       {/* Legal & Operational support overlays */}
@@ -1361,6 +1443,8 @@ export default function App() {
         activeModal={activeModal}
         onClose={() => setActiveModal(null)}
       />
+
+      {founderAdmin}
     </div>
   );
 }

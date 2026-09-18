@@ -5,8 +5,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
     globals: true,
-    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    include: [
+      'src/**/*.{test,spec}.{js,jsx}',
+      'test/**/*.{test,spec}.{js,jsx}',
+      'api/**/*.{test,spec}.js',
+    ],
   },
 })

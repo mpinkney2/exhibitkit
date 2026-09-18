@@ -17,7 +17,7 @@ import {
 import { getSampleConversation } from '../utils/messageParse';
 import { fingerprintSourceFile } from '../utils/hash';
 import { downloadBytes, exportProjectPackage } from '../utils/exhibitPdf';
-import { hasProFeatures, getEffectiveEntitlement, getEntitlementLabel } from '../utils/license';
+import { hasProFeatures, getEntitlement, getEntitlementLabel } from '../utils/entitlement';
 import { PRIVACY_PAYMENT_NOTICE } from '../utils/pricing';
 import { assessProjectCapacity, CAPACITY } from '../utils/capacity';
 
@@ -31,9 +31,12 @@ export default function MessageWorkspace({
   const [previewInfo, setPreviewInfo] = useState(null);
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef(null);
-  const isPro = hasProFeatures();
-  const entitlement = getEffectiveEntitlement();
-  const tierLabel = getEntitlementLabel();
+  const entitlement = getEntitlement();
+  const isPro = hasProFeatures(entitlement);
+  const tierLabel = getEntitlementLabel(entitlement);
+  const expiredCasePass =
+    entitlement.plan === 'case_pass' && entitlement.casePassStatus === 'expired';
+  const expiredGuestDemo = Boolean(entitlement.guestDemoExpired);
 
   const activeExhibit = useMemo(
     () => project.exhibits.find((e) => e.id === activeExhibitId) || project.exhibits[0] || null,
@@ -324,13 +327,13 @@ export default function MessageWorkspace({
             </p>
           </div>
 
-          {entitlement.expiredCasePass && (
+          {expiredCasePass && (
             <p className="message-side-note warning">
               Your Case Pass expired. Previously generated files on your device were not deleted.
               Pro generation for new work requires a new Case Pass or Pro license.
             </p>
           )}
-          {entitlement.expiredGuestDemo && (
+          {expiredGuestDemo && (
             <p className="message-side-note warning">
               Your 10-day guest demo expired. Local files were not deleted. Activate a Case Pass or
               Pro license to continue Pro exports.
