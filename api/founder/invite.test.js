@@ -34,14 +34,13 @@ const SAMPLE_INVITE = {
   emailStatus: 'sent',
 };
 
-// Backend settings required by the invite pipeline (values are placeholders; the
-// service itself is mocked in these unit tests).
+// Backend settings required to mint (values are placeholders; the service itself
+// is mocked in these unit tests). Email vars are intentionally omitted — email is
+// optional for minting.
 function configureBackendEnv() {
   process.env.DATABASE_URL = 'postgres://test';
   process.env.LICENSE_HASH_SECRET = 'x'.repeat(48);
   process.env.LICENSE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
-  process.env.RESEND_API_KEY = 'test-resend-key';
-  process.env.LICENSE_EMAIL_FROM = 'ExhibitKIT <licenses@example.com>';
 }
 
 function clearBackendEnv() {
@@ -109,15 +108,16 @@ describe('POST /api/founder/invite', () => {
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
-  it('reports exactly which backend settings are missing', async () => {
+  it('reports exactly which backend settings are missing (email is not required)', async () => {
     delete process.env.DATABASE_URL;
-    delete process.env.RESEND_API_KEY;
+    delete process.env.LICENSE_ENCRYPTION_KEY;
     const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('INVITE_BACKEND_NOT_CONFIGURED');
     expect(body.error).toContain('DATABASE_URL');
-    expect(body.error).toContain('RESEND_API_KEY');
+    expect(body.error).toContain('LICENSE_ENCRYPTION_KEY');
+    expect(body.error).not.toContain('RESEND_API_KEY');
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 

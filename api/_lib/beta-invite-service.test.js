@@ -22,6 +22,8 @@ import { isLicenseKeyFormat } from './license-crypto.js';
 beforeEach(() => {
   process.env.LICENSE_HASH_SECRET = 'x'.repeat(48);
   process.env.LICENSE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+  process.env.RESEND_API_KEY = 'test-resend-key';
+  process.env.LICENSE_EMAIL_FROM = 'ExhibitKIT <licenses@example.com>';
   process.env.EXHIBITKIT_VERSION = 'v1.2.3';
   vi.clearAllMocks();
   mocks.insertBetaLicense.mockImplementation(async (record) => ({
@@ -37,6 +39,8 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.LICENSE_HASH_SECRET;
   delete process.env.LICENSE_ENCRYPTION_KEY;
+  delete process.env.RESEND_API_KEY;
+  delete process.env.LICENSE_EMAIL_FROM;
   delete process.env.EXHIBITKIT_VERSION;
 });
 
@@ -95,5 +99,16 @@ describe('createBetaInvite', () => {
     expect(isLicenseKeyFormat(result.key)).toBe(true);
     expect(result.emailStatus).toBe('failed');
     expect(mocks.updateLicenseEmailStatus).toHaveBeenCalledWith('lic_test_1', 'failed');
+  });
+
+  it('mints without sending when email is not configured', async () => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.LICENSE_EMAIL_FROM;
+    const result = await createBetaInvite({ email: 'a@b.co' });
+
+    expect(isLicenseKeyFormat(result.key)).toBe(true);
+    expect(result.emailStatus).toBe('skipped');
+    expect(mocks.sendBetaInviteEmail).not.toHaveBeenCalled();
+    expect(mocks.updateLicenseEmailStatus).not.toHaveBeenCalled();
   });
 });

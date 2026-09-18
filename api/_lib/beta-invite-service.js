@@ -87,20 +87,31 @@ export async function createBetaInvite({
     invitedBy: cleanText(invitedBy, 120) || 'founder',
   });
 
+  // Email is optional: when Resend is not configured, the license is still
+  // minted and the key is returned so the founder can deliver it manually.
+  const emailConfigured = Boolean(
+    String(process.env.RESEND_API_KEY || '').trim()
+    && String(process.env.LICENSE_EMAIL_FROM || '').trim(),
+  );
+
   let emailStatus;
-  try {
-    const providerId = await sendBetaInviteEmail({
-      to: record.customer_email,
-      licenseKey,
-      expiresAt: record.expires_at,
-      licenseId: record.id,
-    });
-    await updateLicenseEmailStatus(record.id, 'sent', providerId);
-    emailStatus = 'sent';
-  } catch {
-    // Keep the minted license; the founder still receives the key to send manually.
-    await updateLicenseEmailStatus(record.id, 'failed');
-    emailStatus = 'failed';
+  if (!emailConfigured) {
+    emailStatus = 'skipped';
+  } else {
+    try {
+      const providerId = await sendBetaInviteEmail({
+        to: record.customer_email,
+        licenseKey,
+        expiresAt: record.expires_at,
+        licenseId: record.id,
+      });
+      await updateLicenseEmailStatus(record.id, 'sent', providerId);
+      emailStatus = 'sent';
+    } catch {
+      // Keep the minted license; the founder still receives the key to send manually.
+      await updateLicenseEmailStatus(record.id, 'failed');
+      emailStatus = 'failed';
+    }
   }
 
   return {
