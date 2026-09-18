@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "db:migrate": "node --env-file=.env.local scripts/migrate-licensing.mjs",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate-licensing.mjs",
     "license:secrets": "node scripts/generate-license-secrets.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
