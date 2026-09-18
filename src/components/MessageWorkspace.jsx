@@ -20,6 +20,8 @@ import { downloadBytes, exportProjectPackage } from '../utils/exhibitPdf';
 import { hasProFeatures, getEntitlement, getEntitlementLabel } from '../utils/entitlement';
 import { PRIVACY_PAYMENT_NOTICE } from '../utils/pricing';
 import { assessProjectCapacity, CAPACITY } from '../utils/capacity';
+import WorkflowProgress from './WorkflowProgress';
+import { MESSAGE_WORKFLOW_STEPS, getMessageWorkflowIndex } from '../utils/workflowProgress';
 
 export default function MessageWorkspace({
   onBack,
@@ -30,6 +32,7 @@ export default function MessageWorkspace({
   const [activeExhibitId, setActiveExhibitId] = useState(null);
   const [previewInfo, setPreviewInfo] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [hasExported, setHasExported] = useState(false);
   const fileInputRef = useRef(null);
   const entitlement = getEntitlement();
   const isPro = hasProFeatures(entitlement);
@@ -76,6 +79,7 @@ export default function MessageWorkspace({
         return { ...prev, exhibits };
       });
       setActiveExhibitId(imported[0]?.id || null);
+      setHasExported(false);
       showNotification?.(
         `Imported ${imported.length} conversation${imported.length === 1 ? '' : 's'} locally.`,
         'success'
@@ -119,6 +123,7 @@ export default function MessageWorkspace({
       exhibits: isPro ? [...prev.exhibits.filter((e) => !e.id.startsWith('exh-sample')), exhibit] : [exhibit],
     }));
     setActiveExhibitId(exhibit.id);
+    setHasExported(false);
     showNotification?.('Sample conversation loaded. Nothing was uploaded.', 'info');
   };
 
@@ -193,6 +198,7 @@ export default function MessageWorkspace({
       const timingNote = result.timing?.elapsedMs
         ? ` (${(result.timing.elapsedMs / 1000).toFixed(1)}s)`
         : '';
+      setHasExported(true);
       showNotification?.(
         isPro
           ? `Pro package exported (binder, index, integrity report, ZIP)${timingNote}.`
@@ -215,6 +221,7 @@ export default function MessageWorkspace({
     }));
     setActiveExhibitId(null);
     setPreviewInfo(null);
+    setHasExported(false);
     showNotification?.('Workspace cleared. Local files on disk were not modified.', 'info');
   };
 
@@ -241,6 +248,15 @@ export default function MessageWorkspace({
           )}
         </div>
       </header>
+
+      <WorkflowProgress
+        className="workflow-progress-message"
+        steps={MESSAGE_WORKFLOW_STEPS}
+        currentIndex={getMessageWorkflowIndex({
+          exhibitCount: project.exhibits.length,
+          hasExported,
+        })}
+      />
 
       <div className="message-workspace-grid">
         <aside className="message-side-panel" aria-label="Matter details">

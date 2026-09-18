@@ -8,6 +8,7 @@ import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
 import LegalModals from './components/LegalModals';
 import MessageWorkspace from './components/MessageWorkspace';
+import WorkflowProgress from './components/WorkflowProgress';
 import './components/MessageWorkspace.css';
 import JSZip from 'jszip';
 import {
@@ -36,6 +37,7 @@ import {
 } from './utils/renamer';
 import { getPresetRuleDefaults } from './config/presets';
 import { PRO_PRICE_LABEL } from './utils/payment';
+import { RENAME_WORKFLOW_STEPS, getRenameWorkflowIndex } from './utils/workflowProgress';
 
 // Always available; production unlock is server-gated via /api/founder/unlock.
 const FounderAdmin = lazy(() => import('./components/FounderAdmin'));
@@ -1222,6 +1224,13 @@ export default function App() {
 
         {/* Dashboard Workspace */}
         <div className="workspace-view">
+          <WorkflowProgress
+            steps={RENAME_WORKFLOW_STEPS}
+            currentIndex={getRenameWorkflowIndex({
+              itemCount: items.length,
+              hasRenamed: lastRenameHistory.length > 0,
+            })}
+          />
           {items.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '20px' }}>
               <Dropzone 
