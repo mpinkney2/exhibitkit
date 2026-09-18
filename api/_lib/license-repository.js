@@ -169,6 +169,98 @@ export async function findRecoverableLicenses(customerEmailHash) {
   `;
 }
 
+export async function insertBetaLicense(record) {
+  const sql = getDatabase();
+  const rows = await sql`
+    INSERT INTO exhibitkit_licenses (
+      license_key_hash,
+      license_key_ciphertext,
+      license_fingerprint,
+      customer_email,
+      customer_email_hash,
+      stripe_checkout_session_id,
+      stripe_price_id,
+      plan,
+      max_activations,
+      purchased_at,
+      expires_at,
+      updates_included_until,
+      purchased_version,
+      source,
+      invitee_name,
+      invite_note,
+      invited_by
+    ) VALUES (
+      ${record.licenseKeyHash},
+      ${record.licenseKeyCiphertext},
+      ${record.licenseFingerprint},
+      ${record.customerEmail},
+      ${record.customerEmailHash},
+      ${record.checkoutSessionId},
+      ${record.priceId},
+      ${record.plan},
+      ${record.maxActivations},
+      ${record.purchasedAt},
+      ${record.expiresAt},
+      ${record.updatesIncludedUntil},
+      ${record.purchasedVersion},
+      ${record.source},
+      ${record.inviteeName},
+      ${record.inviteNote},
+      ${record.invitedBy}
+    )
+    RETURNING *
+  `;
+  return rows[0];
+}
+
+export async function listBetaInvites(limit = 25) {
+  const sql = getDatabase();
+  return sql`
+    SELECT
+      license.id,
+      license.customer_email,
+      license.license_fingerprint,
+      license.invitee_name,
+      license.invite_note,
+      license.status,
+      license.purchased_at,
+      license.expires_at,
+      license.email_delivery_status,
+      count(activation.id) FILTER (WHERE activation.deactivated_at IS NULL) AS active_activations
+    FROM exhibitkit_licenses AS license
+    LEFT JOIN exhibitkit_license_activations AS activation
+      ON activation.license_id = license.id
+    WHERE license.source = 'beta'
+    GROUP BY license.id
+    ORDER BY license.purchased_at DESC
+    LIMIT ${limit}
+  `;
+}
+
+export async function revokeLicenseById(licenseId, status = 'revoked') {
+  if (!licenseId) return 0;
+  const sql = getDatabase();
+  const rows = await sql`
+    WITH revoked AS (
+      UPDATE exhibitkit_licenses
+      SET status = ${status}, updated_at = now()
+      WHERE id = ${licenseId}
+        AND status = 'active'
+      RETURNING id
+    ), deactivated AS (
+      UPDATE exhibitkit_license_activations
+      SET deactivated_at = now(),
+          deactivation_reason = ${status}
+      WHERE license_id IN (SELECT id FROM revoked)
+        AND deactivated_at IS NULL
+      RETURNING id
+    )
+    SELECT count(*)::integer AS count FROM revoked
+  `;
+  return rows[0]?.count || 0;
+}
+
 export async function revokeLicenseByPaymentIntent(paymentIntentId, status) {
   if (!paymentIntentId) return 0;
   const sql = getDatabase();
