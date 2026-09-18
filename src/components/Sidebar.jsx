@@ -101,8 +101,43 @@ export default function Sidebar({
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const [sectionsOpen, setSectionsOpen] = useState(loadSectionState);
   const [scrollHints, setScrollHints] = useState({ top: false, bottom: false });
+  // Editable text for the "Max title length" field. Kept separate from the
+  // numeric prop so the user can freely type, clear, and backspace; the value is
+  // clamped to a valid range only on blur (or when a complete in-range number is
+  // entered) instead of being coerced on every keystroke.
+  const [maxDescLengthText, setMaxDescLengthText] = useState(String(maxDescLength));
+  const [maxDescLengthSynced, setMaxDescLengthSynced] = useState(maxDescLength);
   const dragRef = useRef(null);
   const contentRef = useRef(null);
+
+  const MIN_TITLE_LENGTH = 12;
+  const MAX_TITLE_LENGTH = 120;
+
+  // Reflect external changes to the prop (e.g. Reset / applied profiles) into the
+  // editable text, without clobbering in-progress typing. This guarded render-time
+  // sync is preferred over an effect that sets state.
+  if (maxDescLength !== maxDescLengthSynced) {
+    setMaxDescLengthSynced(maxDescLength);
+    setMaxDescLengthText(String(maxDescLength));
+  }
+
+  const handleMaxDescLengthChange = (event) => {
+    const raw = event.target.value;
+    setMaxDescLengthText(raw);
+    const parsed = parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed >= MIN_TITLE_LENGTH && parsed <= MAX_TITLE_LENGTH) {
+      setMaxDescLength(parsed);
+    }
+  };
+
+  const commitMaxDescLength = () => {
+    const parsed = parseInt(maxDescLengthText, 10);
+    const next = Number.isFinite(parsed)
+      ? Math.max(MIN_TITLE_LENGTH, Math.min(MAX_TITLE_LENGTH, parsed))
+      : maxDescLength;
+    setMaxDescLength(next);
+    setMaxDescLengthText(String(next));
+  };
 
   useEffect(() => {
     try {
@@ -437,8 +472,9 @@ export default function Sidebar({
                   type="number"
                   min="12"
                   max="120"
-                  value={maxDescLength}
-                  onChange={(e) => setMaxDescLength(Math.max(12, Math.min(120, parseInt(e.target.value, 10) || 48)))}
+                  value={maxDescLengthText}
+                  onChange={handleMaxDescLengthChange}
+                  onBlur={commitMaxDescLength}
                 />
               </div>
             )}
