@@ -1124,8 +1124,96 @@ body.sidebar-resizing {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 24px 32px;
+  padding: 16px 32px 24px;
   overflow: hidden;
+}
+
+.workflow-progress {
+  flex-shrink: 0;
+  width: 100%;
+  margin: 0 0 16px;
+}
+
+.workflow-progress-list {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  margin: 0;
+  padding: 2px 8px 0;
+  width: 100%;
+}
+
+.workflow-progress-item {
+  flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.workflow-progress-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 13px;
+  left: calc(50% + 16px);
+  width: calc(100% - 32px);
+  height: 1px;
+  background: var(--border-color);
+}
+
+.workflow-progress-item.has-complete-line:not(:last-child)::after {
+  background: var(--accent-primary);
+}
+
+.workflow-progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 52px;
+}
+
+.workflow-progress-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+
+.workflow-progress-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.workflow-progress-step.is-done .workflow-progress-icon {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary-glow);
+  color: var(--accent-primary);
+}
+
+.workflow-progress-step.is-done .workflow-progress-label {
+  color: var(--text-secondary);
+}
+
+.workflow-progress-step.is-current .workflow-progress-icon {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.workflow-progress-step.is-current .workflow-progress-label {
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 /* File Drop Zone / Empty State */
@@ -1693,8 +1781,16 @@ table.exhibit-table tr.has-error {
   }
   
   .workspace-view {
-    padding: 16px 12px;
+    padding: 12px 12px 16px;
     overflow: visible;
+  }
+
+  .workflow-progress {
+    margin-bottom: 12px;
+  }
+
+  .workflow-progress-list {
+    padding: 0 8px;
   }
   
   .stats-grid {
