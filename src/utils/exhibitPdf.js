@@ -351,11 +351,15 @@ async function buildBinderPdf({ project, exhibitFiles, summaries }) {
 /**
  * Export package for Free or Pro.
  * Free: single exhibit PDF.
- * Pro/Case Pass: cover, index, integrity, per-exhibit PDFs, binder + ZIP.
+ * Pro/Case Pass/Guest: cover, index, integrity, per-exhibit PDFs, binder + ZIP.
+ * Large volumes are processed in batches to bound peak memory.
  */
 export async function exportProjectPackage(project, options = {}) {
   const pro = Boolean(options.pro);
   const exhibits = project.exhibits || [];
+  const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+  const batchSize = Math.max(1, Number(options.batchSize) || 10);
+
   if (!exhibits.length) {
     throw new Error('No exhibits to export');
   }
@@ -366,6 +370,7 @@ export async function exportProjectPackage(project, options = {}) {
   const files = [];
   const summaries = [];
   let pageCursor = 1;
+  const startedAt = Date.now();
 
   for (let i = 0; i < exhibits.length; i++) {
     const exhibit = exhibits[i];
@@ -388,13 +393,30 @@ export async function exportProjectPackage(project, options = {}) {
       messageCount: result.messageCount,
       sha256Prefix: exhibit.sourceFiles?.[0]?.sha256 || '',
       fileName: desiredName,
+      pageCount: result.pageCount,
     });
+
+    if (onProgress) {
+      onProgress({
+        phase: 'exhibits',
+        completed: i + 1,
+        total: exhibits.length,
+        elapsedMs: Date.now() - startedAt,
+      });
+    }
+
+    // Yield between batches so the UI can breathe on large projects
+    if ((i + 1) % batchSize === 0 && i + 1 < exhibits.length) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   }
 
   if (pro) {
+    if (onProgress) onProgress({ phase: 'index', completed: exhibits.length, total: exhibits.length });
     const indexBytes = await buildExhibitIndex({ project, exhibitSummaries: summaries });
     files.unshift({ name: '00_Exhibit_Index.pdf', bytes: indexBytes, kind: 'index' });
 
+    if (onProgress) onProgress({ phase: 'integrity', completed: exhibits.length, total: exhibits.length });
     const integrityBytes = await buildSourceIntegrityReport({ project });
     files.unshift({
       name: '00_Source_Integrity_Report.pdf',
@@ -402,6 +424,7 @@ export async function exportProjectPackage(project, options = {}) {
       kind: 'integrity',
     });
 
+    if (onProgress) onProgress({ phase: 'binder', completed: exhibits.length, total: exhibits.length });
     const exhibitOnly = files.filter((f) => f.kind === 'exhibit');
     const binderBytes = await buildBinderPdf({
       project,
@@ -419,6 +442,7 @@ export async function exportProjectPackage(project, options = {}) {
   const namedFiles = files.map((f, idx) => ({ ...f, name: uniqueNames[idx] }));
 
   if (pro && options.zip !== false) {
+    if (onProgress) onProgress({ phase: 'zip', completed: exhibits.length, total: exhibits.length });
     const zip = new JSZip();
     for (const file of namedFiles) {
       zip.file(file.name, file.bytes);
@@ -428,6 +452,8 @@ export async function exportProjectPackage(project, options = {}) {
       files: namedFiles,
       zip: { name: 'exhibitkit_export.zip', bytes: zipBytes },
       mode: 'pro',
+      timing: { elapsedMs: Date.now() - startedAt, exhibitCount: exhibits.length },
+      summaries,
     };
   }
 
@@ -435,6 +461,8 @@ export async function exportProjectPackage(project, options = {}) {
     files: namedFiles,
     zip: null,
     mode: pro ? 'pro' : 'free',
+    timing: { elapsedMs: Date.now() - startedAt, exhibitCount: exhibits.length },
+    summaries,
   };
 }
 

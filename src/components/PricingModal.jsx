@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { CreditCard, X, AlertCircle, Check } from 'lucide-react';
-import { validateKeyFormat, isDevMode, DEV_TEST_KEY } from '../utils/license';
+import {
+  validateKeyFormat,
+  isDevMode,
+  DEV_TEST_KEY,
+  resolveGuestCredentials,
+} from '../utils/license';
 import {
   PERPETUAL_CLARIFICATION,
   PRICING,
@@ -10,6 +15,8 @@ import { createCheckoutRequest, startCheckout } from '../utils/payment';
 
 export default function PricingModal({ isOpen, onClose, onActivate }) {
   const [licenseKey, setLicenseKey] = useState('');
+  const [guestId, setGuestId] = useState('');
+  const [guestPass, setGuestPass] = useState('');
   const [error, setError] = useState('');
   const [checkoutNotice, setCheckoutNotice] = useState('');
 
@@ -25,13 +32,26 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
       setLicenseKey('');
     } else if (isDevMode()) {
       setError(
-        `Invalid license key. Dev keys: ${DEV_TEST_KEY} (Pro) or EKIT-CASE-TEST-0001 (Case Pass).`
+        `Invalid license key. Dev keys: ${DEV_TEST_KEY} (Pro), EKIT-CASE-TEST-0001 (Case Pass), or EKIT-GUEST-TEST-0001 (Guest).`
       );
     } else {
       setError(
-        'Invalid license key format. Check your purchase email (EKIT-XXXX-XXXX-XXXX or EKIT-CASE-XXXX-XXXX).'
+        'Invalid license key format. Use EKIT-XXXX-XXXX-XXXX, EKIT-CASE-XXXX-XXXX, or EKIT-GUEST-XXXX-XXXX.'
       );
     }
+  };
+
+  const handleGuestSubmit = (e) => {
+    e.preventDefault();
+    const resolved = resolveGuestCredentials(guestId, guestPass);
+    if (!resolved) {
+      setError('Guest credentials not recognized. Check guest ID and passphrase.');
+      return;
+    }
+    onActivate(resolved);
+    setError('');
+    setGuestId('');
+    setGuestPass('');
   };
 
   const handlePurchase = (productId) => {
@@ -41,7 +61,6 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
       return;
     }
     setCheckoutNotice('');
-    // Keep modal open so users can paste a key after returning from Stripe
   };
 
   const caseRequest = createCheckoutRequest('case_pass');
@@ -122,14 +141,7 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
           </span>
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-          }}
-          className="pricing-modal-grid"
-        >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <div
             style={{
               border: '1px solid var(--color-border)',
@@ -147,7 +159,15 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
               {PRICING.case_pass.cadence}
             </span>
-            <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12.5px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '18px',
+                fontSize: '12.5px',
+                color: 'var(--color-text-secondary)',
+                lineHeight: 1.5,
+              }}
+            >
               <li>All Pro capabilities for 30 days</li>
               <li>No recurring billing</li>
             </ul>
@@ -205,7 +225,15 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
               </div>
               <span style={{ fontSize: '22px', fontWeight: 700 }}>{PRICING.pro.priceLabel}</span>
             </div>
-            <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12.5px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '18px',
+                fontSize: '12.5px',
+                color: 'var(--color-text-secondary)',
+                lineHeight: 1.5,
+              }}
+            >
               <li>Keep the purchased version permanently</li>
               <li>Twelve months of updates and support</li>
               <li>Binder, index, integrity report, ZIP</li>
@@ -233,10 +261,6 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
         </p>
         <p style={{ margin: 0, fontSize: '11px', color: 'var(--color-text-muted)' }}>
           {PRIVACY_PAYMENT_NOTICE}
-        </p>
-        <p style={{ margin: 0, fontSize: '11px', color: 'var(--color-text-muted)' }}>
-          Optional updates after year one: {PRICING.pro.updatesRenewal.priceLabel}/year — not an
-          automatic subscription.
         </p>
 
         {checkoutNotice && (
@@ -267,7 +291,89 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
               letterSpacing: '1px',
             }}
           >
-            Or activate license
+            Guest demo (10 days)
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+        </div>
+
+        <form onSubmit={handleGuestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            Local guest access for a law-firm trial. Not a cloud account — evidence still stays on this
+            device.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label className="form-label" htmlFor="guest-id-input" style={{ fontSize: '11px' }}>
+                Guest ID
+              </label>
+              <input
+                id="guest-id-input"
+                type="text"
+                value={guestId}
+                onChange={(e) => setGuestId(e.target.value)}
+                placeholder="pinkney.guest"
+                autoComplete="username"
+                style={{
+                  width: '100%',
+                  fontSize: '13px',
+                  padding: '8px 12px',
+                  backgroundColor: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  color: 'var(--color-text-primary)',
+                }}
+              />
+            </div>
+            <div>
+              <label className="form-label" htmlFor="guest-pass-input" style={{ fontSize: '11px' }}>
+                Passphrase
+              </label>
+              <input
+                id="guest-pass-input"
+                type="password"
+                value={guestPass}
+                onChange={(e) => setGuestPass(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                style={{
+                  width: '100%',
+                  fontSize: '13px',
+                  padding: '8px 12px',
+                  backgroundColor: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  color: 'var(--color-text-primary)',
+                }}
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            className="btn"
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              backgroundColor: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              borderRadius: '6px',
+            }}
+          >
+            Activate 10-day guest demo
+          </button>
+        </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+          <span
+            style={{
+              fontSize: '10.5px',
+              color: 'var(--color-text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+            }}
+          >
+            Or activate license key
           </span>
           <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
         </div>
@@ -282,7 +388,7 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
               type="text"
               value={licenseKey}
               onChange={(e) => setLicenseKey(e.target.value)}
-              placeholder="EKIT-XXXX-XXXX-XXXX or EKIT-CASE-XXXX-XXXX"
+              placeholder="EKIT-XXXX-XXXX-XXXX / EKIT-CASE-… / EKIT-GUEST-…"
               style={{
                 flex: 1,
                 fontSize: '13px',
@@ -329,25 +435,17 @@ export default function PricingModal({ isOpen, onClose, onActivate }) {
               <span>{error}</span>
             </div>
           )}
-
-          {isDevMode() && (
-            <div
-              style={{
-                fontSize: '10.5px',
-                color: 'var(--color-text-muted)',
-                background: 'rgba(217, 119, 6, 0.05)',
-                border: '1px solid rgba(217, 119, 6, 0.1)',
-                padding: '6px 8px',
-                borderRadius: '4px',
-              }}
-            >
-              <strong>Development mode:</strong> Pro key{' '}
-              <code>{DEV_TEST_KEY}</code> · Case Pass key <code>EKIT-CASE-TEST-0001</code>
-            </div>
-          )}
         </form>
 
-        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div
+          style={{
+            fontSize: '11px',
+            color: 'var(--color-text-muted)',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'flex-start',
+          }}
+        >
           <Check size={14} style={{ color: 'var(--color-success)', flexShrink: 0, marginTop: 1 }} />
           <span>
             Firm licenses are coming soon (from {PRICING.firm.priceLabel}). Email

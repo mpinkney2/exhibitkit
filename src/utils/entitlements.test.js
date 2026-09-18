@@ -2,14 +2,22 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   __setEntitlementForTests,
   activateCasePass,
+  activateGuestDemo,
   activateProPerpetual,
   CASE_PASS_DURATION_DAYS,
   clearEntitlement,
   getEffectiveEntitlement,
+  GUEST_DEMO_DURATION_DAYS,
   hasActiveUpdateCoverage,
   hasProFeatures,
   TIERS,
 } from './entitlements';
+import {
+  GUEST_DEMO_ID,
+  GUEST_DEMO_KEY,
+  GUEST_DEMO_PASSPHRASE,
+  resolveGuestCredentials,
+} from './licenseFormat';
 
 beforeEach(() => {
   localStorage.clear();
@@ -33,6 +41,26 @@ describe('entitlements', () => {
     expect(expired.tier).toBe(TIERS.FREE);
     expect(expired.expiredCasePass).toBe(true);
     expect(hasProFeatures(new Date('2026-02-05T00:00:00.000Z'))).toBe(false);
+  });
+
+  it('activates Guest Demo for 10 days then expires without deleting key history', () => {
+    expect(GUEST_DEMO_DURATION_DAYS).toBe(10);
+    const purchasedAt = new Date('2026-09-01T00:00:00.000Z');
+    const entitlement = activateGuestDemo(GUEST_DEMO_KEY, purchasedAt, 'Daughter Law Firm Guest');
+    expect(entitlement.tier).toBe(TIERS.GUEST_DEMO);
+    expect(entitlement.guestLabel).toBe('Daughter Law Firm Guest');
+    expect(hasProFeatures(new Date('2026-09-05T00:00:00.000Z'))).toBe(true);
+
+    const expired = getEffectiveEntitlement(new Date('2026-09-12T00:00:00.000Z'));
+    expect(expired.tier).toBe(TIERS.FREE);
+    expect(expired.expiredGuestDemo).toBe(true);
+    expect(expired.key).toBe(GUEST_DEMO_KEY);
+    expect(hasProFeatures(new Date('2026-09-12T00:00:00.000Z'))).toBe(false);
+  });
+
+  it('resolves issued guest credentials to the guest access key', () => {
+    expect(resolveGuestCredentials(GUEST_DEMO_ID, GUEST_DEMO_PASSPHRASE)).toBe(GUEST_DEMO_KEY);
+    expect(resolveGuestCredentials('wrong', GUEST_DEMO_PASSPHRASE)).toBeNull();
   });
 
   it('keeps Pro usable after update period ends', () => {

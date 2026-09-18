@@ -141,7 +141,11 @@ export default function App() {
       setAppRoute('messages');
       const entitlement = getEffectiveEntitlement();
       const label =
-        entitlement.tier === TIERS.CASE_PASS ? 'Case Pass' : 'ExhibitKit Pro';
+        entitlement.tier === TIERS.CASE_PASS
+          ? 'Case Pass'
+          : entitlement.tier === TIERS.GUEST_DEMO
+            ? '10-day Guest Demo'
+            : 'ExhibitKit Pro';
       showNotification(`${label} activated. Evidence still stays on this device.`, 'success');
     } else {
       setActivationError('Invalid license key format. Please double-check your purchase email.');

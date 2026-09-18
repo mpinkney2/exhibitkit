@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "benchmark": "vite-node scripts/benchmark-exhibits.mjs"
   },
   "dependencies": {
     "jszip": "^3.10.1",
@@ -30,6 +31,7 @@
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
     "vite": "^8.0.12",
+    "vite-node": "^3.2.4",
     "vitest": "^4.1.10"
   }
 }

@@ -3,7 +3,7 @@
  * Bridges legacy storage with the Free / Case Pass / Pro perpetual entitlement model.
  */
 
-import { validateKeyFormat, isDevMode, DEV_TEST_KEY } from './licenseFormat';
+import { validateKeyFormat, isDevMode, DEV_TEST_KEY, resolveGuestCredentials } from './licenseFormat';
 import {
   activateFromKey,
   clearEntitlement,
@@ -14,7 +14,7 @@ import {
   writeEntitlement,
 } from './entitlements';
 
-export { validateKeyFormat, isDevMode, DEV_TEST_KEY };
+export { validateKeyFormat, isDevMode, DEV_TEST_KEY, resolveGuestCredentials };
 export { hasProFeatures, getEffectiveEntitlement, readEntitlement, TIERS };
 
 const LICENSE_KEY_STORAGE = 'exhibitkit_license_key';
@@ -80,12 +80,14 @@ export function getLicenseStatus() {
 }
 
 /**
- * Activates a license key (Case Pass or Pro perpetual).
+ * Activates a license key (Case Pass, Guest Demo, or Pro perpetual).
  * @param {string} key
  * @param {string} [type] - optional forced tier
  */
 export function activateLicense(key, type) {
-  const options = type ? { tier: type === 'lifetime' ? TIERS.PRO_PERPETUAL : type } : {};
+  const options = type
+    ? { tier: type === 'lifetime' ? TIERS.PRO_PERPETUAL : type }
+    : {};
   const entitlement = activateFromKey(key, options);
   if (!entitlement) return false;
 
@@ -100,6 +102,16 @@ export function activateLicense(key, type) {
   info.licenseType = entitlement.tier;
   localStorage.setItem(WORKSTATION_STORAGE, JSON.stringify(info));
   return true;
+}
+
+/**
+ * Activate using guest id + passphrase (law-firm guest demo pack).
+ * This is local entitlement only — not a cloud account login.
+ */
+export function activateGuestCredentials(guestId, passphrase) {
+  const key = resolveGuestCredentials(guestId, passphrase);
+  if (!key) return false;
+  return activateLicense(key, TIERS.GUEST_DEMO);
 }
 
 export function deactivateLicense() {
@@ -174,6 +186,7 @@ export function getEntitlementLabel() {
   const e = getEffectiveEntitlement();
   if (e.tier === TIERS.PRO_PERPETUAL) return 'Pro';
   if (e.tier === TIERS.CASE_PASS) return 'Case Pass';
+  if (e.tier === TIERS.GUEST_DEMO) return 'Guest Demo';
   if (e.tier === TIERS.FIRM) return 'Firm';
   return 'Free';
 }

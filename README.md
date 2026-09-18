@@ -100,5 +100,10 @@ Only available when `import.meta.env.DEV === true`:
 |---------|---------|
 | `npm run dev` | Local Vite server |
 | `npm test` | Vitest suite |
+| `npm run benchmark` | Large-volume exhibit capacity benchmarks + charts |
 | `npm run lint` | ESLint |
 | `npm run build` | Production bundle |
+
+### Guest demo (10-day law-firm trial)
+
+See [docs/guest-demo-credentials.md](docs/guest-demo-credentials.md) for Guest ID / passphrase issued for family law-firm trials.

@@ -19,6 +19,7 @@ import { fingerprintSourceFile } from '../utils/hash';
 import { downloadBytes, exportProjectPackage } from '../utils/exhibitPdf';
 import { hasProFeatures, getEffectiveEntitlement, getEntitlementLabel } from '../utils/license';
 import { PRIVACY_PAYMENT_NOTICE } from '../utils/pricing';
+import { assessProjectCapacity, CAPACITY } from '../utils/capacity';
 
 export default function MessageWorkspace({
   onBack,
@@ -160,9 +161,17 @@ export default function MessageWorkspace({
 
   const handleExport = async () => {
     if (!project.exhibits.length) return;
+    const capacity = assessProjectCapacity(project);
+    if (capacity.level === 'caution' || capacity.level === 'high') {
+      showNotification?.(capacity.warnings[0], capacity.level === 'high' ? 'warning' : 'info');
+    }
     setBusy(true);
     try {
-      const result = await exportProjectPackage(project, { pro: isPro, zip: isPro });
+      const result = await exportProjectPackage(project, {
+        pro: isPro,
+        zip: isPro,
+        batchSize: CAPACITY.exportBatchSize,
+      });
       setPreviewInfo({
         mode: result.mode,
         files: result.files.map((f) => f.name),
@@ -170,6 +179,7 @@ export default function MessageWorkspace({
           (n, ex) => n + ex.messages.filter((m) => m.selected !== false).length,
           0
         ),
+        elapsedMs: result.timing?.elapsedMs,
       });
 
       if (result.zip) {
@@ -177,10 +187,13 @@ export default function MessageWorkspace({
       } else if (result.files[0]) {
         downloadBytes(result.files[0].bytes, result.files[0].name);
       }
+      const timingNote = result.timing?.elapsedMs
+        ? ` (${(result.timing.elapsedMs / 1000).toFixed(1)}s)`
+        : '';
       showNotification?.(
         isPro
-          ? 'Pro package exported (binder, index, integrity report, ZIP).'
-          : 'Clean exhibit PDF downloaded. No watermark.',
+          ? `Pro package exported (binder, index, integrity report, ZIP)${timingNote}.`
+          : `Clean exhibit PDF downloaded. No watermark${timingNote}.`,
         'success'
       );
     } catch (err) {
@@ -315,6 +328,12 @@ export default function MessageWorkspace({
             <p className="message-side-note warning">
               Your Case Pass expired. Previously generated files on your device were not deleted.
               Pro generation for new work requires a new Case Pass or Pro license.
+            </p>
+          )}
+          {entitlement.expiredGuestDemo && (
+            <p className="message-side-note warning">
+              Your 10-day guest demo expired. Local files were not deleted. Activate a Case Pass or
+              Pro license to continue Pro exports.
             </p>
           )}
         </aside>
