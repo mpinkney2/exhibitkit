@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Shield, X, Lock, Unlock, RefreshCw } from 'lucide-react';
+import { Shield, X, Lock, Unlock, RefreshCw, Mail } from 'lucide-react';
 import {
   isFounderAdminConfigured,
   isFounderUnlocked,
@@ -9,6 +9,7 @@ import {
   clearFounderQueryFromUrl,
   DEFAULT_FOUNDER_SECRET,
   isUsingDefaultFounderSecret,
+  inviteBetaTester,
 } from '../utils/founder.js';
 import {
   getEntitlement,
@@ -67,6 +68,15 @@ const btnPrimary = {
   fontWeight: 600,
 };
 
+const inviteInputStyle = {
+  padding: '8px 10px',
+  borderRadius: 6,
+  border: '1px solid var(--color-border, rgba(255,255,255,0.12))',
+  background: 'var(--color-surface-2, #1f2937)',
+  color: 'inherit',
+  fontSize: 11.5,
+};
+
 /**
  * Founder live-test console.
  * Props let App jump routes / open pricing / refresh entitlement state.
@@ -86,6 +96,16 @@ export default function FounderAdmin({
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [unlocking, setUnlocking] = useState(false);
+
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
+  const [inviteDays, setInviteDays] = useState('30');
+  const [inviteSecret, setInviteSecret] = useState('');
+  const [needsInviteSecret, setNeedsInviteSecret] = useState(false);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteResult, setInviteResult] = useState(null);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -141,7 +161,41 @@ export default function FounderAdmin({
     lockFounder();
     setUnlocked(false);
     setSecret('');
+    setInviteSecret('');
+    setNeedsInviteSecret(false);
+    setInviteResult(null);
+    setInviteError('');
     setNote('Founder session locked.');
+  };
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setInviteBusy(true);
+    setInviteError('');
+    setInviteResult(null);
+    try {
+      const result = await inviteBetaTester({
+        email: inviteEmail,
+        name: inviteName,
+        note: inviteNote,
+        days: Number(inviteDays) || 30,
+        secret: inviteSecret || undefined,
+      });
+      if (!result.ok) {
+        setInviteError(result.error || 'Could not send the beta invitation.');
+        setNeedsInviteSecret(Boolean(result.needsSecret));
+        return;
+      }
+      setInviteResult(result);
+      setNeedsInviteSecret(false);
+      setInviteEmail('');
+      setInviteName('');
+      setInviteNote('');
+      setInviteSecret('');
+      setNote(`Beta invite created for ${result.email}.`);
+    } finally {
+      setInviteBusy(false);
+    }
   };
 
   return (
@@ -267,6 +321,85 @@ export default function FounderAdmin({
             <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
               Grants Pro renaming + unlimited batches on this browser while founder admin stays unlocked. Not a Stripe purchase.
             </div>
+          </section>
+
+          <section style={{ display: 'grid', gap: 6 }}>
+            <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
+              Beta invites
+            </strong>
+            <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
+              Mints a real, server-verified Pro license and emails the key. The tester activates it via “Restore license.” Requires the deployed API (Neon + Resend configured).
+            </div>
+            <form onSubmit={handleInvite} style={{ display: 'grid', gap: 6 }}>
+              <input
+                type="email"
+                required
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Tester email (required)"
+                autoComplete="off"
+                style={inviteInputStyle}
+              />
+              <input
+                type="text"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                placeholder="Name (optional)"
+                autoComplete="off"
+                style={inviteInputStyle}
+              />
+              <input
+                type="text"
+                value={inviteNote}
+                onChange={(e) => setInviteNote(e.target.value)}
+                placeholder="Note (optional)"
+                autoComplete="off"
+                style={inviteInputStyle}
+              />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: 'var(--color-text-muted, #9ca3af)' }}>Days</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="180"
+                  value={inviteDays}
+                  onChange={(e) => setInviteDays(e.target.value)}
+                  style={{ ...inviteInputStyle, width: 80 }}
+                />
+              </label>
+              {needsInviteSecret && (
+                <input
+                  type="password"
+                  value={inviteSecret}
+                  onChange={(e) => setInviteSecret(e.target.value)}
+                  placeholder="Re-enter founder secret"
+                  autoComplete="off"
+                  style={inviteInputStyle}
+                />
+              )}
+              <button type="submit" style={btnPrimary} disabled={inviteBusy}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Mail size={13} /> {inviteBusy ? 'Sending…' : 'Send beta invite'}
+                </span>
+              </button>
+            </form>
+            {inviteError && <div style={{ color: '#f87171' }}>{inviteError}</div>}
+            {inviteResult && (
+              <div style={{ display: 'grid', gap: 3, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', padding: 8, borderRadius: 8 }}>
+                <div>Invited: <strong>{inviteResult.email}</strong></div>
+                <div>Key: <code style={{ fontSize: 11 }}>{inviteResult.key}</code></div>
+                <div>Fingerprint: <code>{inviteResult.fingerprint}</code></div>
+                <div>Expires: <strong>{new Date(inviteResult.expiresAt).toLocaleDateString('en-US')}</strong> ({inviteResult.days} days)</div>
+                <div>Email delivery: <strong>{inviteResult.emailStatus}</strong></div>
+                <button
+                  type="button"
+                  style={btn}
+                  onClick={() => navigator.clipboard?.writeText(inviteResult.key)}
+                >
+                  Copy license key
+                </button>
+              </div>
+            )}
           </section>
 
           <section style={{ display: 'grid', gap: 6 }}>
