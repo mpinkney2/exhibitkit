@@ -3,18 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createBetaInvite: vi.fn(),
-  consumeRateLimit: vi.fn(),
 }));
 
 vi.mock('../_lib/beta-invite-service.js', () => ({
   createBetaInvite: mocks.createBetaInvite,
 }));
 
-vi.mock('../_lib/rate-limit.js', () => ({
-  consumeRateLimit: mocks.consumeRateLimit,
-}));
-
-import invite from './invite.js';
+import invite, { resetFounderInviteRateLimitForTesting } from './invite.js';
 
 const ORIGIN = 'https://exhibitkit.patentpreppers.com';
 
@@ -39,17 +34,37 @@ const SAMPLE_INVITE = {
   emailStatus: 'sent',
 };
 
+// Backend settings required by the invite pipeline (values are placeholders; the
+// service itself is mocked in these unit tests).
+function configureBackendEnv() {
+  process.env.DATABASE_URL = 'postgres://test';
+  process.env.LICENSE_HASH_SECRET = 'x'.repeat(48);
+  process.env.LICENSE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+  process.env.RESEND_API_KEY = 'test-resend-key';
+  process.env.LICENSE_EMAIL_FROM = 'ExhibitKIT <licenses@example.com>';
+}
+
+function clearBackendEnv() {
+  delete process.env.DATABASE_URL;
+  delete process.env.LICENSE_HASH_SECRET;
+  delete process.env.LICENSE_ENCRYPTION_KEY;
+  delete process.env.RESEND_API_KEY;
+  delete process.env.LICENSE_EMAIL_FROM;
+}
+
 beforeEach(() => {
   process.env.FOUNDER_ADMIN_SECRET = 'production-founder-secret-ok';
   process.env.APP_URL = ORIGIN;
+  configureBackendEnv();
   vi.clearAllMocks();
-  mocks.consumeRateLimit.mockResolvedValue(true);
+  resetFounderInviteRateLimitForTesting();
   mocks.createBetaInvite.mockResolvedValue(SAMPLE_INVITE);
 });
 
 afterEach(() => {
   delete process.env.FOUNDER_ADMIN_SECRET;
   delete process.env.APP_URL;
+  clearBackendEnv();
 });
 
 describe('POST /api/founder/invite', () => {
@@ -74,8 +89,11 @@ describe('POST /api/founder/invite', () => {
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
-  it('returns 429 when the rate limit is exceeded', async () => {
-    mocks.consumeRateLimit.mockResolvedValueOnce(false);
+  it('returns 429 once the per-IP invite limit is exceeded', async () => {
+    for (let i = 0; i < 30; i += 1) {
+      // These use a wrong secret (401), but each still counts toward the limit.
+      await invite.fetch(inviteRequest({ secret: 'nope', email: 'a@b.co' }));
+    }
     const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
     expect(response.status).toBe(429);
     const body = await response.json();
@@ -89,6 +107,29 @@ describe('POST /api/founder/invite', () => {
     const body = await response.json();
     expect(body.code).toBe('FOUNDER_DENIED');
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+  });
+
+  it('reports exactly which backend settings are missing', async () => {
+    delete process.env.DATABASE_URL;
+    delete process.env.RESEND_API_KEY;
+    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.code).toBe('INVITE_BACKEND_NOT_CONFIGURED');
+    expect(body.error).toContain('DATABASE_URL');
+    expect(body.error).toContain('RESEND_API_KEY');
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+  });
+
+  it('maps a missing-migration database error to actionable guidance', async () => {
+    mocks.createBetaInvite.mockRejectedValueOnce(
+      new Error('column "source" of relation "exhibitkit_licenses" does not exist'),
+    );
+    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.code).toBe('INVITE_DB_MIGRATION_REQUIRED');
+    expect(body.error).toMatch(/db:migrate/);
   });
 
   it('mints and returns a beta invite for a valid founder request', async () => {

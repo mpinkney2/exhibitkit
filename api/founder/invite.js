@@ -8,8 +8,58 @@ import {
   readJson,
   HttpError,
 } from '../_lib/http.js';
-import { consumeRateLimit } from '../_lib/rate-limit.js';
 import { createBetaInvite } from '../_lib/beta-invite-service.js';
+
+/** Server settings the beta-invite pipeline needs (DB + license crypto + email). */
+const REQUIRED_BACKEND_ENV = [
+  'DATABASE_URL',
+  'LICENSE_HASH_SECRET',
+  'LICENSE_ENCRYPTION_KEY',
+  'RESEND_API_KEY',
+  'LICENSE_EMAIL_FROM',
+];
+
+/** In-process rate limit (per isolate). Enough to slow casual abuse; does not
+ *  depend on the database, so an authenticated founder can still receive a clear
+ *  configuration error when the database itself is the missing piece. */
+const inviteAttempts = new Map();
+
+function consumeInviteRateLimit(ip, limit = 30, windowMs = 60 * 60 * 1000) {
+  const now = Date.now();
+  const key = String(ip || 'unknown');
+  let entry = inviteAttempts.get(key);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + windowMs };
+  }
+  entry.count += 1;
+  inviteAttempts.set(key, entry);
+  return entry.count <= limit;
+}
+
+export function resetFounderInviteRateLimitForTesting() {
+  inviteAttempts.clear();
+}
+
+function missingBackendConfig() {
+  return REQUIRED_BACKEND_ENV.filter((name) => !String(process.env[name] || '').trim());
+}
+
+/**
+ * Map a low-level failure to a safe, actionable founder-facing error where we
+ * can recognize it (e.g. the beta-invite migration has not been applied).
+ */
+function actionableConfigError(error) {
+  const message = String(error?.message || '');
+  if (/does not exist/i.test(message)
+    && /(source|invitee_name|invite_note|invited_by|exhibitkit_licenses)/i.test(message)) {
+    return new HttpError(
+      503,
+      'The licensing database is missing the beta-invite migration. Run "npm run db:migrate" against this environment\'s database.',
+      'INVITE_DB_MIGRATION_REQUIRED',
+    );
+  }
+  return null;
+}
 
 /**
  * POST /api/founder/invite
@@ -19,6 +69,9 @@ import { createBetaInvite } from '../_lib/beta-invite-service.js';
  * /api/founder/unlock), then mints a real, server-verified time-limited Pro
  * license and emails the key to a beta tester. The plaintext key is returned to
  * the authenticated founder so credentials can also be delivered manually.
+ *
+ * When a required dependency is missing, an authenticated founder gets a
+ * specific, actionable message rather than a generic failure.
  */
 export default {
   async fetch(request) {
@@ -38,8 +91,7 @@ export default {
       }
 
       const ip = getClientIp(request);
-      const allowed = await consumeRateLimit('founder_invite', ip, 30, 3600);
-      if (!allowed) {
+      if (!consumeInviteRateLimit(ip)) {
         return json(
           { ok: false, error: 'Too many invitations. Try again later.', code: 'RATE_LIMITED' },
           429,
@@ -53,13 +105,29 @@ export default {
         throw new HttpError(401, 'Incorrect founder secret.', 'FOUNDER_DENIED');
       }
 
-      const invite = await createBetaInvite({
-        email: body.email,
-        days: body.days,
-        name: body.name,
-        note: body.note,
-        invitedBy: 'founder',
-      });
+      const missing = missingBackendConfig();
+      if (missing.length > 0) {
+        throw new HttpError(
+          503,
+          `Beta invites are not configured on the server. Missing: ${missing.join(', ')}.`,
+          'INVITE_BACKEND_NOT_CONFIGURED',
+        );
+      }
+
+      let invite;
+      try {
+        invite = await createBetaInvite({
+          email: body.email,
+          days: body.days,
+          name: body.name,
+          note: body.note,
+          invitedBy: 'founder',
+        });
+      } catch (error) {
+        const mapped = actionableConfigError(error);
+        if (mapped) throw mapped;
+        throw error;
+      }
 
       return json({
         ok: true,
