@@ -1,0 +1,19 @@
+{
+  "name": "PatentPreppers ExhibitKit",
+  "short_name": "ExhibitKit",
+  "description": "Local-first exhibit renaming and management for trial teams. Prepare OnCue- and TrialDirector-ready exhibit sets in minutes. Part of the PatentPreppers litigation suite.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#0D1F30",
+  "theme_color": "#0D1F30",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

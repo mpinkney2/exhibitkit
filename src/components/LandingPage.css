@@ -45,7 +45,10 @@ body:not(.light-theme) .landing-page {
 
 .landing-brand { display: inline-flex; align-items: center; gap: 11px; width: fit-content; }
 .landing-brand-copy { display: grid; gap: 2px; line-height: 1; }
-.landing-brand-copy small { color: var(--landing-faint); font: 500 8px/1 var(--font-mono); letter-spacing: .13em; text-transform: uppercase; }
+.landing-brand-copy small,
+.landing-brand-copy .landing-suite-home { color: var(--landing-faint); font: 500 8px/1 var(--font-mono); letter-spacing: .13em; text-transform: uppercase; }
+.landing-brand > a:first-child { display: flex; }
+.landing-brand-copy .landing-suite-home:hover { color: var(--landing-blue); }
 .landing-brand-copy strong { color: var(--landing-ink); font-size: 17px; font-weight: 650; letter-spacing: -.035em; }
 .landing-brand-copy strong span { color: var(--landing-blue); }
 .landing-brand-mark { width: 35px; height: 39px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 50% 50% 44% 44% / 34% 34% 60% 60%; color: #fff; background: #0d1f30; box-shadow: 0 8px 18px -12px rgba(13,31,48,.8); }
@@ -79,12 +82,13 @@ body:not(.light-theme) .landing-icon-button:hover { color: #fff; border-color: r
 .landing-hero-copy > :nth-child(3) { animation-delay: 240ms; }
 .landing-hero-copy > :nth-child(4) { animation-delay: 330ms; }
 .landing-hero-copy > :nth-child(5) { animation-delay: 420ms; }
+.landing-hero-copy > :nth-child(6) { animation-delay: 500ms; }
 .landing-eyebrow, .landing-kicker { color: var(--landing-gold); font: 500 10px/1.2 var(--font-mono); letter-spacing: .17em; text-transform: uppercase; }
 .landing-eyebrow { display: flex; align-items: center; justify-content: center; gap: 9px; margin-bottom: 22px; }
 .landing-eyebrow span { width: 25px; height: 1px; background: var(--landing-gold); }
-.landing-hero h1 { max-width: 820px; margin: 0 auto; color: var(--landing-ink); font-size: clamp(52px, 5.6vw, 76px); line-height: .94; letter-spacing: -.045em; font-weight: 500; }
-.landing-hero h1 em { display: block; color: var(--landing-blue); font-family: var(--font-serif); font-weight: 400; letter-spacing: -.035em; }
-.landing-hero-lede { max-width: 670px; margin: 25px auto 0; color: var(--landing-muted); font-size: 17px; line-height: 1.7; }
+.landing-hero h1 { max-width: 920px; margin: 0 auto; color: var(--landing-ink); font-size: clamp(34px, 4.4vw, 58px); line-height: 1.08; letter-spacing: -.04em; font-weight: 500; text-wrap: balance; }
+.landing-hero-subhead { max-width: 760px; margin: 16px auto 0; color: var(--landing-blue); font-family: var(--font-serif); font-size: clamp(26px, 3vw, 40px); font-weight: 500; line-height: 1.15; letter-spacing: -.03em; text-wrap: balance; }
+.landing-hero-lede { max-width: 720px; margin: 22px auto 0; color: var(--landing-muted); font-size: 17px; line-height: 1.7; }
 .landing-hero-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 22px; margin-top: 32px; }
 
 .landing-primary-button { min-height: 48px; padding: 0 21px; border: 1px solid var(--landing-blue); border-radius: 999px; color: #fff; background: var(--landing-blue); box-shadow: 0 14px 30px -18px rgba(13,31,48,.9); font-size: 13px; font-weight: 600; }
@@ -373,6 +377,10 @@ body:not(.light-theme) .landing-icon-button:hover { color: #fff; border-color: r
 .landing-section-heading { max-width: 650px; }
 .landing-section h2 { margin: 14px 0 0; font-size: clamp(35px, 4vw, 51px); line-height: 1.02; letter-spacing: -.035em; }
 .landing-section-heading > p, .landing-security-copy > p, .landing-pricing-copy > p { margin-top: 20px; color: var(--landing-muted); font-size: 15px; line-height: 1.75; }
+.landing-message-points { display: grid; gap: 12px; margin: 28px 0 0; padding: 0; list-style: none; }
+.landing-message-points li { display: flex; align-items: center; gap: 8px; color: var(--landing-muted); font-size: 14px; }
+.landing-message-points svg { color: var(--color-success); flex-shrink: 0; }
+.landing-message-actions { margin-top: 22px; }
 .landing-steps { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 62px; border-top: 1px solid var(--landing-line); }
 .landing-steps article { position: relative; padding: 34px 36px 0 0; }
 .landing-steps article:not(:last-child) { border-right: 1px solid var(--landing-line); margin-right: 36px; }
@@ -476,8 +484,9 @@ body:not(.light-theme) .landing-icon-button:hover { color: #fff; border-color: r
 .landing-footer { width: min(1180px, calc(100% - 48px)); min-height: 112px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-top: 1px solid var(--landing-line); color: var(--landing-faint); font-size: 10px; }
 .landing-footer .landing-brand { color: var(--landing-ink); font-size: 14px; }
 .landing-footer .landing-brand-mark { width: 28px; height: 28px; border-radius: 7px; }
-.landing-footer > a:last-child { justify-self: end; }
-.landing-footer > a:last-child:hover { color: var(--landing-blue); }
+.landing-footer-links { justify-self: end; display: flex; align-items: center; gap: 16px; }
+.landing-footer-links a:hover { color: var(--landing-blue); }
+.landing-footer-links .landing-suite-home { color: var(--landing-blue); font: 500 11px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; text-decoration: underline; text-underline-offset: 2px; }
 
 @media (max-width: 960px) {
   .landing-nav { grid-template-columns: 1fr auto; }
@@ -495,7 +504,8 @@ body:not(.light-theme) .landing-icon-button:hover { color: #fff; border-color: r
   .landing-nav { height: 66px; }
   .landing-nav-demo { display: none; }
   .landing-hero { padding: 54px 0 60px; gap: 46px; }
-  .landing-hero h1 { font-size: clamp(42px, 13vw, 58px); }
+  .landing-hero h1 { font-size: clamp(32px, 8.4vw, 44px); }
+  .landing-hero-subhead { font-size: clamp(22px, 6vw, 30px); }
   .landing-hero-lede { font-size: 15px; }
   .landing-hero-actions { align-items: center; flex-direction: column; gap: 8px; }
   .landing-assurance { justify-content: center; gap: 10px 16px; }
@@ -530,7 +540,7 @@ body:not(.light-theme) .landing-icon-button:hover { color: #fff; border-color: r
   .landing-firm-contact { grid-template-columns: auto 1fr; }
   .landing-firm-contact > a { grid-column: 2; justify-self: start; }
   .landing-footer { grid-template-columns: 1fr; gap: 14px; padding: 30px 0; text-align: left; }
-  .landing-footer > a:last-child { justify-self: start; }
+  .landing-footer-links { justify-self: start; flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

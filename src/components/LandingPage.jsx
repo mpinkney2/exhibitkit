@@ -81,17 +81,22 @@ export default function LandingPage({
   return (
     <main className="landing-page">
       <nav className="landing-nav" aria-label="Primary navigation">
-        <a className="landing-brand" href="#top" aria-label="ExhibitKIT home">
-          <span className="landing-brand-mark" aria-hidden="true">
-            <Scale size={17} strokeWidth={1.8} />
-          </span>
+        <div className="landing-brand">
+          <a href="#top" aria-label="PatentPreppers ExhibitKit home">
+            <span className="landing-brand-mark" aria-hidden="true">
+              <Scale size={17} strokeWidth={1.8} />
+            </span>
+          </a>
           <span className="landing-brand-copy">
-            <small>Patent Preppers™</small>
-            <strong>Exhibit<span>KIT</span></strong>
+            <a className="landing-suite-home" href="https://patentpreppers.com">PatentPreppers</a>
+            <a href="#top" aria-label="PatentPreppers ExhibitKit home">
+              <strong>Exhibit<span>Kit</span></strong>
+            </a>
           </span>
-        </a>
+        </div>
 
         <div className="landing-nav-links">
+          <a href="https://patentpreppers.com">PatentPreppers</a>
           <a href="#workflow">How it works</a>
           <a href="#security">Security</a>
           <a href="#pricing">Pricing</a>
@@ -117,31 +122,22 @@ export default function LandingPage({
       <section className="landing-hero" id="top">
         <div className="landing-hero-copy">
           <div className="landing-eyebrow">
-            <span /> Built for litigation & multi-practice legal teams
+            <span /> Local-first exhibit preparation
           </div>
-          <h1>
-            Courtroom-ready exhibits,
-            <em> without the busywork.</em>
-          </h1>
+          <h1>PatentPreppers ExhibitKit</h1>
+          <p className="landing-hero-subhead">
+            Exhibit renaming and management for OnCue and TrialDirector.
+          </p>
           <p className="landing-hero-lede">
-            Standardize messy PDF filenames with practice-area presets for OnCue, TrialDirector,
-            Patent DOD, Family, Employment, and Bankruptcy—plus year detection, title shortening,
-            and a full preview before you rename locally.
+            Local-first exhibit renaming and management for trial teams. Prepare OnCue- and
+            TrialDirector-ready exhibit sets in minutes, with practice-area presets and a full
+            preview before you rename on your computer. Part of the PatentPreppers litigation suite.
           </p>
 
           <div className="landing-hero-actions">
             <button className="landing-primary-button" id="btn-launch-free" onClick={onLaunchFree}>
               Rename exhibits free <ArrowRight size={16} />
             </button>
-            {typeof onLaunchMessages === 'function' && (
-              <button
-                className="landing-text-button"
-                id="btn-launch-messages"
-                onClick={onLaunchMessages}
-              >
-                Build a message exhibit <ChevronRight size={16} />
-              </button>
-            )}
             <button className="landing-text-button" id="btn-view-pricing" onClick={onOpenPricing}>
               View pricing <ChevronRight size={16} />
             </button>
@@ -154,7 +150,7 @@ export default function LandingPage({
           </div>
         </div>
 
-        <div className="landing-product-stage" aria-label="ExhibitKIT renaming preview">
+        <div className="landing-product-stage" aria-label="PatentPreppers ExhibitKit renaming preview">
           <div className="landing-stage-glow" />
           <div className="landing-app-preview">
             <div className="landing-window-bar">
@@ -244,7 +240,7 @@ export default function LandingPage({
 
       <section className="landing-section landing-features" aria-label="Product features">
         <div className="landing-section-heading">
-          <span className="landing-kicker">What ExhibitKIT actually does</span>
+          <span className="landing-kicker">What ExhibitKit does</span>
           <h2>Renaming intelligence built for real legal batches.</h2>
           <p>Not just find-and-replace—parse existing conventions, apply the right preset for your practice area, and review every change first.</p>
         </div>
@@ -277,9 +273,38 @@ export default function LandingPage({
         </div>
       </section>
 
+      <section className="landing-section landing-message-feature" id="message-exhibits" aria-labelledby="message-exhibits-title">
+        <div className="landing-section-heading">
+          <span className="landing-kicker">Also included</span>
+          <h2 id="message-exhibits-title">Tamper-evident message exhibits</h2>
+          <p>
+            When the record is a conversation, import an export, redact what should not appear,
+            and download a PDF tied to a SHA-256 fingerprint of the source file. The fingerprint
+            shows whether that file changed after it was recorded. It does not prove who wrote the
+            messages. Processing stays in your browser.
+          </p>
+        </div>
+        <ul className="landing-message-points">
+          <li><Check size={15} /> JSON, CSV, plain text, and SMS XML imports</li>
+          <li><Check size={15} /> SHA-256 fingerprint of the source file</li>
+          <li><Check size={15} /> Local processing, with no document upload</li>
+        </ul>
+        {typeof onLaunchMessages === 'function' && (
+          <div className="landing-message-actions">
+            <button
+              className="landing-text-button"
+              id="btn-launch-messages"
+              onClick={onLaunchMessages}
+            >
+              Build a message exhibit <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </section>
+
       <section className="landing-suite-promo" aria-labelledby="timeline-promo-title">
         <div className="landing-suite-copy">
-          <span className="landing-kicker">More from Patent Preppers™</span>
+          <span className="landing-kicker">More from PatentPreppers</span>
           <h2 id="timeline-promo-title">Exhibits ready. Now build the chronology.</h2>
           <p>
             Move from organized exhibit files to a multi-party litigation timeline. Build Court,
@@ -337,8 +362,8 @@ export default function LandingPage({
           <span className="landing-kicker">Confidential by design</span>
           <h2>Your case files stay where they belong.</h2>
           <p>
-            ExhibitKIT performs filename parsing, sequencing, conflict checks, and file preparation
-            inside your browser. Document contents and metadata are never sent to ExhibitKIT servers.
+            ExhibitKit performs filename parsing, sequencing, conflict checks, and file preparation
+            inside your browser. Document contents and metadata are never sent to ExhibitKit servers.
           </p>
           <div className="landing-security-list">
             <span><Check size={15} /> No document uploads</span>
@@ -387,7 +412,7 @@ export default function LandingPage({
           </article>
 
           <article className="landing-price-card landing-price-card-pro">
-            <div className="landing-price-topline"><span>ExhibitKIT Pro</span><em>Launch price</em></div>
+            <div className="landing-price-topline"><span>ExhibitKit Pro</span><em>Launch price</em></div>
             <div className="landing-price"><strong>{PRO_PRICE_LABEL}</strong><span>USD<br />one-time</span></div>
             <p className="landing-price-description">One workstation. Perpetual use of the purchased version, with 12 months of updates and support.</p>
             <ul>
@@ -413,7 +438,7 @@ export default function LandingPage({
             <strong>Need multiple workstations?</strong>
             <span>Firm licensing is handled as a guided pilot while team management is being built.</span>
           </div>
-          <a href="mailto:support@patentpreppers.com?subject=ExhibitKIT%20Firm%20licensing">Contact us <ArrowRight size={14} /></a>
+          <a href="mailto:support@patentpreppers.com?subject=ExhibitKit%20Firm%20licensing">Contact us <ArrowRight size={14} /></a>
         </div>
       </section>
 
@@ -436,12 +461,15 @@ export default function LandingPage({
         <a className="landing-brand" href="#top">
           <span className="landing-brand-mark"><Scale size={16} /></span>
           <span className="landing-brand-copy">
-            <small>Patent Preppers™</small>
-            <strong>Exhibit<span>KIT</span></strong>
+            <small>PatentPreppers</small>
+            <strong>Exhibit<span>Kit</span></strong>
           </span>
         </a>
-        <p>Local-first exhibit renaming for litigation, patent, family, employment, and bankruptcy teams.</p>
-        <a href="mailto:support@patentpreppers.com">support@patentpreppers.com</a>
+        <p>Local-first exhibit renaming and management for OnCue and TrialDirector.</p>
+        <div className="landing-footer-links">
+          <a className="landing-suite-home" href="https://patentpreppers.com">PatentPreppers</a>
+          <a href="mailto:support@patentpreppers.com">support@patentpreppers.com</a>
+        </div>
       </footer>
     </main>
   );

@@ -2,7 +2,7 @@
 
 ## Cursor Cloud specific instructions
 
-ExhibitKIT is a **local-first, client-side-only** React app built with Vite (React 19). There is no
+ExhibitKIT (public name **PatentPreppers ExhibitKit**) is a **local-first, client-side-only** React app built with Vite (React 19). The primary product is exhibit renaming and management for OnCue and TrialDirector. Tamper-evident message exhibits are a secondary, implemented feature and must not lead the title, hero, or metadata. There is no
 backend, database, or server-side component — all PDF parsing, renaming, and licensing logic runs
 entirely in the browser. Standard commands live in `package.json` (`dev`, `build`, `lint`, `preview`).
 

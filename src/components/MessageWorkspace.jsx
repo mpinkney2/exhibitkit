@@ -232,9 +232,12 @@ export default function MessageWorkspace({
           <button type="button" className="btn btn-secondary" onClick={onBack}>
             <ArrowLeft size={14} /> Home
           </button>
-          <div>
-            <strong>ExhibitKit</strong>
-            <span className="message-tier-badge">{tierLabel}</span>
+          <div className="message-brand">
+            <a className="message-suite-link" href="https://patentpreppers.com">PatentPreppers</a>
+            <div>
+              <strong>ExhibitKit</strong>
+              <span className="message-tier-badge">{tierLabel}</span>
+            </div>
           </div>
         </div>
         <div className="message-workspace-bar-right">
