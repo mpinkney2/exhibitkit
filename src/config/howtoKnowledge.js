@@ -1,5 +1,5 @@
 /**
- * Local how-to knowledge for the ExhibitKIT help bot.
+ * Local how-to knowledge for the PatentPreppers ExhibitKit help bot.
  * Answers stay on-device; questions are never uploaded.
  */
 
@@ -60,7 +60,7 @@ export const HOWTO_KNOWLEDGE = [
     question: 'Do I need backups before renaming?',
     keywords: ['backup', 'safety', 'confirm', 'irreversible', 'overwrite', 'original'],
     answer:
-      'Yes for in-place folder renaming. Duplicate the exhibit directory first and keep originals untouched. ExhibitKIT asks you to confirm backups before it writes new filenames. OS-level renames are not undoable outside this session.',
+      'Yes for in-place folder renaming. Duplicate the exhibit directory first and keep originals untouched. ExhibitKit asks you to confirm backups before it writes new filenames. OS-level renames are not undoable outside this session.',
   },
   {
     id: 'undo',
@@ -81,7 +81,7 @@ export const HOWTO_KNOWLEDGE = [
     question: 'Are my files uploaded?',
     keywords: ['upload', 'cloud', 'privacy', 'local', 'server', 'offline', 'confidential', 'data'],
     answer:
-      'No. Parsing, preview, and renaming run in your browser on this device. ExhibitKIT does not upload PDFs, folders, or filenames. Checkout never receives exhibit data.',
+      'No. Parsing, preview, and renaming run in your browser on this device. ExhibitKit does not upload PDFs, folders, or filenames. Checkout never receives exhibit data.',
   },
   {
     id: 'inplace',

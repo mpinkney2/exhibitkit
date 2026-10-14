@@ -70,7 +70,7 @@ export function answerHowTo(query) {
       id: 'fallback',
       question: String(query || '').trim(),
       answer:
-        'I can help with how-to steps for ExhibitKIT—selecting files, presets, padding, conflicts, rename, export, and privacy. Try one of these:',
+        'I can help with how-to steps for PatentPreppers ExhibitKit, local-first exhibit renaming for OnCue and TrialDirector—selecting files, presets, padding, conflicts, rename, export, and privacy. Try one of these:',
       related: HOWTO_STARTER_QUESTIONS,
     };
   }
