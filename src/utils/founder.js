@@ -18,6 +18,17 @@ export const DEFAULT_FOUNDER_SECRET = 'ekit-founder-2026';
 export const FOUNDER_SESSION_KEY = 'exhibitkit_founder_unlocked';
 export const FOUNDER_QUERY_FLAG = 'founder';
 
+/**
+ * The last secret that successfully unlocked founder admin, kept in memory only
+ * (never persisted to storage) so founder-authenticated actions such as beta
+ * invitations can re-send it. Cleared on lock and lost on refresh.
+ */
+let unlockedSecret = '';
+
+export function getUnlockedFounderSecret() {
+  return unlockedSecret;
+}
+
 function envSecret() {
   try {
     return (import.meta.env?.VITE_FOUNDER_ADMIN_SECRET || '').trim();
@@ -95,6 +106,7 @@ export async function unlockFounder(candidate) {
     if (trimmed !== expected) {
       return { ok: false, error: 'Incorrect founder secret.' };
     }
+    unlockedSecret = trimmed;
     return persistUnlock();
   }
 
@@ -111,13 +123,78 @@ export async function unlockFounder(candidate) {
         error: data.error || 'Unlock failed.',
       };
     }
+    unlockedSecret = trimmed;
     return persistUnlock();
   } catch {
     return { ok: false, error: 'Unable to reach founder unlock service.' };
   }
 }
 
+/**
+ * Invite a beta tester by minting a real, server-verified time-limited Pro
+ * license on the backend and emailing them the key. Requires the founder
+ * secret; it is reused from the current session unlock when available, or can
+ * be supplied explicitly (e.g. after a page refresh clears the in-memory copy).
+ *
+ * @param {{ email: string, name?: string, note?: string, days?: number, secret?: string }} params
+ * @returns {Promise<{ ok: boolean, error?: string, needsSecret?: boolean, key?: string, fingerprint?: string, email?: string, expiresAt?: string, days?: number, emailStatus?: string }>}
+ */
+export async function inviteBetaTester({ email, name, note, days, secret } = {}) {
+  const trimmedEmail = (email || '').trim();
+  if (!trimmedEmail) {
+    return { ok: false, error: 'Enter the tester email address.' };
+  }
+
+  const activeSecret = (secret || '').trim()
+    || unlockedSecret
+    || (import.meta.env.DEV ? getFounderSecret() : '');
+  if (!activeSecret) {
+    return {
+      ok: false,
+      needsSecret: true,
+      error: 'Re-enter the founder secret to send invitations.',
+    };
+  }
+
+  const numericDays = Number(days);
+  try {
+    const response = await fetch('/api/founder/invite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        secret: activeSecret,
+        email: trimmedEmail,
+        name: (name || '').trim() || undefined,
+        note: (note || '').trim() || undefined,
+        days: Number.isFinite(numericDays) ? numericDays : undefined,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      return {
+        ok: false,
+        needsSecret: data.code === 'FOUNDER_DENIED',
+        error: data.error || 'Could not send the beta invitation.',
+      };
+    }
+    // Remember a working secret for subsequent invites this session.
+    unlockedSecret = activeSecret;
+    return {
+      ok: true,
+      key: data.key,
+      fingerprint: data.fingerprint,
+      email: data.email,
+      expiresAt: data.expiresAt,
+      days: data.days,
+      emailStatus: data.emailStatus,
+    };
+  } catch {
+    return { ok: false, error: 'Unable to reach the beta invite service.' };
+  }
+}
+
 export function lockFounder() {
+  unlockedSecret = '';
   try {
     sessionStorage.removeItem(FOUNDER_SESSION_KEY);
   } catch {

@@ -130,8 +130,18 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
           )}
           
           <label 
-            className="btn btn-secondary" 
-            style={{ cursor: 'pointer' }}
+            className="btn" 
+            style={{
+              backgroundColor: 'var(--color-accent)',
+              color: '#ffffff',
+              fontFamily: 'var(--font-sans)',
+              fontWeight: '500',
+              fontSize: '14px',
+              borderRadius: '6px',
+              padding: '10px 20px',
+              border: 'none',
+              cursor: 'pointer'
+            }}
           >
             Select PDF Files
             <input 

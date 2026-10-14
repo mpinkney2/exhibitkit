@@ -75,6 +75,34 @@ export async function sendLicenseDelivery({
   return data?.id || null;
 }
 
+export async function sendBetaInviteEmail({ to, licenseKey, expiresAt, licenseId }) {
+  const appUrl = process.env.APP_URL || 'https://exhibitkit.patentpreppers.com';
+  const supportEmail = process.env.SUPPORT_EMAIL || 'support@patentpreppers.com';
+  const expiresLabel = expiresAt ? new Date(expiresAt).toLocaleDateString('en-US') : '';
+  const html = emailShell(`
+    <h1 style="margin:22px 0 10px;font-size:26px">You're invited to beta test ExhibitKIT Pro</h1>
+    <p style="font-size:15px;line-height:1.7;color:#48546a">You have full ExhibitKIT Pro access for beta testing. To activate, open ExhibitKIT, choose <strong>Restore license</strong>, and enter the license key below on one workstation.</p>
+    <div style="margin:24px 0;padding:18px;border-radius:10px;background:#0f172a;color:#ffffff;font:700 20px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;letter-spacing:.05em">${escapeHtml(licenseKey)}</div>
+    ${expiresLabel ? `<p style="font-size:14px;line-height:1.7;color:#48546a">Your beta access includes full Pro features and expires on ${escapeHtml(expiresLabel)}.</p>` : ''}
+    <p style="margin:24px 0"><a href="${escapeHtml(appUrl)}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:700">Open ExhibitKIT</a></p>
+    <p style="font-size:13px;line-height:1.7;color:#6b7280">Keep this email to re-activate on another workstation during the beta. Questions or feedback? Contact <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a>.</p>
+  `);
+
+  const { data, error } = await getResend().emails.send(
+    {
+      from: requireEmailFrom(),
+      to,
+      subject: 'Your ExhibitKIT Pro beta invitation',
+      html,
+      replyTo: supportEmail,
+    },
+    { idempotencyKey: `beta-invite/${licenseId}` },
+  );
+
+  if (error) throw new Error(`Beta invite email failed: ${error.name || 'provider_error'}`);
+  return data?.id || null;
+}
+
 export async function sendLicenseRecovery({ to, licenses, recoveryBucket }) {
   const appUrl = process.env.APP_URL || 'https://exhibitkit.patentpreppers.com';
   const supportEmail = process.env.SUPPORT_EMAIL || 'support@patentpreppers.com';

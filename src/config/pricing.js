@@ -187,7 +187,7 @@ export const PRICING_FAQ = Object.freeze([
     id: 'evidence-to-stripe',
     question: 'Are my evidence files sent to the payment processor?',
     answer:
-      'No. ExhibitKIT processes filenames and files locally in your browser. Payment checkout only involves billing details with Stripe. Filenames, matter names, export data, and document contents are never sent to the payment processor.',
+      'No. ExhibitKit processes filenames and files locally in your browser. Payment checkout only involves billing details with Stripe. Filenames, matter names, export data, and document contents are never sent to the payment processor.',
   },
   {
     id: 'continue-free',

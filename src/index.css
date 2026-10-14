@@ -823,8 +823,15 @@ body.sidebar-resizing {
   display: flex;
   align-items: center;
   gap: 10px;
-  cursor: pointer;
   flex-shrink: 0;
+}
+
+.top-bar-logo-home {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .top-bar-logo-mark {
@@ -842,6 +849,12 @@ body.sidebar-resizing {
 }
 
 .top-bar-logo-text {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
   font-size: 15px;
   font-weight: 600;
   color: var(--color-text-primary);
@@ -2023,11 +2036,20 @@ table.exhibit-table th.exhibit-th-proposed {
 }
 
 .sidebar-brand-copy > span,
-.top-bar-logo-copy > small {
+.sidebar-brand-copy > .suite-home-link,
+.top-bar-logo-copy > small,
+.top-bar-logo-copy > small a {
   color: var(--color-text-muted);
   font: 500 7px/1 var(--font-mono);
   letter-spacing: .12em;
   text-transform: uppercase;
+  text-decoration: none;
+}
+
+.suite-home-link:hover,
+.top-bar-logo-copy > small a:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
 }
 
 .sidebar-brand-copy h1 {
@@ -2126,6 +2148,7 @@ table.exhibit-table th {
   }
 
   .sidebar-brand-copy > span,
+  .sidebar-brand-copy > .suite-home-link,
   .top-bar-logo-copy > small {
     display: none;
   }

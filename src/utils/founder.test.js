@@ -127,6 +127,97 @@ describe('founder admin access', () => {
   });
 });
 
+describe('beta tester invitations', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('requires a tester email before calling the API', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { inviteBetaTester } = await import('./founder.js');
+
+    const result = await inviteBetaTester({ email: '   ' });
+    expect(result.ok).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('posts to the invite API with the DEV founder secret', async () => {
+    vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', 'test-founder-secret');
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        key: 'EKIT-BETA-TEST-0001',
+        fingerprint: '••••-0001',
+        email: 'tester@example.com',
+        expiresAt: '2026-10-18T00:00:00.000Z',
+        days: 30,
+        emailStatus: 'sent',
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { inviteBetaTester } = await import('./founder.js');
+    const result = await inviteBetaTester({ email: 'tester@example.com', days: 30 });
+
+    expect(result.ok).toBe(true);
+    expect(result.key).toBe('EKIT-BETA-TEST-0001');
+    expect(result.emailStatus).toBe('sent');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/founder/invite',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({ secret: 'test-founder-secret', email: 'tester@example.com', days: 30 });
+  });
+
+  it('reuses the unlock secret for invites in production', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('PROD', true);
+    vi.stubEnv('MODE', 'production');
+
+    const fetchMock = vi.fn(async (url) => ({
+      ok: true,
+      json: async () => (url === '/api/founder/unlock'
+        ? { ok: true }
+        : { ok: true, key: 'EKIT-BETA-PROD-0002', fingerprint: '••••-0002', email: 't@example.com', expiresAt: '2026-10-18T00:00:00.000Z', days: 30, emailStatus: 'sent' }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { unlockFounder, inviteBetaTester } = await import('./founder.js');
+    expect((await unlockFounder('super-secret-123456')).ok).toBe(true);
+
+    const result = await inviteBetaTester({ email: 't@example.com' });
+    expect(result.ok).toBe(true);
+    const inviteCall = fetchMock.mock.calls.find(([url]) => url === '/api/founder/invite');
+    expect(inviteCall).toBeTruthy();
+    const body = JSON.parse(inviteCall[1].body);
+    expect(body.secret).toBe('super-secret-123456');
+  });
+
+  it('flags that a secret is required when none is available in production', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('PROD', true);
+    vi.stubEnv('MODE', 'production');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { inviteBetaTester } = await import('./founder.js');
+    const result = await inviteBetaTester({ email: 'tester@example.com' });
+
+    expect(result.ok).toBe(false);
+    expect(result.needsSecret).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe('founder entitlement stage helpers', () => {
   beforeEach(() => {
     localStorage.clear();

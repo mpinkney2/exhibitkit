@@ -1,6 +1,8 @@
-# ExhibitKIT | Legal Exhibit Filename Renaming
+# PatentPreppers ExhibitKit
 
-ExhibitKIT is a local-first legal exhibit renaming and indexing utility for litigation operations, hot-seat trial operators, paralegals, and legal teams preparing databases for **OnCue** and **TrialDirector**.
+PatentPreppers ExhibitKit is local-first exhibit renaming and management for trial teams. It prepares **OnCue**- and **TrialDirector**-ready exhibit sets in the browser, with additional practice-area presets for patent DOD, family, employment, and bankruptcy matters.
+
+Canonical site: [https://exhibitkit.patentpreppers.com/](https://exhibitkit.patentpreppers.com/). Part of the [PatentPreppers](https://patentpreppers.com) litigation suite.
 
 ---
 
@@ -8,7 +10,7 @@ ExhibitKIT is a local-first legal exhibit renaming and indexing utility for liti
 
 - **Zero Document Uploads:** Filename parsing, sequencing, and directory restructuring run in your browser.
 - **Offline Operations:** Live renaming uses browser File System Access APIs on your workstation.
-- **Metadata Protection:** Legal document content is not sent to ExhibitKIT servers. Payment checkout never receives filenames, matter names, or export data.
+- **Metadata Protection:** Legal document content is not sent to ExhibitKit servers. Payment checkout never receives filenames, matter names, or export data.
 
 ---
 
@@ -102,9 +104,9 @@ Stripe secret keys and webhook secrets must remain server-side only. Do not plac
 
 ---
 
-## Message-evidence workspace (additive)
+## Message exhibits (secondary)
 
-In addition to PDF exhibit renaming, ExhibitKit includes a local message-evidence workflow:
+Exhibit renaming is the primary product. ExhibitKit also includes a local message-exhibit workflow:
 
 - Import conversation exports (JSON, CSV, plain text, SMS XML)
 - True redaction, SHA-256 source fingerprints, declaration template

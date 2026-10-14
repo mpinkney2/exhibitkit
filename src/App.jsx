@@ -1051,24 +1051,28 @@ export default function App() {
               <Menu size={20} />
             </button>
 
-            <div
-              onClick={() => setAppRoute('landing')}
-              className="top-bar-logo"
-              title="Go to Landing Page"
-              id="nav-logo-link"
-              role="link"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setAppRoute('landing');
-                }
-              }}
-            >
-              <div className="top-bar-logo-mark" aria-hidden="true">⚖</div>
+            <div className="top-bar-logo" id="nav-logo-link">
+              <button
+                type="button"
+                className="top-bar-logo-home"
+                onClick={() => setAppRoute('landing')}
+                title="Go to Landing Page"
+                aria-label="Go to Landing Page"
+              >
+                <span className="top-bar-logo-mark" aria-hidden="true">⚖</span>
+              </button>
               <span className="top-bar-logo-copy">
-                <small>Patent Preppers™</small>
-                <strong className="top-bar-logo-text">ExhibitKIT</strong>
+                <small>
+                  <a href="https://patentpreppers.com">PatentPreppers</a>
+                </small>
+                <button
+                  type="button"
+                  className="top-bar-logo-text"
+                  onClick={() => setAppRoute('landing')}
+                  title="Go to Landing Page"
+                >
+                  ExhibitKit
+                </button>
               </span>
             </div>
 
