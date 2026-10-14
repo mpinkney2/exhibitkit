@@ -147,7 +147,7 @@ export default function PricingModal({
 
         <div className="pricing-header">
           <span className="pricing-icon" aria-hidden="true"><ShieldCheck size={21} /></span>
-          <span className="pricing-eyebrow">ExhibitKIT Pro · Perpetual workstation license</span>
+          <span className="pricing-eyebrow">ExhibitKit Pro · Perpetual workstation license</span>
           <h2 id={titleId}>Prepare every exhibit set with confidence.</h2>
           <p id={descriptionId}>One workstation. One payment. Keep using the purchased version, with 12 months of updates and support included.</p>
         </div>
@@ -183,7 +183,7 @@ export default function PricingModal({
         <div className="pricing-divider"><span>Restore a license</span></div>
 
         <form className="pricing-activation" onSubmit={handleActivateSubmit}>
-          <label htmlFor="pricing-license-key"><KeyRound size={14} /> Enter your ExhibitKIT license key</label>
+          <label htmlFor="pricing-license-key"><KeyRound size={14} /> Enter your ExhibitKit license key</label>
           <div className="pricing-activation-row">
             <input
               ref={licenseInputRef}

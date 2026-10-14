@@ -30,6 +30,24 @@
   gap: 12px;
 }
 
+.message-brand {
+  display: grid;
+  gap: 3px;
+}
+
+.message-suite-link {
+  color: var(--color-text-muted);
+  font: 500 8px/1 var(--font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.message-suite-link:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 .message-workspace-bar strong {
   font-size: 15px;
   letter-spacing: -0.03em;

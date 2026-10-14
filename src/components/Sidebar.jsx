@@ -272,8 +272,8 @@ export default function Sidebar({
             ⚖
           </div>
           <div className="sidebar-brand-copy">
-            <span>Patent Preppers™</span>
-            <h1>ExhibitKIT</h1>
+            <a className="suite-home-link" href="https://patentpreppers.com">PatentPreppers</a>
+            <h1>ExhibitKit</h1>
           </div>
         </div>
         {onCloseMobile && (
@@ -586,7 +586,7 @@ export default function Sidebar({
               color: 'var(--text-muted)',
               fontFamily: 'var(--font-mono)'
             }}>
-              ExhibitKIT {APP_VERSION} | Build: local-first-preview
+              ExhibitKit {APP_VERSION} | Build: local-first-preview
             </div>
           </div>
         </div>

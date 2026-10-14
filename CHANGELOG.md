@@ -4,6 +4,14 @@ All notable changes to **ExhibitKit** will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Public title, hero, and metadata now position **PatentPreppers ExhibitKit** as local-first exhibit renaming and management for OnCue and TrialDirector.
+- Tamper-evident message exhibits stay available as a secondary feature. The page title and hero no longer lead with that workflow.
+
+---
+
 ## [1.0.0] - 2026-08-02
 
 ### Repositioned
