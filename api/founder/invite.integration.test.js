@@ -10,6 +10,9 @@ const h = vi.hoisted(() => {
   const fakeSql = (strings, ...values) => {
     const text = strings.join(' ');
     captured.push({ text, values });
+    if (text.includes('exhibitkit_consume_rate_limit')) {
+      return Promise.resolve([{ allowed: true }]);
+    }
     if (text.includes('INSERT INTO exhibitkit_licenses')) {
       return Promise.resolve([{
         id: 'lic_int_1',
@@ -95,6 +98,14 @@ describe('POST /api/founder/invite (end-to-end wiring)', () => {
     expect(body.email).toBe('beta.tester@example.com');
     expect(body.days).toBe(30);
     expect(body.emailStatus).toBe('sent');
+
+    const rateLimit = h.captured.find((c) => c.text.includes('exhibitkit_consume_rate_limit'));
+    expect(rateLimit).toBeTruthy();
+    expect(rateLimit.values[0]).toBe('founder_invite_ip');
+    expect(rateLimit.values[1]).toMatch(/^[a-f0-9]{64}$/);
+    expect(rateLimit.values[1]).not.toContain('203.0.113.7');
+    expect(rateLimit.values[2]).toBe(30);
+    expect(rateLimit.values[3]).toBe(3600);
 
     // The row inserted into exhibitkit_licenses is a time-limited Pro beta grant.
     const insert = h.captured.find((c) => c.text.includes('INSERT INTO exhibitkit_licenses'));

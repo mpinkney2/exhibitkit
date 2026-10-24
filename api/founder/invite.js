@@ -1,4 +1,5 @@
 import { safeEqual } from '../_lib/license-crypto.js';
+import { consumeRateLimit } from '../_lib/rate-limit.js';
 import {
   errorResponse,
   getClientIp,
@@ -18,27 +19,6 @@ const REQUIRED_BACKEND_ENV = [
   'LICENSE_HASH_SECRET',
   'LICENSE_ENCRYPTION_KEY',
 ];
-
-/** In-process rate limit (per isolate). Enough to slow casual abuse; does not
- *  depend on the database, so an authenticated founder can still receive a clear
- *  configuration error when the database itself is the missing piece. */
-const inviteAttempts = new Map();
-
-function consumeInviteRateLimit(ip, limit = 30, windowMs = 60 * 60 * 1000) {
-  const now = Date.now();
-  const key = String(ip || 'unknown');
-  let entry = inviteAttempts.get(key);
-  if (!entry || now > entry.resetAt) {
-    entry = { count: 0, resetAt: now + windowMs };
-  }
-  entry.count += 1;
-  inviteAttempts.set(key, entry);
-  return entry.count <= limit;
-}
-
-export function resetFounderInviteRateLimitForTesting() {
-  inviteAttempts.clear();
-}
 
 function missingBackendConfig() {
   return REQUIRED_BACKEND_ENV.filter((name) => !String(process.env[name] || '').trim());
@@ -91,7 +71,8 @@ export default {
       }
 
       const ip = getClientIp(request);
-      if (!consumeInviteRateLimit(ip)) {
+      const allowed = await consumeRateLimit('founder_invite_ip', ip, 30, 3600);
+      if (!allowed) {
         return json(
           { ok: false, error: 'Too many invitations. Try again later.', code: 'RATE_LIMITED' },
           429,
