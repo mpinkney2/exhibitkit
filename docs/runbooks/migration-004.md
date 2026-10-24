@@ -1,6 +1,6 @@
 # Migration 004 — rate-limit retention
 
-Session settings do not persist from one statement to the next. `scripts/migrate-licensing.mjs` sets `lock_timeout` to 5 seconds on its own connection before applying migrations. A `SET` you run in another session is gone when that session ends. `CREATE INDEX CONCURRENTLY` still has to run outside a transaction block.
+Session settings do not persist from one connection to the next. `scripts/migrate-licensing.mjs` sets `lock_timeout` to 5 seconds for transactional migrations and to 0 before `004_rate_limit_index.sql`, and clears `statement_timeout` for that index build. A `SET` in another session does not affect the runner. `lock_timeout` of 5 seconds on the concurrent build aborts when any other transaction stays open longer than that and can leave the index invalid. `CREATE INDEX CONCURRENTLY` still has to run outside a transaction block. If that build reports `55P03`, the runner drops the invalid index. Retry `npm run db:migrate` after the conflicting transaction ends.
 
 `db/migrations/004_rate_limit_index.sql` starts with `-- migrate:no-transaction` and contains one statement, which the runner applies by itself. `db/migrations/005_rate_limit_cleanup.sql` replaces `exhibitkit_consume_rate_limit` and can run inside a transaction. The runner records each filename in `exhibitkit_schema_migrations` and skips it on the next run. A database that already has `exhibitkit_licenses`, the `source` column, and row level security on that table records `001` through `003` without running those files again.
 
@@ -20,10 +20,11 @@ WHERE window_start < now() - interval '2 days';
 
 ## 3. Build the index concurrently
 
-`npm run db:migrate` sets `lock_timeout` for the connection it uses. To build the index by hand, set the timeout in that same session. It does not carry into the migration command:
+`npm run db:migrate` sets `lock_timeout` to 0 for this build on its own connection. A timeout set in another session does not apply here. To build the index by hand, clear the lock timeout in that same session so a long-running transaction cannot abort the build:
 
 ```sql
-SET lock_timeout = '5s';
+SET lock_timeout = '0';
+SET statement_timeout = '0';
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS exhibitkit_rate_limits_window_start_idx
   ON exhibitkit_rate_limits (window_start);
