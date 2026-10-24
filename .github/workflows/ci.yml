@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+  schedule:
+    # Weekly full-history secret scan. The gitleaks action scans every commit
+    # for schedule and workflow_dispatch, and only the new commits otherwise.
+    - cron: '15 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,6 +18,7 @@ permissions:
 jobs:
   verify:
     name: lint, test, and build
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,7 +31,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Lint
         run: npm run lint

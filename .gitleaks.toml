@@ -1,0 +1,23 @@
+title = "ExhibitKit gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "exhibitkit-guest-key"
+description = "ExhibitKit guest access key"
+regex = '''EKIT-GUEST-[A-Z0-9]{4}-[A-Z0-9]{4}'''
+keywords = ["EKIT-GUEST"]
+
+[[rules]]
+id = "exhibitkit-founder-or-passphrase"
+description = "Value assigned to a founder secret or passphrase field"
+regex = '''(?i)(?:FOUNDER_ADMIN_SECRET|DEFAULT_FOUNDER_SECRET|passphrase)(?:['"`*_ \t]{0,12})[:=|]\s*['"`]?([A-Za-z0-9][A-Za-z0-9._-]{7,})'''
+keywords = [
+  "FOUNDER_ADMIN_SECRET",
+  "DEFAULT_FOUNDER_SECRET",
+  "passphrase",
+  "Passphrase",
+  "PASSPHRASE",
+]
+secretGroup = 1

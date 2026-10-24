@@ -1,0 +1,24 @@
+# Historical gitleaks fingerprints (commit:path:rule:line).
+# Listed so a full-history scan can pass. A new finding is not listed and still fails.
+218a1375e730ece4adc283fdba4f456da1eb8cc1:api/founder/invite.test.js:exhibitkit-founder-or-passphrase:43
+66bd987c9206e3b2379d7066adc1fc413271b669:api/founder/unlock.test.js:exhibitkit-founder-or-passphrase:18
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:docs/guest-demo-credentials.md:exhibitkit-founder-or-passphrase:10
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:docs/guest-demo-credentials.md:exhibitkit-founder-or-passphrase:22
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:docs/guest-demo-credentials.md:exhibitkit-guest-key:11
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:docs/guest-demo-credentials.md:exhibitkit-guest-key:24
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/components/PricingModal.jsx:exhibitkit-guest-key:35
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/components/PricingModal.jsx:exhibitkit-guest-key:39
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/utils/entitlements.js:exhibitkit-guest-key:177
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/utils/entitlements.js:exhibitkit-guest-key:202
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/utils/licenseFormat.js:exhibitkit-founder-or-passphrase:14
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/utils/licenseFormat.js:exhibitkit-guest-key:23
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/utils/licenseFormat.js:exhibitkit-guest-key:32
+6d1acfe9d7d9f162b9fe3f3700f272fbd0f0559e:src/utils/licenseFormat.js:exhibitkit-guest-key:8
+bcc7283cba04c9bee5adcda2ad1355a667d86307:src/utils/entitlement.test.js:exhibitkit-guest-key:201
+bcc7283cba04c9bee5adcda2ad1355a667d86307:src/utils/entitlement.test.js:exhibitkit-guest-key:203
+bcc7283cba04c9bee5adcda2ad1355a667d86307:src/utils/entitlement.test.js:exhibitkit-guest-key:226
+bcc7283cba04c9bee5adcda2ad1355a667d86307:src/utils/entitlements.test.js:exhibitkit-guest-key:50
+d586eb682ec8365e7c8c29407dd661ada6652df6:api/founder/invite.integration.test.js:exhibitkit-founder-or-passphrase:54
+d9102757a9d510c4575616d2ad9d77970552d624:.env.example:exhibitkit-founder-or-passphrase:7
+d9102757a9d510c4575616d2ad9d77970552d624:README.md:exhibitkit-founder-or-passphrase:67
+d9102757a9d510c4575616d2ad9d77970552d624:src/utils/founder.js:exhibitkit-founder-or-passphrase:16
