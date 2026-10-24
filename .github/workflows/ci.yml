@@ -50,9 +50,15 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Install gitleaks
+        run: |
+          curl -sSL -o /tmp/gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+
       - name: Test
         env:
           MIGRATION_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/exhibitkit
+          GITLEAKS_BIN: /tmp/gitleaks
         run: npm test
 
       - name: Build
