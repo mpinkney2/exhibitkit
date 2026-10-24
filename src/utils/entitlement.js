@@ -185,12 +185,17 @@ function misconfiguredEntitlement(record) {
 }
 
 function projectVerifiedEntitlement(record, claims) {
-  return normalizeEntitlement({
+  const projected = {
     ...record,
     plan: claims.plan,
     expiresAt: claims.plan === PLAN_IDS.CASE_PASS ? claims.expiry : record.expiresAt,
     serverVerified: true,
-  });
+  };
+  // A verified token is paid access for the grace window. A stale
+  // misconfigured flag must not keep the badge on Unverified.
+  delete projected.configurationStatus;
+  delete projected.configurationMessage;
+  return normalizeEntitlement(projected);
 }
 
 /**

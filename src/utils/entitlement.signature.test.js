@@ -398,6 +398,23 @@ describe('signed entitlements', () => {
     expect(JSON.parse(localStorage.getItem('exhibitkit_entitlement_v1')).entitlementToken).toBe(entitlementToken);
   });
 
+  it('shows Pro during grace when a stored record still carries the unverified flag', async () => {
+    storeEntitlement({
+      plan: 'pro_perpetual',
+      serverVerified: true,
+      activationToken: 'm'.repeat(43),
+      entitlementToken: tokenFor({ licenseId: 'lic_grace_badge' }),
+      configurationStatus: 'misconfigured',
+      configurationMessage: 'stale',
+    });
+    const { getEntitlement, getEntitlementLabel, hasProFeatures, PLAN_IDS } = await loadEntitlement();
+    const view = getEntitlement();
+    expect(view.plan).toBe(PLAN_IDS.PRO);
+    expect(view.configurationStatus).toBeUndefined();
+    expect(hasProFeatures()).toBe(true);
+    expect(getEntitlementLabel()).toBe('Pro');
+  });
+
   it('clears only when the license service rejects the seat', async () => {
     storeEntitlement({
       plan: 'pro_perpetual',
