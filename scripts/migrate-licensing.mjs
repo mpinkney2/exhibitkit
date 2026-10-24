@@ -37,6 +37,8 @@ export function requireOneNoTransactionStatement(name, contents) {
 }
 
 const MIGRATION_LOCK_KEY = 'exhibitkit_schema_migrations';
+const LOCK_POLL_INTERVAL_MS = 500;
+const LOCK_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
 
 export function migrationNoticeHandler(notice) {
   if (notice?.code === '42P07') return;
@@ -129,11 +131,56 @@ async function recordMigration(sql, name) {
   `;
 }
 
+function sleep(ms) {
+  return new Promise((resolvePromise) => {
+    setTimeout(resolvePromise, ms);
+  });
+}
+
+// Session-level try-lock. A blocking pg_advisory_lock holds a snapshot that
+// CREATE INDEX CONCURRENTLY waits on, and the index build waits on that lock.
+export async function acquireMigrationLock(sql, {
+  pollIntervalMs = LOCK_POLL_INTERVAL_MS,
+  timeoutMs = LOCK_WAIT_TIMEOUT_MS,
+} = {}) {
+  const started = Date.now();
+  for (;;) {
+    const [row] = await sql`
+      SELECT pg_try_advisory_lock(hashtext(${MIGRATION_LOCK_KEY})) AS locked
+    `;
+    if (row?.locked === true) return;
+    if (Date.now() - started >= timeoutMs) {
+      throw new Error(`Timed out waiting for the migration lock after ${timeoutMs}ms.`);
+    }
+    await sleep(pollIntervalMs);
+  }
+}
+
+export async function rethrowIndexLockTimeout(sql, name, error) {
+  if (error?.code !== '55P03') throw error;
+  await sql.unsafe('ROLLBACK').simple().catch(() => {});
+  await sql.unsafe(`DROP INDEX CONCURRENTLY IF EXISTS ${RATE_LIMIT_INDEX}`).simple().catch(() => {});
+  throw new Error(
+    `${name} stopped because a lock was unavailable (55P03). ${RATE_LIMIT_INDEX} was dropped if it was left invalid. Retry the migration.`,
+  );
+}
+
+async function releaseMigrationLock(sql) {
+  await sql.unsafe('ROLLBACK').simple().catch(() => {});
+  try {
+    await sql`SELECT pg_advisory_unlock(hashtext(${MIGRATION_LOCK_KEY}))`;
+  } catch {
+    // A failed unlock must not replace the migration error.
+  }
+}
+
 export async function applyLicensingMigrations(sql, migrationsDir) {
   const migrationFiles = await listMigrationFiles(migrationsDir);
-  await sql`SELECT pg_advisory_lock(hashtext(${MIGRATION_LOCK_KEY}))`;
+  await acquireMigrationLock(sql);
   try {
-    // Session settings end with the session. Set the timeout on this connection.
+    // Session settings do not carry between connections. Transactional files
+    // keep a short lock timeout. Concurrent index builds wait (lock_timeout 0)
+    // so a busy transaction cannot abort them and leave an invalid index.
     await sql.unsafe("SET lock_timeout = '5s'");
     await ensureMigrationsTable(sql);
     await baselineExistingDatabase(sql, migrationFiles);
@@ -152,14 +199,23 @@ export async function applyLicensingMigrations(sql, migrationsDir) {
 
       const contents = await readFile(new URL(name, migrationsDir), 'utf8');
       if (isNoTransactionMigration(contents)) {
-        const statement = requireOneNoTransactionStatement(name, contents);
-        await sql.unsafe(statement).simple();
+        await sql.unsafe("SET lock_timeout = '0'");
+        await sql.unsafe("SET statement_timeout = '0'");
+        try {
+          const statement = requireOneNoTransactionStatement(name, contents);
+          await sql.unsafe(statement).simple();
+        } catch (error) {
+          await rethrowIndexLockTimeout(sql, name, error);
+        } finally {
+          await sql.unsafe("SET lock_timeout = '5s'").catch(() => {});
+        }
         await assertRateLimitIndexValid(sql);
         await recordMigration(sql, name);
         console.log(`Applied migration ${name} outside a transaction.`);
         continue;
       }
 
+      await sql.unsafe("SET lock_timeout = '5s'");
       await sql.unsafe(contents).simple();
       await recordMigration(sql, name);
       console.log(`Applied migration ${name}.`);
@@ -168,7 +224,7 @@ export async function applyLicensingMigrations(sql, migrationsDir) {
     await assertRateLimitIndexValid(sql);
     console.log('ExhibitKIT licensing database is ready.');
   } finally {
-    await sql`SELECT pg_advisory_unlock(hashtext(${MIGRATION_LOCK_KEY}))`;
+    await releaseMigrationLock(sql);
   }
 }
 

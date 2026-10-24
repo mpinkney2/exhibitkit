@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,16 +9,18 @@ import { describe, expect, it } from 'vitest';
 const configPath = fileURLToPath(new URL('../.gitleaks.toml', import.meta.url));
 
 function gitleaksBin() {
-  if (process.env.GITLEAKS_BIN) return process.env.GITLEAKS_BIN;
-  return '/tmp/gitleaks/gitleaks';
+  const candidates = [process.env.GITLEAKS_BIN, '/tmp/gitleaks/gitleaks'].filter(Boolean);
+  return candidates.find((candidate) => existsSync(candidate)) || null;
 }
+
+const gitleaksBinary = gitleaksBin();
 
 function scan(source) {
   const dir = mkdtempSync(join(tmpdir(), 'gitleaks-fixture-'));
   try {
     writeFileSync(join(dir, 'fixture.js'), source);
     const report = join(dir, 'report.json');
-    const result = spawnSync(gitleaksBin(), [
+    const result = spawnSync(gitleaksBinary, [
       'detect',
       '--no-git',
       '--source',
@@ -40,8 +42,9 @@ function scan(source) {
   }
 }
 
-describe('gitleaks founder secret rules', () => {
+describe.skipIf(!gitleaksBinary && !process.env.CI)('gitleaks founder secret rules', () => {
   it('flags a quoted fallback and ignores a bare process.env assignment', () => {
+    expect(gitleaksBinary, 'gitleaks binary is required in CI').toBeTruthy();
     const secretName = 'FOUNDER_ADMIN_SECRET';
     const literal = "'fallback-secret'";
     const doubleQuoted = '"fallback-secret"';
@@ -62,5 +65,8 @@ describe('gitleaks founder secret rules', () => {
 
     const shortFallback = scan(`const expected = process.env.${secretName} || ${shortLiteral};\n`);
     expect(shortFallback.map((finding) => finding.RuleID)).not.toContain('exhibitkit-secret-fallback');
+
+    const nextLine = scan(`const expected = process.env.${secretName}\n  || ${literal};\n`);
+    expect(nextLine.map((finding) => finding.RuleID)).toContain('exhibitkit-secret-fallback');
   });
 });
