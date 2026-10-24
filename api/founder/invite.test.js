@@ -4,13 +4,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createBetaInvite: vi.fn(),
+  consumeRateLimit: vi.fn(async () => true),
 }));
 
 vi.mock('../_lib/beta-invite-service.js', () => ({
   createBetaInvite: mocks.createBetaInvite,
 }));
 
-import invite, { resetFounderInviteRateLimitForTesting } from './invite.js';
+vi.mock('../_lib/rate-limit.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    consumeRateLimit: mocks.consumeRateLimit,
+  };
+});
+
+import invite from './invite.js';
 
 const ORIGIN = 'https://exhibitkit.patentpreppers.com';
 const founderSecret = randomBytes(32).toString('base64url');
@@ -52,6 +61,7 @@ function clearBackendEnv() {
   delete process.env.LICENSE_ENCRYPTION_KEY;
   delete process.env.RESEND_API_KEY;
   delete process.env.LICENSE_EMAIL_FROM;
+  delete process.env.RATE_LIMIT_HASH_SECRET;
 }
 
 beforeEach(() => {
@@ -59,7 +69,8 @@ beforeEach(() => {
   process.env.APP_URL = ORIGIN;
   configureBackendEnv();
   vi.clearAllMocks();
-  resetFounderInviteRateLimitForTesting();
+  mocks.consumeRateLimit.mockReset();
+  mocks.consumeRateLimit.mockResolvedValue(true);
   mocks.createBetaInvite.mockResolvedValue(SAMPLE_INVITE);
 });
 
@@ -79,6 +90,7 @@ describe('POST /api/founder/invite', () => {
   it('rejects disallowed origins', async () => {
     const response = await invite.fetch(inviteRequest({ email: 'a@b.co' }, { origin: 'https://evil.example' }));
     expect(response.status).toBe(403);
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
@@ -88,6 +100,7 @@ describe('POST /api/founder/invite', () => {
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('FOUNDER_NOT_CONFIGURED');
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
@@ -100,18 +113,25 @@ describe('POST /api/founder/invite', () => {
     }));
     expect(response.status).toBe(503);
     expect((await response.json()).code).toBe('FOUNDER_NOT_CONFIGURED');
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
-  it('returns 429 once the per-IP invite limit is exceeded', async () => {
-    for (let i = 0; i < 30; i += 1) {
-      // These use a wrong secret (401), but each still counts toward the limit.
-      await invite.fetch(inviteRequest({ secret: 'nope', email: 'a@b.co' }));
-    }
+  it('asks the durable limiter for 30 invitations per hour and stops when denied', async () => {
+    mocks.consumeRateLimit.mockResolvedValueOnce(false);
     const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('3600');
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMITED');
+    expect(mocks.consumeRateLimit).toHaveBeenCalledWith('founder_invite_ip', '203.0.113.42', 30, 3600);
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+  });
+
+  it('does not mint when the durable limiter fails', async () => {
+    mocks.consumeRateLimit.mockRejectedValueOnce(new Error('database unavailable'));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
+    expect(response.status).toBe(500);
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
@@ -120,18 +140,48 @@ describe('POST /api/founder/invite', () => {
     expect(response.status).toBe(401);
     const body = await response.json();
     expect(body.code).toBe('FOUNDER_DENIED');
+    expect(mocks.consumeRateLimit).toHaveBeenCalledWith('founder_invite_ip', '203.0.113.42', 30, 3600);
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
-  it('reports exactly which backend settings are missing (email is not required)', async () => {
+  it('returns 503 when the rate limiter database is not configured', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     delete process.env.DATABASE_URL;
     delete process.env.LICENSE_ENCRYPTION_KEY;
     const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
+    expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
+    expect(body.error).toBe('Rate limiting is not configured on the server.');
+    expect(body.error).not.toMatch(/DATABASE_URL|LICENSE_ENCRYPTION_KEY|LICENSE_HASH_SECRET|RATE_LIMIT_HASH_SECRET/);
+    expect(errorSpy.mock.calls.flat().join(' ')).toContain('DATABASE_URL');
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('returns 503 when no rate-limit hash secret is configured', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    delete process.env.LICENSE_HASH_SECRET;
+    delete process.env.RATE_LIMIT_HASH_SECRET;
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
+    expect(body.error).toBe('Rate limiting is not configured on the server.');
+    expect(errorSpy.mock.calls.flat().join(' ')).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('reports exactly which backend settings are missing (email is not required)', async () => {
+    delete process.env.LICENSE_ENCRYPTION_KEY;
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
+    expect(response.status).toBe(503);
+    const body = await response.json();
     expect(body.code).toBe('INVITE_BACKEND_NOT_CONFIGURED');
-    expect(body.error).toContain('DATABASE_URL');
     expect(body.error).toContain('LICENSE_ENCRYPTION_KEY');
+    expect(body.error).not.toContain('DATABASE_URL');
     expect(body.error).not.toContain('RESEND_API_KEY');
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });

@@ -43,10 +43,25 @@ export async function readJson(request, maxBytes = 8_192) {
   }
 }
 
+/**
+ * Client address used as a rate-limit key.
+ *
+ * Vercel sets `x-real-ip` to the connecting client. When that header is absent,
+ * the last `x-forwarded-for` hop is the address appended by the trusted proxy.
+ * The first forwarded value is not used, because the caller can set it.
+ */
 export function getClientIp(request) {
+  const realIp = (request.headers.get('x-real-ip') || '').trim();
+  if (realIp) return realIp.slice(0, 128);
+
   const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim().slice(0, 128);
-  return (request.headers.get('x-real-ip') || 'unknown').slice(0, 128);
+  if (forwarded) {
+    const hops = forwarded.split(',').map((hop) => hop.trim()).filter(Boolean);
+    const trustedHop = hops[hops.length - 1];
+    if (trustedHop) return trustedHop.slice(0, 128);
+  }
+
+  return 'unknown';
 }
 
 export function isAllowedBrowserOrigin(request) {

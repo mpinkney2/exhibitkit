@@ -1,6 +1,7 @@
 import { safeEqual } from '../_lib/license-crypto.js';
 import { configuredFounderSecret } from '../_lib/founder-secret.js';
 import { issueFounderToken } from '../_lib/entitlement-token.js';
+import { assertRateLimitConfigured, consumeRateLimit } from '../_lib/rate-limit.js';
 import {
   errorResponse,
   getClientIp,
@@ -10,25 +11,6 @@ import {
   readJson,
   HttpError,
 } from '../_lib/http.js';
-
-/** In-process rate limit (per isolate). Enough to slow casual brute force. */
-const unlockAttempts = new Map();
-
-function consumeUnlockRateLimit(ip, limit = 10, windowMs = 15 * 60 * 1000) {
-  const now = Date.now();
-  const key = String(ip || 'unknown');
-  let entry = unlockAttempts.get(key);
-  if (!entry || now > entry.resetAt) {
-    entry = { count: 0, resetAt: now + windowMs };
-  }
-  entry.count += 1;
-  unlockAttempts.set(key, entry);
-  return entry.count <= limit;
-}
-
-export function resetFounderUnlockRateLimitForTesting() {
-  unlockAttempts.clear();
-}
 
 /**
  * POST /api/founder/unlock
@@ -55,8 +37,10 @@ export default {
         );
       }
 
+      assertRateLimitConfigured();
       const ip = getClientIp(request);
-      if (!consumeUnlockRateLimit(ip)) {
+      const allowed = await consumeRateLimit('founder_unlock_ip', ip, 10, 900);
+      if (!allowed) {
         return json(
           { ok: false, error: 'Too many unlock attempts. Try again later.', code: 'RATE_LIMITED' },
           429,

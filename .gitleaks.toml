@@ -1,0 +1,26 @@
+title = "ExhibitKit gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "exhibitkit-guest-key"
+description = "ExhibitKit guest access key"
+regex = '''(?i)EKIT-GUEST-[A-Z0-9]{4}-[A-Z0-9]{4}'''
+keywords = ["ekit-guest"]
+
+[[rules]]
+id = "exhibitkit-founder-or-passphrase"
+description = "Value assigned to a founder secret, or a quoted passphrase of at least 12 characters"
+regex = '''(?i)(?:(?:FOUNDER_ADMIN_SECRET|DEFAULT_FOUNDER_SECRET)(?:['"`*_ \t]{0,12})[:=|]\s*['"`]?([A-Za-z0-9+/=._-]{8,})|passphrase(?:['"`*_ \t]{0,12})[:=|]\s*['"`]([^'"`\r\n]{12,})['"`])'''
+keywords = [
+  "founder_admin_secret",
+  "default_founder_secret",
+  "passphrase",
+]
+
+[rules.allowlist]
+description = "Environment references and this rule file are not secret values"
+regexTarget = "secret"
+regexes = ['''(?i)^process\.env\b''']
+paths = ['''(^|/)\.gitleaks\.toml$''']
