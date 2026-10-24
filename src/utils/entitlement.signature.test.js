@@ -414,6 +414,36 @@ describe('signed entitlements', () => {
     expect(result.invalid).toBe(true);
     expect(settleLicenseRefresh(result).clear).toBe(true);
   });
+
+  it.each([
+    ['403', 403, { ok: false, error: 'origin denied' }],
+    ['429', 429, { ok: false, error: 'slow down' }],
+    ['5xx', 503, { ok: false }],
+    ['200 without a token', 200, { ok: true, active: true, entitlement: { plan: 'pro_perpetual' } }],
+  ])('keeps the activation and the grace window on %s', async (_label, status, body) => {
+    const activationToken = 'n'.repeat(43);
+    storeEntitlement({
+      plan: 'pro_perpetual',
+      serverVerified: true,
+      activationToken,
+      entitlementToken: tokenFor({ licenseId: `lic_transient_${status}` }),
+    });
+    const {
+      refreshVerifiedEntitlementStatus,
+      settleLicenseRefresh,
+      hasProFeatures,
+    } = await loadEntitlement();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    })));
+    const result = await refreshVerifiedEntitlementStatus();
+    expect(result.invalid).not.toBe(true);
+    expect(result.offline).toBe(true);
+    expect(settleLicenseRefresh(result).clear).toBe(false);
+    expect(hasProFeatures()).toBe(true);
+    expect(JSON.parse(localStorage.getItem('exhibitkit_entitlement_v1')).activationToken).toBe(activationToken);
+  });
 });
 
 describe('production public key configuration', () => {

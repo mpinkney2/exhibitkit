@@ -477,8 +477,13 @@ export async function refreshVerifiedEntitlementStatus(entitlement = readStored(
     if (response.status >= 500) {
       return { ok: false, offline: true, entitlement: effectiveEntitlement(stored) };
     }
-    if (!response.ok || !data.active || !data.entitlement?.entitlementToken) {
+    // A revoked seat is the only response that drops the local activation.
+    // 403, 429, other 4xx, and a 200 without a token are transient.
+    if (response.status === 401 && data.active === false) {
       return { ok: false, invalid: true, entitlement: effectiveEntitlement(stored) };
+    }
+    if (!response.ok || !data.active || !data.entitlement?.entitlementToken) {
+      return { ok: false, offline: true, entitlement: effectiveEntitlement(stored) };
     }
     const incomingToken = data.entitlement.entitlementToken;
     const inspection = inspectEntitlementToken(incomingToken);
@@ -620,8 +625,9 @@ export function applyFounderUnlimitedPro() {
 
 /**
  * How a status refresh should update the workstation.
- * Only a server rejection clears the stored activation. A local verification
- * failure keeps it and surfaces a misconfigured state.
+ * Only a 401 with active:false clears the stored activation. Other errors
+ * keep it for the offline grace window. A local verification failure keeps
+ * it and surfaces a misconfigured state.
  */
 export function settleLicenseRefresh(result) {
   if (result?.invalid) return { clear: true, entitlement: null };
