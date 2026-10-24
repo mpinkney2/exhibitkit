@@ -31,9 +31,29 @@ const sql = postgres(connectionString, {
   max: 1,
 });
 
+function statementsOutsideTransaction(contents) {
+  return contents
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('--'))
+    .join('\n')
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+}
+
 try {
   for (const name of migrationFiles) {
     const contents = await readFile(new URL(name, migrationsDir), 'utf8');
+    if (/\bCONCURRENTLY\b/i.test(contents)) {
+      // CREATE INDEX CONCURRENTLY cannot run inside a transaction. A file that
+      // contains it is applied one statement at a time and must not use
+      // BEGIN/COMMIT or a dollar-quoted function body.
+      for (const statement of statementsOutsideTransaction(contents)) {
+        await sql.unsafe(statement).simple();
+      }
+      console.log(`Applied migration ${name} outside a transaction.`);
+      continue;
+    }
     // Migrations contain multiple statements and dollar-quoted PL/pgSQL; run them
     // through the simple query protocol.
     await sql.unsafe(contents).simple();

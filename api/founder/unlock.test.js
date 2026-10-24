@@ -77,25 +77,31 @@ describe('POST /api/founder/unlock', () => {
   });
 
   it('returns 503 when the rate limiter database is not configured', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     delete process.env.DATABASE_URL;
     const response = await unlock.fetch(unlockRequest('production-founder-secret-ok'));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
-    expect(body.error).toContain('DATABASE_URL');
-    expect(body.error).not.toContain('LICENSE_HASH_SECRET');
+    expect(body.error).toBe('Rate limiting is not configured on the server.');
+    expect(body.error).not.toMatch(/DATABASE_URL|LICENSE_HASH_SECRET|RATE_LIMIT_HASH_SECRET/);
+    expect(errorSpy.mock.calls.flat().join(' ')).toContain('DATABASE_URL');
     expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('returns 503 when no rate-limit hash secret is configured', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     delete process.env.LICENSE_HASH_SECRET;
     const response = await unlock.fetch(unlockRequest('production-founder-secret-ok'));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
-    expect(body.error).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
+    expect(body.error).toBe('Rate limiting is not configured on the server.');
     expect(body.error).not.toContain('DATABASE_URL');
+    expect(errorSpy.mock.calls.flat().join(' ')).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
     expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('asks the durable limiter for 10 attempts per 15 minutes and stops when denied', async () => {

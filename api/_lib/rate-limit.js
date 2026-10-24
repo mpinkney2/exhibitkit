@@ -21,9 +21,10 @@ export function missingRateLimitSettings() {
 export function assertRateLimitConfigured() {
   const missing = missingRateLimitSettings();
   if (missing.length === 0) return;
+  console.error('ExhibitKIT rate limiting is not configured.', missing.join(', '));
   throw new HttpError(
     503,
-    `Rate limiting is not configured on the server. Missing: ${missing.join(', ')}.`,
+    'Rate limiting is not configured on the server.',
     'RATE_LIMIT_NOT_CONFIGURED',
   );
 }

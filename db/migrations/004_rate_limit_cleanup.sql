@@ -1,10 +1,8 @@
 BEGIN;
 
 -- Expired windows are never read again. The longest limiter window in the app
--- is one day, so rows older than two days are safe to drop on the next consume.
-CREATE INDEX IF NOT EXISTS exhibitkit_rate_limits_window_start_idx
-  ON exhibitkit_rate_limits (window_start);
-
+-- is one day, so rows older than two days are safe to drop. The index that
+-- supports this lookup is created concurrently in 004_rate_limit_index.sql.
 CREATE OR REPLACE FUNCTION exhibitkit_consume_rate_limit(
   p_action text,
   p_key_hash text,
@@ -25,8 +23,17 @@ BEGIN
     floor(extract(epoch FROM now()) / p_window_seconds) * p_window_seconds
   );
 
-  DELETE FROM exhibitkit_rate_limits
-  WHERE window_start < now() - interval '2 days';
+  -- About one percent of calls delete a small batch. A request never clears
+  -- a large backlog; do that with docs/runbooks/migration-004.md.
+  IF random() < 0.01 THEN
+    DELETE FROM exhibitkit_rate_limits
+    WHERE ctid IN (
+      SELECT ctid
+      FROM exhibitkit_rate_limits
+      WHERE window_start < now() - interval '2 days'
+      LIMIT 100
+    );
+  END IF;
 
   INSERT INTO exhibitkit_rate_limits (action, key_hash, window_start, request_count)
   VALUES (p_action, p_key_hash, v_window_start, 1)

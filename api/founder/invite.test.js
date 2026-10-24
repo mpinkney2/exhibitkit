@@ -128,27 +128,33 @@ describe('POST /api/founder/invite', () => {
   });
 
   it('returns 503 when the rate limiter database is not configured', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     delete process.env.DATABASE_URL;
     delete process.env.LICENSE_ENCRYPTION_KEY;
     const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
-    expect(body.error).toContain('DATABASE_URL');
-    expect(body.error).not.toContain('LICENSE_ENCRYPTION_KEY');
+    expect(body.error).toBe('Rate limiting is not configured on the server.');
+    expect(body.error).not.toMatch(/DATABASE_URL|LICENSE_ENCRYPTION_KEY|LICENSE_HASH_SECRET|RATE_LIMIT_HASH_SECRET/);
+    expect(errorSpy.mock.calls.flat().join(' ')).toContain('DATABASE_URL');
     expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('returns 503 when no rate-limit hash secret is configured', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     delete process.env.LICENSE_HASH_SECRET;
     delete process.env.RATE_LIMIT_HASH_SECRET;
     const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
-    expect(body.error).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
+    expect(body.error).toBe('Rate limiting is not configured on the server.');
+    expect(errorSpy.mock.calls.flat().join(' ')).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('reports exactly which backend settings are missing (email is not required)', async () => {
