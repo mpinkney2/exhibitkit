@@ -31,4 +31,11 @@ describe('FOUNDER_ADMIN_SECRET policy', () => {
     expect(configuredFounderSecret(secret)).toBe(secret);
     expect(founderSecretBlockReason(`${secret}x`, [digest])).toBeNull();
   });
+
+  it('includes the published founder test placeholder hashes', () => {
+    expect(FOUNDER_SECRET_BLOCKLIST).toEqual(expect.arrayContaining([
+      '3d7bbd98be020ed2dc4b6de320283abcb86c2066eb2f6a992ca6a4097e20776c',
+      '6e6c81147ec39c839015ed57124e96ef4d3a49192401e65b12a02ab926d0676b',
+    ]));
+  });
 });

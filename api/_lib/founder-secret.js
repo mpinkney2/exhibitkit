@@ -20,6 +20,8 @@ export const FOUNDER_SECRET_BLOCKLIST = [
   '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
   '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
   'cf80cd8aed482d5d1527d7dc72fceff84e6326592848447d2dc0b0e87dfc9a90',
+  '3d7bbd98be020ed2dc4b6de320283abcb86c2066eb2f6a992ca6a4097e20776c',
+  '6e6c81147ec39c839015ed57124e96ef4d3a49192401e65b12a02ab926d0676b',
 ];
 
 const textEncoder = new TextEncoder();
