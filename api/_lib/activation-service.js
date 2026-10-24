@@ -10,6 +10,7 @@ import {
 } from './license-crypto.js';
 import {
   activateLicense,
+  getLicenseIdByKeyHash,
   transferLicense,
 } from './license-repository.js';
 import { entitlementFromDatabase } from './entitlement-response.js';
@@ -76,8 +77,9 @@ export async function activateLicenseKey(body, { transfer = false } = {}) {
     throw new Error('License activation returned an unexpected result.');
   }
 
+  const licenseId = result.license_id || result.id || await getLicenseIdByKeyHash(record.licenseKeyHash);
   return entitlementFromDatabase(
-    result,
+    { ...result, license_id: licenseId },
     activationToken,
     licenseFingerprint(licenseKey),
   );

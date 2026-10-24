@@ -7,6 +7,9 @@ All notable changes to **ExhibitKit** will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- License responses include an Ed25519-signed entitlement. The browser verifies it on each read. Offline use is limited to 7 days after issuance and never extends past the token expiry.
+- Founder unlock returns a short-lived signed token. Local stage overrides apply in development builds only.
+- `FOUNDER_ADMIN_SECRET` must be at least 32 characters and must not be a known default or test placeholder.
 - Public title, hero, and metadata now position **PatentPreppers ExhibitKit** as local-first exhibit renaming and management for OnCue and TrialDirector.
 - Tamper-evident message exhibits stay available as a secondary feature. The page title and hero no longer lead with that workflow.
 

@@ -1,4 +1,12 @@
+import { issueEntitlementToken } from './entitlement-token.js';
+
 export function entitlementFromDatabase(row, activationToken, fingerprint = null) {
+  const signed = issueEntitlementToken({
+    plan: row.plan,
+    licenseId: row.license_id || row.id,
+    licenseExpiresAt: row.expires_at,
+  });
+
   return {
     plan: row.plan,
     purchasedAt: new Date(row.purchased_at).toISOString(),
@@ -10,7 +18,8 @@ export function entitlementFromDatabase(row, activationToken, fingerprint = null
     updateRenewalStatus: row.updates_included_until ? 'included' : 'none',
     purchasedVersion: row.purchased_version || null,
     serverVerified: true,
-    verifiedAt: new Date().toISOString(),
+    verifiedAt: signed.issuedAt,
+    entitlementToken: signed.token,
     activationToken,
     licenseFingerprint: fingerprint || row.license_fingerprint || null,
     migratedFromLegacy: false,

@@ -7,8 +7,6 @@ import {
   lockFounder,
   shouldOfferFounderEntry,
   clearFounderQueryFromUrl,
-  DEFAULT_FOUNDER_SECRET,
-  isUsingDefaultFounderSecret,
   inviteBetaTester,
 } from '../utils/founder.js';
 import {
@@ -121,7 +119,6 @@ export default function FounderAdmin({
   if (!visible) return null;
 
   const configured = isFounderAdminConfigured();
-  const usingDefaultSecret = isUsingDefaultFounderSecret();
   const checkout = getCheckoutConfig();
   const current = entitlement || getEntitlement();
   const workstation = getWorkstationInfo();
@@ -227,7 +224,7 @@ export default function FounderAdmin({
           padding: '8px 10px',
         }}
       >
-        Live-test console only. Stage switches write local entitlement cache — they are not Stripe purchases.
+        Live-test console only. Local development can switch entitlement stages on this browser. Those switches are not Stripe purchases. Production paid access follows a signed license.
       </div>
 
       {!unlocked ? (
@@ -254,9 +251,9 @@ export default function FounderAdmin({
               <Unlock size={13} /> {unlocking ? 'Checking…' : 'Unlock founder admin'}
             </span>
           </button>
-          {usingDefaultSecret && (
+          {!configured && (
             <div style={{ color: 'var(--color-text-muted, #9ca3af)' }}>
-              Default secret: <code>{DEFAULT_FOUNDER_SECRET}</code>
+              Set <code>VITE_FOUNDER_ADMIN_SECRET</code> in <code>.env.local</code> to unlock founder admin on this machine.
             </div>
           )}
           {error && <div style={{ color: '#f87171' }}>{error}</div>}
@@ -303,25 +300,27 @@ export default function FounderAdmin({
             </pre>
           </section>
 
-          <section style={{ display: 'grid', gap: 6 }}>
-            <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
-              Founder unlimited
-            </strong>
-            <button
-              type="button"
-              style={btnPrimary}
-              onClick={() => applyStage(
-                'Founder unlimited Pro (no payment)',
-                () => applyFounderUnlimitedPro(),
-                { enterWorkspace: true },
-              )}
-            >
-              Founder Pro — unlimited renaming (skip payment)
-            </button>
-            <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
-              Grants Pro renaming + unlimited batches on this browser while founder admin stays unlocked. Not a Stripe purchase.
-            </div>
-          </section>
+          {isDevMode() && (
+            <section style={{ display: 'grid', gap: 6 }}>
+              <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
+                Founder unlimited
+              </strong>
+              <button
+                type="button"
+                style={btnPrimary}
+                onClick={() => applyStage(
+                  'Founder unlimited Pro (no payment)',
+                  () => applyFounderUnlimitedPro(),
+                  { enterWorkspace: true },
+                )}
+              >
+                Founder Pro — unlimited renaming (skip payment)
+              </button>
+              <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
+                Development builds only. Applies Pro renaming on this browser. Not a Stripe purchase.
+              </div>
+            </section>
+          )}
 
           <section style={{ display: 'grid', gap: 6 }}>
             <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
@@ -402,6 +401,7 @@ export default function FounderAdmin({
             )}
           </section>
 
+          {isDevMode() ? (
           <section style={{ display: 'grid', gap: 6 }}>
             <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
               Entitlement stages
@@ -431,6 +431,11 @@ export default function FounderAdmin({
               </button>
             </div>
           </section>
+          ) : (
+            <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
+              Paid renaming on this deployment follows a signed license. Use a beta invite to issue a real key.
+            </div>
+          )}
 
           <section style={{ display: 'grid', gap: 6 }}>
             <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>

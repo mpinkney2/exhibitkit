@@ -200,14 +200,13 @@ export default function App() {
     }, 4500);
   };
 
-  // Reconcile server-issued activations on startup and periodically. Previously
-  // verified perpetual licenses remain usable during a temporary network outage.
+  // Reconcile server-issued activations on startup and periodically. A signed
+  // entitlement stays usable during a short offline grace window.
   useEffect(() => {
     let cancelled = false;
 
     const refreshLicense = async () => {
-      const current = getEntitlement();
-      const result = await refreshVerifiedEntitlementStatus(current);
+      const result = await refreshVerifiedEntitlementStatus();
       if (cancelled) return;
 
       if (result.ok && result.entitlement) {

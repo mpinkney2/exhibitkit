@@ -2,8 +2,13 @@
  * ExhibitKIT entitlement model.
  * States: free | case_pass | pro_perpetual | firm (future stub)
  *
- * Local cache is for UX only. Paid access requires a server-verified license,
- * or a founder testing override. Unsigned local records stay on the free tier.
+ * Local cache is for UX only. Paid access requires an Ed25519 entitlement
+ * token signed by the license service. The browser verifies that token on
+ * every read. A missing or invalid token stays on the free tier.
+ *
+ * Offline use continues for 7 days after the token's signed issued-at time,
+ * and never past the token expiry. Development builds may also honor a local
+ * developerOverride for stage testing. That override is ignored outside DEV.
  *
  * Restoration method: license key (see restoreFromLicenseKey).
  * Do not use guessable seat query params or unsigned entitlement APIs.
@@ -24,22 +29,25 @@ import {
   DEV_TEST_KEY,
   APP_VERSION,
 } from './license.js';
-import { isFounderUnlocked } from './founder.js';
 import {
   GUEST_DEMO_COMING_SOON_MESSAGE,
   isGuestDemoKey,
 } from './licenseFormat.js';
+import {
+  isEntitlementTokenInForce,
+  verifyEntitlementToken,
+} from './entitlementToken.js';
 
 const ENTITLEMENT_STORAGE = 'exhibitkit_entitlement_v1';
 const MIGRATION_FLAG = 'exhibitkit_entitlement_migrated_v1';
 
 /**
- * Founder/DEV local overrides are trusted only while founder admin is unlocked
- * (production) or while running a DEV build. They are never treated as Stripe purchases.
+ * Local stage overrides are a development convenience. They are never treated
+ * as a purchase, and they are ignored outside DEV builds.
  */
 function trustsDeveloperOverride(entitlement) {
   if (!entitlement?.developerOverride) return false;
-  return isDevMode() || isFounderUnlocked();
+  return isDevMode();
 }
 
 /**
@@ -60,6 +68,7 @@ function trustsDeveloperOverride(entitlement) {
  * @property {boolean} serverVerified
  * @property {boolean} developerOverride
  * @property {string|null} activationToken
+ * @property {string|null} entitlementToken
  * @property {string|null} verifiedAt
  * @property {string|null} licenseFingerprint
  */
@@ -80,6 +89,7 @@ function emptyEntitlement() {
     serverVerified: false,
     developerOverride: false,
     activationToken: null,
+    entitlementToken: null,
     verifiedAt: null,
     licenseFingerprint: null,
     guestDemo: false,
@@ -147,12 +157,32 @@ function isPaidPlan(record) {
 }
 
 /**
- * Paid access is trusted only for a server-verified license or a founder/dev
- * override. Guest records and unsigned local claims stay on the free tier.
+ * Signature-valid paid claims that are still inside the offline grace window
+ * and the token expiry. The signed plan is authoritative.
+ */
+function verifiedPaidClaims(record) {
+  if (!record?.entitlementToken || isClientGuestRecord(record)) return null;
+  const claims = verifyEntitlementToken(record.entitlementToken);
+  if (!claims || !isEntitlementTokenInForce(claims)) return null;
+  return claims;
+}
+
+function projectVerifiedEntitlement(record, claims) {
+  return normalizeEntitlement({
+    ...record,
+    plan: claims.plan,
+    expiresAt: claims.plan === PLAN_IDS.CASE_PASS ? claims.expiry : record.expiresAt,
+    serverVerified: true,
+  });
+}
+
+/**
+ * Paid access requires a currently valid signed entitlement, or a DEV-only
+ * local override. Guest records and unsigned local claims stay on the free tier.
  */
 function isTrustedPaidRecord(record) {
   if (!record || isClientGuestRecord(record)) return false;
-  if (record.serverVerified === true) return true;
+  if (verifiedPaidClaims(record)) return true;
   return trustsDeveloperOverride(record);
 }
 
@@ -161,7 +191,9 @@ function effectiveEntitlement(record) {
   if (isClientGuestRecord(base)) {
     return { ...emptyEntitlement(), demoNotice: GUEST_DEMO_COMING_SOON_MESSAGE };
   }
-  if (isPaidPlan(base) && !isTrustedPaidRecord(base)) {
+  const claims = verifiedPaidClaims(base);
+  if (claims) return projectVerifiedEntitlement(base, claims);
+  if (isPaidPlan(base) && !trustsDeveloperOverride(base)) {
     return emptyEntitlement();
   }
   return base;
@@ -196,7 +228,7 @@ export function getEntitlement() {
   const stored = readStored() || emptyEntitlement();
   const normalized = normalizeEntitlement(stored);
   // Persist expiry flip so UI stays consistent. Do not persist the free-tier
-  // view of an unsigned record; founder overrides are evaluated at read time.
+  // view of an unsigned record; signature checks run at read time.
   if (stored.casePassStatus !== normalized.casePassStatus || stored.plan !== normalized.plan) {
     writeStored(normalized);
   }
@@ -208,8 +240,8 @@ export function getEntitlement() {
  */
 export function isCasePassActive(entitlement = getEntitlement()) {
   const record = effectiveEntitlement(entitlement);
-  if (!isTrustedPaidRecord(record)) return false;
   if (record.plan !== PLAN_IDS.CASE_PASS) return false;
+  if (!isTrustedPaidRecord(record)) return false;
   if (record.casePassStatus === 'payment_pending') return false;
   if (!record.expiresAt) return false;
   return new Date(record.expiresAt).getTime() > Date.now();
@@ -228,9 +260,9 @@ export function isProPerpetual(entitlement = getEntitlement()) {
  */
 export function hasPaidRenamingAccess(entitlement = getEntitlement()) {
   const record = effectiveEntitlement(entitlement);
-  if (!isTrustedPaidRecord(record)) return false;
-  if (record.plan === PLAN_IDS.PRO) return true;
-  if (record.plan === PLAN_IDS.FIRM) return true;
+  if (record.plan === PLAN_IDS.PRO || record.plan === PLAN_IDS.FIRM) {
+    return isTrustedPaidRecord(record);
+  }
   if (isCasePassActive(record)) return true;
   return false;
 }
@@ -283,6 +315,7 @@ export function applyEntitlementRecord(record) {
   writeStored(next);
 
   // Keep legacy license keys in sync for Pro so older code paths remain coherent
+  // during DEV stage testing. Production paid access comes from the signed token.
   if (
     next.plan === PLAN_IDS.PRO
     && next.licenseKey
@@ -292,7 +325,7 @@ export function applyEntitlementRecord(record) {
     legacyActivateLicense(next.licenseKey, 'pro_perpetual');
   }
 
-  return next;
+  return effectiveEntitlement(next);
 }
 
 export { GUEST_DEMO_COMING_SOON_MESSAGE, isGuestDemoKey };
@@ -399,13 +432,14 @@ export async function requestLicenseRecovery(email) {
   }
 }
 
-export async function refreshVerifiedEntitlementStatus(entitlement = getEntitlement()) {
-  if (trustsDeveloperOverride(entitlement) && !isClientGuestRecord(entitlement)) {
-    return { ok: true, entitlement: effectiveEntitlement(entitlement) };
+export async function refreshVerifiedEntitlementStatus(entitlement = readStored() || emptyEntitlement()) {
+  const stored = entitlement || readStored() || emptyEntitlement();
+  if (trustsDeveloperOverride(stored) && !isClientGuestRecord(stored)) {
+    return { ok: true, entitlement: effectiveEntitlement(stored) };
   }
-  if (!entitlement.serverVerified || !entitlement.activationToken) {
-    // Do not wipe local founder/test records or Free — only reconcile server seats.
-    return { ok: false, invalid: false, entitlement };
+  if (!stored.activationToken) {
+    // Do not wipe local DEV/test records or Free — only reconcile server seats.
+    return { ok: false, invalid: false, entitlement: effectiveEntitlement(stored) };
   }
 
   try {
@@ -413,33 +447,40 @@ export async function refreshVerifiedEntitlementStatus(entitlement = getEntitlem
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        activationToken: entitlement.activationToken,
+        activationToken: stored.activationToken,
         workstationId: getWorkstationInfo().deviceId,
       }),
     });
     const data = await response.json().catch(() => ({}));
     if (response.status >= 500) {
-      return { ok: false, offline: true, entitlement };
+      return { ok: false, offline: true, entitlement: effectiveEntitlement(stored) };
     }
-    if (!response.ok || !data.active || !data.entitlement) {
-      return { ok: false, invalid: true, entitlement };
+    if (!response.ok || !data.active || !data.entitlement?.entitlementToken) {
+      return { ok: false, invalid: true, entitlement: effectiveEntitlement(stored) };
     }
-    return { ok: true, entitlement: applyEntitlementRecord(data.entitlement) };
+    const refreshed = applyEntitlementRecord(data.entitlement);
+    if (!hasPaidRenamingAccess(refreshed)) {
+      return { ok: false, invalid: true, entitlement: effectiveEntitlement(readStored() || stored) };
+    }
+    return { ok: true, entitlement: refreshed };
   } catch {
-    // Network outages do not immediately remove a previously verified perpetual
-    // entitlement. The next successful status check will reconcile revocations.
-    return { ok: false, offline: true, entitlement };
+    // A network outage keeps a signed entitlement only for the offline grace
+    // window, and never past the token expiry. The next status check reconciles it.
+    return { ok: false, offline: true, entitlement: effectiveEntitlement(stored) };
   }
 }
 
-export async function deactivateCurrentWorkstation(entitlement = getEntitlement()) {
-  if (entitlement.serverVerified && entitlement.activationToken) {
+export async function deactivateCurrentWorkstation(entitlement = readStored() || emptyEntitlement()) {
+  const stored = entitlement?.activationToken
+    ? entitlement
+    : (readStored() || entitlement || emptyEntitlement());
+  if (stored.activationToken) {
     try {
       await fetch(getLicenseApiUrl('deactivate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          activationToken: entitlement.activationToken,
+          activationToken: stored.activationToken,
           workstationId: getWorkstationInfo().deviceId,
         }),
       });
@@ -535,8 +576,8 @@ export function applyProForTesting(options = {}) {
 }
 
 /**
- * Founder helper: one-click unlimited Pro renaming for live testing.
- * Requires an unlocked founder session on production builds.
+ * Founder helper: one-click unlimited Pro renaming for local development.
+ * Outside DEV this record stays on the free tier.
  */
 export function applyFounderUnlimitedPro() {
   return applyProForTesting({ updatesLapsed: false });
