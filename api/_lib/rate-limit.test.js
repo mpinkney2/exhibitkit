@@ -75,7 +75,9 @@ describe('assertRateLimitConfigured', () => {
 
 describe('rate limit retention migration', () => {
   it('deletes a bounded batch of expired rows on about one percent of calls', () => {
-    const sql = readFileSync(new URL('../../db/migrations/004_rate_limit_cleanup.sql', import.meta.url), 'utf8');
+    const sql = readFileSync(new URL('../../db/migrations/005_rate_limit_cleanup.sql', import.meta.url), 'utf8');
+    expect(sql.startsWith('-- migrate:no-transaction')).toBe(false);
+    expect(sql.toLowerCase()).not.toContain('concurrently');
     expect(sql).toContain('CREATE OR REPLACE FUNCTION exhibitkit_consume_rate_limit');
     expect(sql).toContain('DELETE FROM exhibitkit_rate_limits');
     expect(sql).toContain("window_start < now() - interval '2 days'");
@@ -84,12 +86,14 @@ describe('rate limit retention migration', () => {
     expect(sql).not.toContain('CREATE INDEX');
   });
 
-  it('creates the window index concurrently in its own migration', () => {
+  it('creates the window index outside a transaction before the cleanup migration', () => {
     const sql = readFileSync(new URL('../../db/migrations/004_rate_limit_index.sql', import.meta.url), 'utf8');
     const migrator = readFileSync(new URL('../../scripts/migrate-licensing.mjs', import.meta.url), 'utf8');
+    expect(sql.startsWith('-- migrate:no-transaction\n')).toBe(true);
     expect(sql).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS exhibitkit_rate_limits_window_start_idx');
     expect(sql).not.toMatch(/\bBEGIN\b/);
-    expect(migrator).toContain('outside a transaction');
+    expect(migrator).toContain("const MIGRATION_MARKER = '-- migrate:no-transaction'");
+    expect(migrator).toContain('isNoTransactionMigration');
   });
 });
 

@@ -11,6 +11,7 @@ export default defineConfig({
       'src/**/*.{test,spec}.{js,jsx}',
       'test/**/*.{test,spec}.{js,jsx}',
       'api/**/*.{test,spec}.js',
+      'scripts/**/*.test.js',
     ],
   },
 })

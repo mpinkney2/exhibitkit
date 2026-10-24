@@ -1,8 +1,8 @@
 BEGIN;
 
 -- Expired windows are never read again. The longest limiter window in the app
--- is one day, so rows older than two days are safe to drop. The index that
--- supports this lookup is created concurrently in 004_rate_limit_index.sql.
+-- is one day, so rows older than two days are safe to drop. The supporting
+-- index is created in 004_rate_limit_index.sql before this function is replaced.
 CREATE OR REPLACE FUNCTION exhibitkit_consume_rate_limit(
   p_action text,
   p_key_hash text,
