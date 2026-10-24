@@ -5,9 +5,13 @@ const mocks = vi.hoisted(() => ({
   consumeRateLimit: vi.fn(async () => true),
 }));
 
-vi.mock('../_lib/rate-limit.js', () => ({
-  consumeRateLimit: mocks.consumeRateLimit,
-}));
+vi.mock('../_lib/rate-limit.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    consumeRateLimit: mocks.consumeRateLimit,
+  };
+});
 
 import unlock from './unlock.js';
 
@@ -26,6 +30,9 @@ function unlockRequest(secret, origin = 'https://exhibitkit.patentpreppers.com')
 beforeEach(() => {
   process.env.FOUNDER_ADMIN_SECRET = 'production-founder-secret-ok';
   process.env.APP_URL = 'https://exhibitkit.patentpreppers.com';
+  process.env.DATABASE_URL = 'postgres://test';
+  process.env.LICENSE_HASH_SECRET = 'x'.repeat(48);
+  delete process.env.RATE_LIMIT_HASH_SECRET;
   mocks.consumeRateLimit.mockReset();
   mocks.consumeRateLimit.mockResolvedValue(true);
 });
@@ -33,6 +40,9 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.FOUNDER_ADMIN_SECRET;
   delete process.env.APP_URL;
+  delete process.env.DATABASE_URL;
+  delete process.env.LICENSE_HASH_SECRET;
+  delete process.env.RATE_LIMIT_HASH_SECRET;
 });
 
 describe('POST /api/founder/unlock', () => {
@@ -63,6 +73,28 @@ describe('POST /api/founder/unlock', () => {
   it('rejects disallowed origins', async () => {
     const response = await unlock.fetch(unlockRequest('production-founder-secret-ok', 'https://evil.example'));
     expect(response.status).toBe(403);
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 when the rate limiter database is not configured', async () => {
+    delete process.env.DATABASE_URL;
+    const response = await unlock.fetch(unlockRequest('production-founder-secret-ok'));
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
+    expect(body.error).toContain('DATABASE_URL');
+    expect(body.error).not.toContain('LICENSE_HASH_SECRET');
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 when no rate-limit hash secret is configured', async () => {
+    delete process.env.LICENSE_HASH_SECRET;
+    const response = await unlock.fetch(unlockRequest('production-founder-secret-ok'));
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
+    expect(body.error).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
+    expect(body.error).not.toContain('DATABASE_URL');
     expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
   });
 

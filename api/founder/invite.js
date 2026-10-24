@@ -1,5 +1,5 @@
 import { safeEqual } from '../_lib/license-crypto.js';
-import { consumeRateLimit } from '../_lib/rate-limit.js';
+import { assertRateLimitConfigured, consumeRateLimit } from '../_lib/rate-limit.js';
 import {
   errorResponse,
   getClientIp,
@@ -70,6 +70,7 @@ export default {
         );
       }
 
+      assertRateLimitConfigured();
       const ip = getClientIp(request);
       const allowed = await consumeRateLimit('founder_invite_ip', ip, 30, 3600);
       if (!allowed) {

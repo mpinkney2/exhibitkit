@@ -1,5 +1,5 @@
 import { safeEqual } from '../_lib/license-crypto.js';
-import { consumeRateLimit } from '../_lib/rate-limit.js';
+import { assertRateLimitConfigured, consumeRateLimit } from '../_lib/rate-limit.js';
 import {
   errorResponse,
   getClientIp,
@@ -34,6 +34,7 @@ export default {
         );
       }
 
+      assertRateLimitConfigured();
       const ip = getClientIp(request);
       const allowed = await consumeRateLimit('founder_unlock_ip', ip, 10, 900);
       if (!allowed) {

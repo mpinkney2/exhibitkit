@@ -14,7 +14,8 @@ vi.mock('./database.js', () => ({
   resetDatabaseForTesting: () => {},
 }));
 
-import { consumeRateLimit } from './rate-limit.js';
+import { readFileSync } from 'node:fs';
+import { assertRateLimitConfigured, consumeRateLimit } from './rate-limit.js';
 
 const HASH_SECRET = 'hash-secret-with-at-least-thirty-two-characters';
 
@@ -26,8 +27,48 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete process.env.DATABASE_URL;
   delete process.env.LICENSE_HASH_SECRET;
   delete process.env.RATE_LIMIT_HASH_SECRET;
+});
+
+describe('assertRateLimitConfigured', () => {
+  it('names a missing database and a missing hash secret', () => {
+    delete process.env.DATABASE_URL;
+    delete process.env.LICENSE_HASH_SECRET;
+    delete process.env.RATE_LIMIT_HASH_SECRET;
+    expect(() => assertRateLimitConfigured()).toThrowError(/DATABASE_URL/);
+    try {
+      assertRateLimitConfigured();
+    } catch (error) {
+      expect(error.status).toBe(503);
+      expect(error.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
+      expect(error.message).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
+    }
+  });
+
+  it('accepts either hash secret when the database is configured', () => {
+    process.env.DATABASE_URL = 'postgres://test';
+    delete process.env.LICENSE_HASH_SECRET;
+    process.env.RATE_LIMIT_HASH_SECRET = 'y'.repeat(32);
+    expect(() => assertRateLimitConfigured()).not.toThrow();
+  });
+
+  it('rejects a hash secret that is present but too short', () => {
+    process.env.DATABASE_URL = 'postgres://test';
+    process.env.LICENSE_HASH_SECRET = 'short';
+    delete process.env.RATE_LIMIT_HASH_SECRET;
+    expect(() => assertRateLimitConfigured()).toThrowError(/RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET/);
+  });
+});
+
+describe('rate limit retention migration', () => {
+  it('drops expired exhibitkit_rate_limits rows inside the consume function', () => {
+    const sql = readFileSync(new URL('../../db/migrations/004_rate_limit_cleanup.sql', import.meta.url), 'utf8');
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION exhibitkit_consume_rate_limit');
+    expect(sql).toContain('DELETE FROM exhibitkit_rate_limits');
+    expect(sql).toContain("window_start < now() - interval '2 days'");
+  });
 });
 
 describe('consumeRateLimit', () => {
