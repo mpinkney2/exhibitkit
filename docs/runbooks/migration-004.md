@@ -1,10 +1,10 @@
 # Migration 004 — rate-limit retention
 
-Use the direct Neon connection string, the hostname without `-pooler`. A pooled Neon connection runs statements inside a transaction, and `CREATE INDEX CONCURRENTLY` fails there.
+Session settings do not persist from one statement to the next. `scripts/migrate-licensing.mjs` sets `lock_timeout` to 5 seconds on its own connection before applying migrations. A `SET` you run in another session is gone when that session ends. `CREATE INDEX CONCURRENTLY` still has to run outside a transaction block.
 
-`scripts/migrate-licensing.mjs` applies `db/migrations/004_rate_limit_index.sql` one statement at a time because the first line is `-- migrate:no-transaction`. `db/migrations/005_rate_limit_cleanup.sql` replaces `exhibitkit_consume_rate_limit` and can run inside a transaction. The runner records each filename in `exhibitkit_schema_migrations` and skips it on the next run. A database that already has `exhibitkit_licenses`, the `source` column, and row level security on that table records `001` through `003` without running those files again.
+`db/migrations/004_rate_limit_index.sql` starts with `-- migrate:no-transaction` and contains one statement, which the runner applies by itself. `db/migrations/005_rate_limit_cleanup.sql` replaces `exhibitkit_consume_rate_limit` and can run inside a transaction. The runner records each filename in `exhibitkit_schema_migrations` and skips it on the next run. A database that already has `exhibitkit_licenses`, the `source` column, and row level security on that table records `001` through `003` without running those files again.
 
-After the function is replaced, about 1% of consume calls delete at most 100 expired rows. If `exhibitkit_rate_limits_window_start_idx` exists but is invalid, the runner stops.
+After the function is replaced, about 1% of consume calls delete at most 100 expired rows. If `004_rate_limit_index.sql` is already recorded, the runner stops when `exhibitkit_rate_limits_window_start_idx` is missing or invalid.
 
 ## 1. Neon branch backup
 
@@ -20,7 +20,7 @@ WHERE window_start < now() - interval '2 days';
 
 ## 3. Build the index concurrently
 
-Set a lock timeout so a busy table does not wait indefinitely:
+`npm run db:migrate` sets `lock_timeout` for the connection it uses. To build the index by hand, set the timeout in that same session. It does not carry into the migration command:
 
 ```sql
 SET lock_timeout = '5s';

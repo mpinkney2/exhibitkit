@@ -26,6 +26,23 @@ export function statementsOutsideTransaction(contents) {
     .filter(Boolean);
 }
 
+export function requireOneNoTransactionStatement(name, contents) {
+  const statements = statementsOutsideTransaction(contents);
+  if (statements.length !== 1) {
+    throw new Error(
+      `Migration ${name} is marked ${MIGRATION_MARKER} and must contain exactly one statement.`,
+    );
+  }
+  return statements[0];
+}
+
+const MIGRATION_LOCK_KEY = 'exhibitkit_schema_migrations';
+
+export function migrationNoticeHandler(notice) {
+  if (notice?.code === '42P07') return;
+  console.log(notice?.message || notice);
+}
+
 async function listMigrationFiles(migrationsDir) {
   const migrationFiles = (await readdir(migrationsDir))
     .filter((name) => name.endsWith('.sql'))
@@ -84,13 +101,20 @@ async function baselineExistingDatabase(sql, migrationFiles) {
   console.log(`Recorded already-applied migrations: ${present.join(', ')}.`);
 }
 
-export async function assertRateLimitIndexValid(sql) {
+export async function assertRateLimitIndexValid(sql, { required = false } = {}) {
   const rows = await sql`
     SELECT indisvalid
     FROM pg_index
     WHERE indexrelid = to_regclass('public.exhibitkit_rate_limits_window_start_idx')
   `;
-  if (rows.length === 0) return;
+  if (rows.length === 0) {
+    if (required) {
+      throw new Error(
+        `${RATE_LIMIT_INDEX} is missing. Migration 004_rate_limit_index.sql is recorded, so the index should exist.`,
+      );
+    }
+    return;
+  }
   if (rows[0].indisvalid !== true) {
     throw new Error(
       `${RATE_LIMIT_INDEX} exists but is invalid. Drop it with DROP INDEX CONCURRENTLY and run the migration again.`,
@@ -107,39 +131,45 @@ async function recordMigration(sql, name) {
 
 export async function applyLicensingMigrations(sql, migrationsDir) {
   const migrationFiles = await listMigrationFiles(migrationsDir);
-  await ensureMigrationsTable(sql);
-  await baselineExistingDatabase(sql, migrationFiles);
+  await sql`SELECT pg_advisory_lock(hashtext(${MIGRATION_LOCK_KEY}))`;
+  try {
+    // Session settings end with the session. Set the timeout on this connection.
+    await sql.unsafe("SET lock_timeout = '5s'");
+    await ensureMigrationsTable(sql);
+    await baselineExistingDatabase(sql, migrationFiles);
 
-  for (const name of migrationFiles) {
-    const applied = await sql`
-      SELECT 1 FROM exhibitkit_schema_migrations WHERE filename = ${name}
-    `;
-    if (applied.length > 0) {
-      if (name === '004_rate_limit_index.sql') {
-        await assertRateLimitIndexValid(sql);
+    for (const name of migrationFiles) {
+      const applied = await sql`
+        SELECT 1 FROM exhibitkit_schema_migrations WHERE filename = ${name}
+      `;
+      if (applied.length > 0) {
+        if (name === '004_rate_limit_index.sql') {
+          await assertRateLimitIndexValid(sql, { required: true });
+        }
+        console.log(`Skipping migration ${name}; already applied.`);
+        continue;
       }
-      console.log(`Skipping migration ${name}; already applied.`);
-      continue;
-    }
 
-    const contents = await readFile(new URL(name, migrationsDir), 'utf8');
-    if (isNoTransactionMigration(contents)) {
-      for (const statement of statementsOutsideTransaction(contents)) {
+      const contents = await readFile(new URL(name, migrationsDir), 'utf8');
+      if (isNoTransactionMigration(contents)) {
+        const statement = requireOneNoTransactionStatement(name, contents);
         await sql.unsafe(statement).simple();
+        await assertRateLimitIndexValid(sql);
+        await recordMigration(sql, name);
+        console.log(`Applied migration ${name} outside a transaction.`);
+        continue;
       }
-      await assertRateLimitIndexValid(sql);
+
+      await sql.unsafe(contents).simple();
       await recordMigration(sql, name);
-      console.log(`Applied migration ${name} outside a transaction.`);
-      continue;
+      console.log(`Applied migration ${name}.`);
     }
 
-    await sql.unsafe(contents).simple();
-    await recordMigration(sql, name);
-    console.log(`Applied migration ${name}.`);
+    await assertRateLimitIndexValid(sql);
+    console.log('ExhibitKIT licensing database is ready.');
+  } finally {
+    await sql`SELECT pg_advisory_unlock(hashtext(${MIGRATION_LOCK_KEY}))`;
   }
-
-  await assertRateLimitIndexValid(sql);
-  console.log('ExhibitKIT licensing database is ready.');
 }
 
 function isLocalConnection(url) {
@@ -168,6 +198,7 @@ if (invokedDirectly()) {
     prepare: false,
     ssl: isLocalConnection(connectionString) ? false : 'require',
     max: 1,
+    onnotice: migrationNoticeHandler,
   });
 
   try {

@@ -20,7 +20,17 @@ keywords = [
 ]
 
 [rules.allowlist]
-description = "Environment references and this rule file are not secret values"
+description = "A bare environment reference and this rule file are not secret values"
 regexTarget = "secret"
-regexes = ['''(?i)^process\.env\b''']
+regexes = ['''^process\.env\.[A-Z0-9_]+$''']
 paths = ['''(^|/)\.gitleaks\.toml$''']
+
+[[rules]]
+id = "exhibitkit-secret-fallback"
+description = "Quoted literal fallback for a founder secret or passphrase"
+regex = '''(?i)(?:FOUNDER_ADMIN_SECRET|DEFAULT_FOUNDER_SECRET|passphrase)[^\r\n]*?(?:\|\||\?\?)\s*['"`]([^'"`\r\n]{8,})['"`]'''
+keywords = [
+  "founder_admin_secret",
+  "default_founder_secret",
+  "passphrase",
+]
