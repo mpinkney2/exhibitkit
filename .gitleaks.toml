@@ -6,18 +6,15 @@ useDefault = true
 [[rules]]
 id = "exhibitkit-guest-key"
 description = "ExhibitKit guest access key"
-regex = '''EKIT-GUEST-[A-Z0-9]{4}-[A-Z0-9]{4}'''
-keywords = ["EKIT-GUEST"]
+regex = '''(?i)EKIT-GUEST-[A-Z0-9]{4}-[A-Z0-9]{4}'''
+keywords = ["ekit-guest"]
 
 [[rules]]
 id = "exhibitkit-founder-or-passphrase"
-description = "Value assigned to a founder secret or passphrase field"
-regex = '''(?i)(?:FOUNDER_ADMIN_SECRET|DEFAULT_FOUNDER_SECRET|passphrase)(?:['"`*_ \t]{0,12})[:=|]\s*['"`]?([A-Za-z0-9][A-Za-z0-9._-]{7,})'''
+description = "Value assigned to a founder secret, or a quoted passphrase of at least 12 characters"
+regex = '''(?i)(?:(?:FOUNDER_ADMIN_SECRET|DEFAULT_FOUNDER_SECRET)(?:['"`*_ \t]{0,12})[:=|]\s*['"`]?([A-Za-z0-9+/][A-Za-z0-9._-]{7,})|passphrase(?:['"`*_ \t]{0,12})[:=|]\s*['"`]([^'"`\r\n]{12,})['"`])'''
 keywords = [
-  "FOUNDER_ADMIN_SECRET",
-  "DEFAULT_FOUNDER_SECRET",
+  "founder_admin_secret",
+  "default_founder_secret",
   "passphrase",
-  "Passphrase",
-  "PASSPHRASE",
 ]
-secretGroup = 1
