@@ -39,7 +39,7 @@ export default function MessageWorkspace({
   const tierLabel = getEntitlementLabel(entitlement);
   const expiredCasePass =
     entitlement.plan === 'case_pass' && entitlement.casePassStatus === 'expired';
-  const expiredGuestDemo = Boolean(entitlement.guestDemoExpired);
+  const demoNotice = entitlement.demoNotice || '';
 
   const activeExhibit = useMemo(
     () => project.exhibits.find((e) => e.id === activeExhibitId) || project.exhibits[0] || null,
@@ -352,10 +352,9 @@ export default function MessageWorkspace({
               Pro generation for new work requires a new Case Pass or Pro license.
             </p>
           )}
-          {expiredGuestDemo && (
-            <p className="message-side-note warning">
-              Your 10-day guest demo expired. Local files were not deleted. Activate a Case Pass or
-              Pro license to continue Pro exports.
+          {demoNotice && (
+            <p className="message-side-note" role="status">
+              {demoNotice}
             </p>
           )}
         </aside>

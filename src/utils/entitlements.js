@@ -7,7 +7,8 @@ import {
   validateKeyFormat,
   isDevMode,
   DEV_TEST_KEY,
-  GUEST_DEMO_KEY,
+  GUEST_DEMO_COMING_SOON_MESSAGE,
+  isGuestDemoKey,
 } from './licenseFormat';
 
 const ENTITLEMENT_STORAGE = 'exhibitkit_entitlement_v2';
@@ -78,6 +79,13 @@ function isTimedTier(tier) {
  */
 export function getEffectiveEntitlement(now = new Date(), entitlement = readEntitlement()) {
   const current = normalizeEntitlement(entitlement);
+  if (current.tier === TIERS.GUEST_DEMO || isGuestDemoKey(current.key)) {
+    return {
+      ...createFreeEntitlement(),
+      expiredGuestDemo: false,
+      demoNotice: GUEST_DEMO_COMING_SOON_MESSAGE,
+    };
+  }
   if (isTimedTier(current.tier)) {
     if (!current.expiresAt || new Date(current.expiresAt).getTime() <= now.getTime()) {
       return {
@@ -102,7 +110,6 @@ export function hasProFeatures(now = new Date(), entitlement = readEntitlement()
   return (
     effective.tier === TIERS.PRO_PERPETUAL ||
     effective.tier === TIERS.CASE_PASS ||
-    effective.tier === TIERS.GUEST_DEMO ||
     effective.tier === TIERS.FIRM
   );
 }
@@ -142,19 +149,9 @@ export function activateCasePass(key, purchasedAt = new Date()) {
   });
 }
 
-export function activateGuestDemo(key, purchasedAt = new Date(), guestLabel = 'Law Firm Guest') {
-  const cleanKey = (key || '').trim().toUpperCase();
-  if (!isActivatableKey(cleanKey, TIERS.GUEST_DEMO)) return null;
-  const start = new Date(purchasedAt);
-  const expires = new Date(start.getTime() + GUEST_DEMO_DAYS * 24 * 60 * 60 * 1000);
-  return writeEntitlement({
-    tier: TIERS.GUEST_DEMO,
-    key: cleanKey,
-    purchasedAt: start.toISOString(),
-    expiresAt: expires.toISOString(),
-    updatesUntil: null,
-    guestLabel,
-  });
+export function activateGuestDemo() {
+  const saved = writeEntitlement(createFreeEntitlement());
+  return { ...saved, demoNotice: GUEST_DEMO_COMING_SOON_MESSAGE };
 }
 
 export function activateProPerpetual(key, purchasedAt = new Date()) {
@@ -174,7 +171,7 @@ export function activateProPerpetual(key, purchasedAt = new Date()) {
 
 /**
  * Activate from a license key.
- * Guest: EKIT-GUEST-XXXX-XXXX (10 days)
+ * Guest/demo keys stay on the free tier.
  * Case Pass: EKIT-CASE-XXXX-XXXX (30 days)
  * Pro: EKIT-XXXX-XXXX-XXXX
  */
@@ -183,12 +180,8 @@ export function activateFromKey(key, options = {}) {
   const forcedTier = options.tier;
   const purchasedAt = options.purchasedAt ? new Date(options.purchasedAt) : new Date();
 
-  if (
-    forcedTier === TIERS.GUEST_DEMO ||
-    cleanKey.startsWith('EKIT-GUEST-') ||
-    cleanKey === GUEST_DEMO_KEY
-  ) {
-    return activateGuestDemo(cleanKey, purchasedAt, options.guestLabel || 'Law Firm Guest');
+  if (forcedTier === TIERS.GUEST_DEMO || isGuestDemoKey(cleanKey)) {
+    return activateGuestDemo();
   }
   if (forcedTier === TIERS.CASE_PASS || cleanKey.startsWith('EKIT-CASE-')) {
     return activateCasePass(cleanKey, purchasedAt);
@@ -197,12 +190,10 @@ export function activateFromKey(key, options = {}) {
 }
 
 function isActivatableKey(cleanKey, tier) {
+  if (isGuestDemoKey(cleanKey)) return false;
   if (isDevMode() && cleanKey === DEV_TEST_KEY) return true;
   if (isDevMode() && cleanKey === 'EKIT-CASE-TEST-0001') return true;
-  if (isDevMode() && cleanKey === 'EKIT-GUEST-TEST-0001') return true;
-  if (tier === TIERS.GUEST_DEMO) {
-    return /^EKIT-GUEST-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(cleanKey) || cleanKey === GUEST_DEMO_KEY;
-  }
+  if (tier === TIERS.GUEST_DEMO) return false;
   if (tier === TIERS.CASE_PASS) {
     return /^EKIT-CASE-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(cleanKey);
   }

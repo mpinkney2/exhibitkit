@@ -12,12 +12,7 @@ import {
   hasProFeatures,
   TIERS,
 } from './entitlements';
-import {
-  GUEST_DEMO_ID,
-  GUEST_DEMO_KEY,
-  GUEST_DEMO_PASSPHRASE,
-  resolveGuestCredentials,
-} from './licenseFormat';
+import { GUEST_DEMO_COMING_SOON_MESSAGE } from './licenseFormat';
 
 beforeEach(() => {
   localStorage.clear();
@@ -43,24 +38,25 @@ describe('entitlements', () => {
     expect(hasProFeatures(new Date('2026-02-05T00:00:00.000Z'))).toBe(false);
   });
 
-  it('activates Guest Demo for 10 days then expires without deleting key history', () => {
+  it('keeps guest and demo keys on the free tier', () => {
     expect(GUEST_DEMO_DURATION_DAYS).toBe(10);
-    const purchasedAt = new Date('2026-09-01T00:00:00.000Z');
-    const entitlement = activateGuestDemo(GUEST_DEMO_KEY, purchasedAt, 'Daughter Law Firm Guest');
-    expect(entitlement.tier).toBe(TIERS.GUEST_DEMO);
-    expect(entitlement.guestLabel).toBe('Daughter Law Firm Guest');
-    expect(hasProFeatures(new Date('2026-09-05T00:00:00.000Z'))).toBe(true);
+    const entitlement = activateGuestDemo();
+    expect(entitlement.tier).toBe(TIERS.FREE);
+    expect(entitlement.demoNotice).toBe(GUEST_DEMO_COMING_SOON_MESSAGE);
+    expect(hasProFeatures()).toBe(false);
 
-    const expired = getEffectiveEntitlement(new Date('2026-09-12T00:00:00.000Z'));
-    expect(expired.tier).toBe(TIERS.FREE);
-    expect(expired.expiredGuestDemo).toBe(true);
-    expect(expired.key).toBe(GUEST_DEMO_KEY);
-    expect(hasProFeatures(new Date('2026-09-12T00:00:00.000Z'))).toBe(false);
-  });
-
-  it('resolves issued guest credentials to the guest access key', () => {
-    expect(resolveGuestCredentials(GUEST_DEMO_ID, GUEST_DEMO_PASSPHRASE)).toBe(GUEST_DEMO_KEY);
-    expect(resolveGuestCredentials('wrong', GUEST_DEMO_PASSPHRASE)).toBeNull();
+    __setEntitlementForTests({
+      tier: TIERS.GUEST_DEMO,
+      key: 'EKIT-GUEST-AAAA-BBBB',
+      purchasedAt: '2026-09-01T00:00:00.000Z',
+      expiresAt: '2026-09-11T00:00:00.000Z',
+      guestLabel: 'Law Firm Guest',
+    });
+    const storedGuest = getEffectiveEntitlement(new Date('2026-09-05T00:00:00.000Z'));
+    expect(storedGuest.tier).toBe(TIERS.FREE);
+    expect(storedGuest.demoNotice).toMatch(/coming soon/i);
+    expect(storedGuest.demoNotice).toMatch(/contact us/i);
+    expect(hasProFeatures(new Date('2026-09-05T00:00:00.000Z'))).toBe(false);
   });
 
   it('keeps Pro usable after update period ends', () => {

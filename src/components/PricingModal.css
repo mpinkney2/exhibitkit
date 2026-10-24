@@ -69,6 +69,8 @@
 .pricing-activation-row button:hover { border-color: var(--color-accent); color: var(--color-accent); }
 .pricing-activation-row button:disabled, .pricing-recovery-row button:disabled, .pricing-transfer-button:disabled { cursor: wait; opacity: .62; }
 .pricing-license-error { margin-top: 9px; padding: 8px 10px; }
+.pricing-license-notice { display: flex; align-items: flex-start; gap: 8px; margin-top: 9px; padding: 8px 10px; border: 1px solid rgba(37, 99, 235, 0.24); border-radius: 7px; color: var(--color-text-secondary); background: rgba(37, 99, 235, 0.07); font-size: 11px; line-height: 1.5; }
+.pricing-license-notice svg { flex: 0 0 auto; margin-top: 1px; color: var(--color-accent); }
 .pricing-transfer-panel { margin-top: 10px; padding: 11px; border: 1px solid rgba(245, 158, 11, .28); border-radius: 8px; background: rgba(245, 158, 11, .07); }
 .pricing-transfer-panel p { margin: 0 0 9px; color: var(--color-text-secondary); font-size: 10.5px; line-height: 1.5; }
 .pricing-transfer-button { width: 100%; min-height: 38px; padding: 0 12px; border: 1px solid rgba(245, 158, 11, .45); border-radius: 7px; color: var(--color-text-primary); background: transparent; font-size: 11px; font-weight: 700; }

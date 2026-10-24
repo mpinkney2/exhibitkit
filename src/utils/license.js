@@ -98,6 +98,9 @@ export function validateKeyFormat(key) {
     return true;
   }
 
+  // Guest/demo keys are not paid licenses.
+  if (cleanKey.startsWith('EKIT-GUEST-')) return false;
+
   // Standard product license formats. This is only a local syntax check;
   // production activation is verified by the server in entitlement.js.
   const licenseRegex = /^EKIT-(?:[A-Z0-9]{4}-){2,3}[A-Z0-9]{4}$/;

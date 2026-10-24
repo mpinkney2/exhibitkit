@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { AlertCircle, Check, CreditCard, ExternalLink, KeyRound, Mail, ShieldCheck, X } from 'lucide-react';
+import { AlertCircle, Check, CreditCard, ExternalLink, Info, KeyRound, Mail, ShieldCheck, X } from 'lucide-react';
 import {
   restoreFromLicenseKey,
   requestLicenseRecovery,
@@ -25,6 +25,7 @@ export default function PricingModal({
 }) {
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [isActivating, setIsActivating] = useState(false);
   const [needsTransfer, setNeedsTransfer] = useState(false);
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
@@ -85,12 +86,18 @@ export default function PricingModal({
   const activate = async (confirmTransfer = false) => {
     setIsActivating(true);
     setError('');
+    setNotice('');
     const result = await restoreFromLicenseKey(licenseKey, {
       workstationId,
       confirmTransfer,
     });
 
     setIsActivating(false);
+    if (result.notice) {
+      setNeedsTransfer(false);
+      setNotice(result.notice);
+      return;
+    }
     if (result.ok) {
       setNeedsTransfer(false);
       setLicenseKey('');
@@ -193,18 +200,25 @@ export default function PricingModal({
               onChange={(event) => {
                 setLicenseKey(event.target.value);
                 if (error) setError('');
+                if (notice) setNotice('');
                 if (needsTransfer) setNeedsTransfer(false);
               }}
               placeholder="EKIT-XXXX-XXXX-XXXX-XXXX"
               autoComplete="off"
               spellCheck="false"
               aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'pricing-license-error' : undefined}
+              aria-describedby={error ? 'pricing-license-error' : notice ? 'pricing-license-notice' : undefined}
             />
             <button type="submit" disabled={isActivating || !licenseKey.trim()}>
               {isActivating ? 'Verifying…' : 'Activate'}
             </button>
           </div>
+
+          {notice && (
+            <div id="pricing-license-notice" className="pricing-license-notice" role="status">
+              <Info size={14} /> {notice}
+            </div>
+          )}
 
           {error && (
             <div id="pricing-license-error" className="pricing-license-error" role="alert">

@@ -109,6 +109,7 @@ export default function App() {
   const [pricingIntent, setPricingIntent] = useState('purchase');
   const [licenseInputValue, setLicenseInputValue] = useState('');
   const [activationError, setActivationError] = useState('');
+  const [activationNotice, setActivationNotice] = useState('');
   const [activationInProgress, setActivationInProgress] = useState(false);
   const [activationNeedsTransfer, setActivationNeedsTransfer] = useState(false);
 
@@ -143,11 +144,18 @@ export default function App() {
   const handleActivateLicense = async (key, confirmTransfer = false) => {
     setActivationInProgress(true);
     setActivationError('');
+    setActivationNotice('');
     const result = await restoreFromLicenseKey(key, {
       workstationId: workstation.deviceId,
       confirmTransfer,
     });
     setActivationInProgress(false);
+    if (result.notice) {
+      setActivationNeedsTransfer(false);
+      setActivationNotice(result.notice);
+      setEntitlement(result.entitlement || getEntitlement());
+      return;
+    }
     if (result.ok) {
       setActivationNeedsTransfer(false);
       setEntitlement(result.entitlement);
@@ -908,6 +916,7 @@ export default function App() {
                   onChange={(e) => {
                     setLicenseInputValue(e.target.value);
                     setActivationError('');
+                    setActivationNotice('');
                     setActivationNeedsTransfer(false);
                   }}
                   placeholder="Format: EKIT-XXXX-XXXX-XXXX-XXXX"
@@ -918,6 +927,13 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {activationNotice && (
+              <div role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5, background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.24)', padding: '8px 12px', borderRadius: '6px' }}>
+                <Info size={13} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>{activationNotice}</span>
+              </div>
+            )}
 
             {activationError && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-danger)', fontSize: '11px', background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger-border)', padding: '8px 12px', borderRadius: '6px' }}>
@@ -1238,6 +1254,11 @@ export default function App() {
               hasRenamed: lastRenameHistory.length > 0,
             })}
           />
+          {entitlement.demoNotice && (
+            <p role="status" style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+              {entitlement.demoNotice}
+            </p>
+          )}
           {items.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '20px' }}>
               <Dropzone 
