@@ -10,10 +10,13 @@ import {
   refreshVerifiedEntitlementStatus,
   applyCasePassForTesting,
   applyEntitlementRecord,
+  applyFounderUnlimitedPro,
   clearEntitlement,
   FREE_MAX_FILES_PER_BATCH,
   PLAN_IDS,
   areUpdatesIncluded,
+  getEntitlementLabel,
+  GUEST_DEMO_COMING_SOON_MESSAGE,
 } from './entitlement.js';
 import { activateLicense } from './license.js';
 
@@ -145,22 +148,116 @@ describe('Pro perpetual entitlement', () => {
 });
 
 describe('legacy license migration', () => {
-  it('maps a valid old paid license to pro_perpetual', () => {
+  it('does not grant Pro from an old local license flag', () => {
     activateLicense('EKIT-LEG1-ACY2-KEY3', 'lifetime');
     localStorage.removeItem('exhibitkit_entitlement_v1');
     localStorage.removeItem('exhibitkit_entitlement_migrated_v1');
 
     const ent = migrateLegacyLicenseIfNeeded();
-    expect(ent.plan).toBe(PLAN_IDS.PRO);
-    expect(ent.migratedFromLegacy).toBe(true);
-    expect(ent.licenseKey).toBe('EKIT-LEG1-ACY2-KEY3');
-    expect(hasProFeatures(ent)).toBe(true);
+    expect(ent.plan).toBe(PLAN_IDS.FREE);
+    expect(ent.migratedFromLegacy).toBe(false);
+    expect(hasProFeatures(ent)).toBe(false);
+    expect(getEntitlementLabel(ent)).toBe('Free');
   });
 
   it('does not invent Pro access when no legacy license exists', () => {
     const ent = migrateLegacyLicenseIfNeeded();
     expect(ent.plan).toBe(PLAN_IDS.FREE);
     expect(hasProFeatures(ent)).toBe(false);
+  });
+
+  it('does not grant Pro from an unsigned legacy entitlement record', () => {
+    localStorage.setItem('exhibitkit_entitlement_v1', JSON.stringify({
+      plan: PLAN_IDS.PRO,
+      licenseKey: 'EKIT-LEG1-ACY2-KEY3',
+      purchasedAt: '2024-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('exhibitkit_entitlement_migrated_v1', 'true');
+
+    const ent = getEntitlement();
+    expect(ent.plan).toBe(PLAN_IDS.FREE);
+    expect(hasProFeatures(ent)).toBe(false);
+    expect(hasProFeatures()).toBe(false);
+    expect(getMaxRealFilesPerBatch(ent)).toBe(FREE_MAX_FILES_PER_BATCH);
+  });
+
+  it('does not grant Pro when a legacy record is marked unverified', () => {
+    localStorage.setItem('exhibitkit_entitlement_v1', JSON.stringify({
+      plan: PLAN_IDS.PRO,
+      licenseKey: 'EKIT-LEG1-ACY2-KEY3',
+      migratedFromLegacy: true,
+      serverVerified: false,
+    }));
+    localStorage.setItem('exhibitkit_entitlement_migrated_v1', 'true');
+
+    expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
+    expect(hasProFeatures()).toBe(false);
+    expect(getEntitlementLabel()).toBe('Free');
+  });
+});
+
+describe('guest and demo keys', () => {
+  const guestKeys = [
+    'EKIT-GUEST-AAAA-BBBB',
+    'ekit-guest-test-0001',
+    'EKIT-GUEST-DEMO-SOON',
+  ];
+
+  it.each(guestKeys)('keeps %s on the free tier with a coming-soon notice', async (key) => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await restoreFromLicenseKey(key);
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('DEMO_COMING_SOON');
+    expect(result.error).toBeUndefined();
+    expect(result.notice).toBe(GUEST_DEMO_COMING_SOON_MESSAGE);
+    expect(result.notice).toMatch(/coming soon/i);
+    expect(result.notice).toMatch(/contact us/i);
+    expect(result.entitlement.plan).toBe(PLAN_IDS.FREE);
+    expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
+    expect(hasProFeatures()).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not grant Pro from a stored client-only guest record', () => {
+    localStorage.setItem('exhibitkit_entitlement_v1', JSON.stringify({
+      plan: PLAN_IDS.CASE_PASS,
+      licenseKey: 'EKIT-GUEST-AAAA-BBBB',
+      serverVerified: false,
+      developerOverride: true,
+      guestDemo: true,
+      casePassStatus: 'active',
+      expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+      purchasedAt: new Date().toISOString(),
+    }));
+    localStorage.setItem('exhibitkit_entitlement_migrated_v1', 'true');
+
+    const ent = getEntitlement();
+    expect(ent.plan).toBe(PLAN_IDS.FREE);
+    expect(ent.demoNotice).toMatch(/coming soon/i);
+    expect(ent.demoNotice).toMatch(/contact us/i);
+    expect(hasProFeatures(ent)).toBe(false);
+    expect(getEntitlementLabel(ent)).toBe('Free');
+    expect(getMaxRealFilesPerBatch()).toBe(FREE_MAX_FILES_PER_BATCH);
+  });
+
+  it('still grants Pro for a server-verified license and a founder override', () => {
+    const verified = applyEntitlementRecord({
+      plan: PLAN_IDS.PRO,
+      licenseKey: 'EKIT-TEST-AAAA-BBBB',
+      serverVerified: true,
+      activationToken: 'a'.repeat(43),
+      purchasedAt: '2026-08-21T12:00:00.000Z',
+    });
+    expect(verified.plan).toBe(PLAN_IDS.PRO);
+    expect(hasProFeatures(verified)).toBe(true);
+
+    clearEntitlement();
+    const founder = applyFounderUnlimitedPro();
+    expect(founder.plan).toBe(PLAN_IDS.PRO);
+    expect(hasProFeatures(founder)).toBe(true);
+    expect(getEntitlementLabel()).toBe('Pro');
   });
 });
 

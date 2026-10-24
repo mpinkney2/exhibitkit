@@ -2,9 +2,8 @@
  * ExhibitKIT entitlement model.
  * States: free | case_pass | pro_perpetual | firm (future stub)
  *
- * Local cache is for UX only. New paid licenses require server-side activation.
- * Existing locally activated licenses remain available through a one-time legacy
- * migration so prior customers do not lose access.
+ * Local cache is for UX only. Paid access requires a server-verified license,
+ * or a founder testing override. Unsigned local records stay on the free tier.
  *
  * Restoration method: license key (see restoreFromLicenseKey).
  * Do not use guessable seat query params or unsigned entitlement APIs.
@@ -17,7 +16,6 @@ import {
   PRO_UPDATES_INCLUDED_MONTHS,
 } from '../config/pricing.js';
 import {
-  getLicenseStatus,
   validateKeyFormat,
   activateLicense as legacyActivateLicense,
   deactivateLicense as legacyDeactivateLicense,
@@ -28,11 +26,8 @@ import {
 } from './license.js';
 import { isFounderUnlocked } from './founder.js';
 import {
-  GUEST_DEMO_DURATION_DAYS,
-  GUEST_DEMO_ID,
-  GUEST_DEMO_KEY,
-  GUEST_DEMO_PASSPHRASE,
-  resolveGuestCredentials,
+  GUEST_DEMO_COMING_SOON_MESSAGE,
+  isGuestDemoKey,
 } from './licenseFormat.js';
 
 const ENTITLEMENT_STORAGE = 'exhibitkit_entitlement_v1';
@@ -120,8 +115,8 @@ function addMonths(isoDate, months) {
 }
 
 /**
- * Migrate legacy localStorage license (former $150 / lifetime) → pro_perpetual.
- * Idempotent. Existing customers must not lose access.
+ * Older builds stored a license flag in localStorage. That flag is not proof of
+ * purchase, so it is not promoted to paid access. Idempotent.
  */
 export function migrateLegacyLicenseIfNeeded() {
   if (typeof localStorage === 'undefined') return getEntitlement();
@@ -129,26 +124,7 @@ export function migrateLegacyLicenseIfNeeded() {
   const already = localStorage.getItem(MIGRATION_FLAG) === 'true';
   const existing = readStored();
   if (already && existing) {
-    return normalizeEntitlement(existing);
-  }
-
-  const legacy = getLicenseStatus();
-  if (legacy.active && legacy.key && validateKeyFormat(legacy.key)) {
-    const purchasedAt = legacy.timestamp || new Date().toISOString();
-    const record = {
-      plan: PLAN_IDS.PRO,
-      licenseKey: legacy.key,
-      purchasedAt,
-      expiresAt: null,
-      casePassStatus: 'none',
-      updatesIncludedUntil: addMonths(purchasedAt, PRO_UPDATES_INCLUDED_MONTHS),
-      updateRenewalStatus: 'included',
-      purchasedVersion: APP_VERSION,
-      migratedFromLegacy: true,
-    };
-    writeStored(record);
-    localStorage.setItem(MIGRATION_FLAG, 'true');
-    return normalizeEntitlement(record);
+    return effectiveEntitlement(normalizeEntitlement(existing));
   }
 
   if (!existing) {
@@ -158,19 +134,41 @@ export function migrateLegacyLicenseIfNeeded() {
   return getEntitlement();
 }
 
-function normalizeEntitlement(record) {
-  const isLegacyShape = record
-    && record.plan === PLAN_IDS.PRO
-    && record.licenseKey
-    && !Object.hasOwn(record, 'serverVerified');
-  const base = { ...emptyEntitlement(), ...record };
+function isClientGuestRecord(record) {
+  if (!record) return false;
+  if (record.guestDemo || record.guestDemoExpired) return true;
+  return isGuestDemoKey(record.licenseKey || record.key);
+}
 
-  // Entitlements written by older ExhibitKIT builds did not include a
-  // serverVerified field. Preserve those customers as migrated legacy users,
-  // but never create this state from newly entered keys.
-  if (isLegacyShape && validateKeyFormat(record.licenseKey)) {
-    base.migratedFromLegacy = true;
+function isPaidPlan(record) {
+  return record?.plan === PLAN_IDS.PRO
+    || record?.plan === PLAN_IDS.FIRM
+    || record?.plan === PLAN_IDS.CASE_PASS;
+}
+
+/**
+ * Paid access is trusted only for a server-verified license or a founder/dev
+ * override. Guest records and unsigned local claims stay on the free tier.
+ */
+function isTrustedPaidRecord(record) {
+  if (!record || isClientGuestRecord(record)) return false;
+  if (record.serverVerified === true) return true;
+  return trustsDeveloperOverride(record);
+}
+
+function effectiveEntitlement(record) {
+  const base = record || emptyEntitlement();
+  if (isClientGuestRecord(base)) {
+    return { ...emptyEntitlement(), demoNotice: GUEST_DEMO_COMING_SOON_MESSAGE };
   }
+  if (isPaidPlan(base) && !isTrustedPaidRecord(base)) {
+    return emptyEntitlement();
+  }
+  return base;
+}
+
+function normalizeEntitlement(record) {
+  const base = { ...emptyEntitlement(), ...record };
 
   if (base.plan === PLAN_IDS.CASE_PASS && base.expiresAt) {
     const now = Date.now();
@@ -197,21 +195,24 @@ export function getEntitlement() {
   migrateLegacyLicenseIfNeeded();
   const stored = readStored() || emptyEntitlement();
   const normalized = normalizeEntitlement(stored);
-  // Persist expiry flip so UI stays consistent
+  // Persist expiry flip so UI stays consistent. Do not persist the free-tier
+  // view of an unsigned record; founder overrides are evaluated at read time.
   if (stored.casePassStatus !== normalized.casePassStatus || stored.plan !== normalized.plan) {
     writeStored(normalized);
   }
-  return normalized;
+  return effectiveEntitlement(normalized);
 }
 
 /**
  * True when Case Pass is currently within its 30-day window.
  */
 export function isCasePassActive(entitlement = getEntitlement()) {
-  if (entitlement.plan !== PLAN_IDS.CASE_PASS) return false;
-  if (entitlement.casePassStatus === 'payment_pending') return false;
-  if (!entitlement.expiresAt) return false;
-  return new Date(entitlement.expiresAt).getTime() > Date.now();
+  const record = effectiveEntitlement(entitlement);
+  if (!isTrustedPaidRecord(record)) return false;
+  if (record.plan !== PLAN_IDS.CASE_PASS) return false;
+  if (record.casePassStatus === 'payment_pending') return false;
+  if (!record.expiresAt) return false;
+  return new Date(record.expiresAt).getTime() > Date.now();
 }
 
 /**
@@ -226,13 +227,11 @@ export function isProPerpetual(entitlement = getEntitlement()) {
  * Expiration of updatesIncludedUntil must NEVER revert Pro to Free.
  */
 export function hasPaidRenamingAccess(entitlement = getEntitlement()) {
-  const trusted = entitlement.serverVerified
-    || entitlement.migratedFromLegacy
-    || trustsDeveloperOverride(entitlement);
-  if (!trusted) return false;
-  if (entitlement.plan === PLAN_IDS.PRO) return true;
-  if (entitlement.plan === PLAN_IDS.FIRM) return true;
-  if (isCasePassActive(entitlement)) return true;
+  const record = effectiveEntitlement(entitlement);
+  if (!isTrustedPaidRecord(record)) return false;
+  if (record.plan === PLAN_IDS.PRO) return true;
+  if (record.plan === PLAN_IDS.FIRM) return true;
+  if (isCasePassActive(record)) return true;
   return false;
 }
 
@@ -261,14 +260,14 @@ export function isWithinFreeFileLimit(fileCount, entitlement = getEntitlement())
  * Human-readable plan badge for the workspace chrome.
  */
 export function getEntitlementLabel(entitlement = getEntitlement()) {
-  if (entitlement.plan === PLAN_IDS.PRO && hasPaidRenamingAccess(entitlement)) return 'Pro';
-  if (entitlement.plan === PLAN_IDS.FIRM && hasPaidRenamingAccess(entitlement)) return 'Firm';
-  if (isCasePassActive(entitlement) && entitlement.guestDemo) return 'Guest Demo';
-  if (isCasePassActive(entitlement)) return 'Case Pass';
-  if (entitlement.plan === PLAN_IDS.CASE_PASS && entitlement.casePassStatus === 'expired') {
+  const record = effectiveEntitlement(entitlement);
+  if (record.plan === PLAN_IDS.PRO && hasPaidRenamingAccess(record)) return 'Pro';
+  if (record.plan === PLAN_IDS.FIRM && hasPaidRenamingAccess(record)) return 'Firm';
+  if (isCasePassActive(record)) return 'Case Pass';
+  if (record.plan === PLAN_IDS.CASE_PASS && record.casePassStatus === 'expired') {
     return 'Free';
   }
-  if (entitlement.plan === PLAN_IDS.CASE_PASS && entitlement.casePassStatus === 'payment_pending') {
+  if (record.plan === PLAN_IDS.CASE_PASS && record.casePassStatus === 'payment_pending') {
     return 'Pending';
   }
   return 'Free';
@@ -287,7 +286,8 @@ export function applyEntitlementRecord(record) {
   if (
     next.plan === PLAN_IDS.PRO
     && next.licenseKey
-    && (next.migratedFromLegacy || trustsDeveloperOverride(next))
+    && trustsDeveloperOverride(next)
+    && !isClientGuestRecord(next)
   ) {
     legacyActivateLicense(next.licenseKey, 'pro_perpetual');
   }
@@ -295,46 +295,7 @@ export function applyEntitlementRecord(record) {
   return next;
 }
 
-/**
- * Activate the issued 10-day law-firm guest demo pack locally.
- * Evidence stays on-device; this is not a cloud account and does not call Stripe.
- */
-export function applyGuestDemoLocally(key = GUEST_DEMO_KEY, guestLabel = 'Law Firm Guest') {
-  const purchasedAt = new Date().toISOString();
-  return applyEntitlementRecord({
-    plan: PLAN_IDS.CASE_PASS,
-    licenseKey: (key || GUEST_DEMO_KEY).trim().toUpperCase(),
-    purchasedAt,
-    expiresAt: addDays(purchasedAt, GUEST_DEMO_DURATION_DAYS),
-    casePassStatus: 'active',
-    updatesIncludedUntil: null,
-    updateRenewalStatus: 'none',
-    purchasedVersion: APP_VERSION,
-    migratedFromLegacy: false,
-    serverVerified: false,
-    developerOverride: true,
-    guestDemo: true,
-    guestLabel,
-    guestDemoExpired: false,
-  });
-}
-
-/**
- * Activate using guest id + passphrase from docs/guest-demo-credentials.md.
- */
-export function activateGuestCredentials(guestId, passphrase) {
-  const key = resolveGuestCredentials(guestId, passphrase);
-  if (!key) return null;
-  return applyGuestDemoLocally(key, 'Law Firm Guest');
-}
-
-export {
-  GUEST_DEMO_DURATION_DAYS,
-  GUEST_DEMO_ID,
-  GUEST_DEMO_KEY,
-  GUEST_DEMO_PASSPHRASE,
-  resolveGuestCredentials,
-};
+export { GUEST_DEMO_COMING_SOON_MESSAGE, isGuestDemoKey };
 
 /**
  * Restore access via a server-verified license key.
@@ -345,6 +306,15 @@ export {
  */
 export async function restoreFromLicenseKey(key, options = {}) {
   const cleanKey = (key || '').trim().toUpperCase();
+  if (isGuestDemoKey(cleanKey)) {
+    return {
+      ok: false,
+      code: 'DEMO_COMING_SOON',
+      notice: GUEST_DEMO_COMING_SOON_MESSAGE,
+      entitlement: getEntitlement(),
+    };
+  }
+
   if (!validateKeyFormat(cleanKey)) {
     return {
       ok: false,
@@ -368,16 +338,6 @@ export async function restoreFromLicenseKey(key, options = {}) {
       migratedFromLegacy: false,
       developerOverride: true,
     });
-    return { ok: true, entitlement };
-  }
-
-  // Issued 10-day law-firm guest demo pack (local activation; not Stripe).
-  if (
-    cleanKey === GUEST_DEMO_KEY ||
-    cleanKey === 'EKIT-GUEST-TEST-0001' ||
-    cleanKey.startsWith('EKIT-GUEST-')
-  ) {
-    const entitlement = applyGuestDemoLocally(cleanKey, options.guestLabel || 'Law Firm Guest');
     return { ok: true, entitlement };
   }
 
@@ -440,8 +400,8 @@ export async function requestLicenseRecovery(email) {
 }
 
 export async function refreshVerifiedEntitlementStatus(entitlement = getEntitlement()) {
-  if (entitlement.migratedFromLegacy || trustsDeveloperOverride(entitlement)) {
-    return { ok: true, entitlement };
+  if (trustsDeveloperOverride(entitlement) && !isClientGuestRecord(entitlement)) {
+    return { ok: true, entitlement: effectiveEntitlement(entitlement) };
   }
   if (!entitlement.serverVerified || !entitlement.activationToken) {
     // Do not wipe local founder/test records or Free — only reconcile server seats.

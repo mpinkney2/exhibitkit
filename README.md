@@ -110,11 +110,10 @@ Exhibit renaming is the primary product. ExhibitKit also includes a local messag
 
 - Import conversation exports (JSON, CSV, plain text, SMS XML)
 - True redaction, SHA-256 source fingerprints, declaration template
-- Free single-conversation PDF export; Pro/Case Pass/Guest unlock multi-exhibit packages
+- Free single-conversation PDF export; Pro and Case Pass unlock multi-exhibit packages
 - Open from the landing page: **Build a message exhibit**
 
-Capacity benchmarks: [`docs/benchmarks/README.md`](docs/benchmarks/README.md)  
-Guest demo credentials (10-day law-firm trial): [`docs/guest-demo-credentials.md`](docs/guest-demo-credentials.md)
+Capacity benchmarks: [`docs/benchmarks/README.md`](docs/benchmarks/README.md)
 
 ```bash
 npm run benchmark
