@@ -608,6 +608,16 @@ input:checked + .slider:before {
   border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
+.entitlement-configuration-notice {
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--status-warning-bg, #fff7ed);
+  color: var(--status-warning, #9a3412);
+  border-bottom: 1px solid var(--status-warning-border, #fdba74);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* Layout Classes */
 .app-container {
   display: flex;

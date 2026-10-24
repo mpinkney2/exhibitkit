@@ -96,7 +96,9 @@ Copy the output directly into Vercel. Do not save it in Git or share it in scree
 VITE_ENTITLEMENT_PUBLIC_KEY=...
 ```
 
-Use both values from the same `npm run license:secrets` run. The browser verifies the signature whenever it reads an entitlement. Rotating the key means updating both variables and redeploying.
+Use both values from the same `npm run license:secrets` run. The browser verifies the signature whenever it reads an entitlement. A production build fails if `VITE_ENTITLEMENT_PUBLIC_KEY` is missing or is not 32 bytes. When the browser cannot verify a signature, paid access stays off and the activation stored in that browser is left as-is.
+
+New tokens include key id `current` unless `ENTITLEMENT_SIGNING_KEY_ID` is set. To rotate, deploy the new signing seed with a new id, set `VITE_ENTITLEMENT_PUBLIC_KEY` to the new public key, and put the previous public key in `VITE_ENTITLEMENT_ADDITIONAL_PUBLIC_KEYS` until older tokens expire. Then redeploy.
 
 The other public values are:
 

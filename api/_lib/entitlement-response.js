@@ -1,10 +1,11 @@
 import { issueEntitlementToken } from './entitlement-token.js';
 
-export function entitlementFromDatabase(row, activationToken, fingerprint = null) {
+export function entitlementFromDatabase(row, activationToken, fingerprint = null, workstationId = null) {
   const signed = issueEntitlementToken({
     plan: row.plan,
     licenseId: row.license_id || row.id,
     licenseExpiresAt: row.expires_at,
+    workstationId,
   });
 
   return {

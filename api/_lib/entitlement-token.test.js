@@ -2,14 +2,21 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { entitlementFromDatabase } from './entitlement-response.js';
-import { issueEntitlementToken, issueFounderToken } from './entitlement-token.js';
+import {
+  assertEntitlementSigningConfigured,
+  issueEntitlementToken,
+  issueFounderToken,
+} from './entitlement-token.js';
 import {
   bytesToBase64,
   isEntitlementTokenInForce,
   OFFLINE_GRACE_MS,
   verifyEntitlementToken,
   verifyFounderToken,
+  workstationClaimHash,
 } from '../../src/utils/entitlementToken.js';
+
+const WORKSTATION_ID = 'EKIT-WORKSTATION-ABCDEFGH12345678';
 
 const { secretKey, publicKey } = ed25519.keygen();
 
@@ -19,6 +26,7 @@ function useSigningKey() {
 
 afterEach(() => {
   delete process.env.ENTITLEMENT_SIGNING_KEY;
+  delete process.env.ENTITLEMENT_SIGNING_KEY_ID;
 });
 
 describe('entitlement tokens', () => {
@@ -33,14 +41,16 @@ describe('entitlement tokens', () => {
       updates_included_until: null,
       purchased_version: 'v1.0.0',
       license_fingerprint: '••••-DB01',
-    }, 'activation-token-value');
+    }, 'activation-token-value', null, WORKSTATION_ID);
 
     const claims = verifyEntitlementToken(entitlement.entitlementToken, publicKey);
     expect(claims).toMatchObject({
       typ: 'entitlement',
+      kid: 'current',
       plan: 'case_pass',
       licenseId: 'lic_db_1',
       expiry: new Date(expiresAt).toISOString(),
+      workstationHash: workstationClaimHash(WORKSTATION_ID),
     });
     expect(Date.parse(claims.issuedAt)).toBeGreaterThan(Date.now() - 5000);
     expect(isEntitlementTokenInForce(claims)).toBe(true);
@@ -52,6 +62,7 @@ describe('entitlement tokens', () => {
     const issued = issueEntitlementToken({
       plan: 'pro_perpetual',
       licenseId: 'lic_pro_1',
+      workstationId: WORKSTATION_ID,
       now: new Date('2026-10-01T00:00:00.000Z'),
     });
     const claims = verifyEntitlementToken(issued.token, publicKey);
@@ -68,6 +79,7 @@ describe('entitlement tokens', () => {
     const issued = issueEntitlementToken({
       plan: 'pro_perpetual',
       licenseId: 'lic_pro_2',
+      workstationId: WORKSTATION_ID,
     });
     const tampered = `${issued.token.slice(0, -2)}aa`;
     expect(verifyEntitlementToken(tampered, publicKey)).toBeNull();
@@ -81,6 +93,20 @@ describe('entitlement tokens', () => {
     expect(() => issueEntitlementToken({
       plan: 'pro_perpetual',
       licenseId: 'lic_missing',
+      workstationId: WORKSTATION_ID,
     })).toThrow(/not configured/i);
+    expect(() => assertEntitlementSigningConfigured()).toThrow(/not configured/i);
+  });
+
+  it('stamps the configured key id', () => {
+    useSigningKey();
+    process.env.ENTITLEMENT_SIGNING_KEY_ID = 'previous';
+    const issued = issueEntitlementToken({
+      plan: 'firm',
+      licenseId: 'lic_kid',
+      workstationId: WORKSTATION_ID,
+    });
+    expect(verifyEntitlementToken(issued.token, publicKey)?.kid).toBe('previous');
+    expect(verifyFounderToken(issueFounderToken(), publicKey)?.kid).toBe('previous');
   });
 });

@@ -31,6 +31,9 @@ Do **not** put the founder secret in any `VITE_*` variable. Vite inlines those i
    | `FOUNDER_ADMIN_SECRET` | A random secret of at least 32 characters. **No `VITE_` prefix.** Do not reuse a default, example, or test placeholder. |
    | `ENTITLEMENT_SIGNING_KEY` | Server-only Ed25519 seed from `npm run license:secrets`. |
    | `VITE_ENTITLEMENT_PUBLIC_KEY` | Matching public key. Safe to expose. Required at **build** time. |
+   | `ENTITLEMENT_SIGNING_KEY_ID` | Optional. Defaults to `current`. |
+   | `VITE_ENTITLEMENT_PUBLIC_KEY_ID` | Optional. Defaults to `current`. Must match the signing key id. |
+   | `VITE_ENTITLEMENT_ADDITIONAL_PUBLIC_KEYS` | Optional JSON map of older key ids to public keys for rotation. |
 
 2. Redeploy production so the serverless function and the client build pick up the env vars.
 

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +13,8 @@ vi.mock('../_lib/beta-invite-service.js', () => ({
 import invite, { resetFounderInviteRateLimitForTesting } from './invite.js';
 
 const ORIGIN = 'https://exhibitkit.patentpreppers.com';
+const founderSecret = randomBytes(32).toString('base64url');
+const wrongSecret = randomBytes(32).toString('base64url');
 
 function inviteRequest(body, { origin = ORIGIN, method = 'POST' } = {}) {
   return new Request(`${ORIGIN}/api/founder/invite`, {
@@ -52,7 +55,7 @@ function clearBackendEnv() {
 }
 
 beforeEach(() => {
-  process.env.FOUNDER_ADMIN_SECRET = 'acceptable-founder-admin-secret-value';
+  process.env['FOUNDER_ADMIN_SECRET'] = founderSecret;
   process.env.APP_URL = ORIGIN;
   configureBackendEnv();
   vi.clearAllMocks();
@@ -88,10 +91,11 @@ describe('POST /api/founder/invite', () => {
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
-  it('returns 503 when FOUNDER_ADMIN_SECRET is a known test value', async () => {
-    process.env.FOUNDER_ADMIN_SECRET = 'production-founder-secret-ok-padding-xx';
+  it('returns 503 when FOUNDER_ADMIN_SECRET is too short', async () => {
+    const shortSecret = 'x'.repeat(31);
+    process.env['FOUNDER_ADMIN_SECRET'] = shortSecret;
     const response = await invite.fetch(inviteRequest({
-      secret: 'production-founder-secret-ok-padding-xx',
+      secret: shortSecret,
       email: 'a@b.co',
     }));
     expect(response.status).toBe(503);
@@ -104,7 +108,7 @@ describe('POST /api/founder/invite', () => {
       // These use a wrong secret (401), but each still counts toward the limit.
       await invite.fetch(inviteRequest({ secret: 'nope', email: 'a@b.co' }));
     }
-    const response = await invite.fetch(inviteRequest({ secret: 'acceptable-founder-admin-secret-value', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(429);
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMITED');
@@ -112,7 +116,7 @@ describe('POST /api/founder/invite', () => {
   });
 
   it('rejects an incorrect founder secret without minting', async () => {
-    const response = await invite.fetch(inviteRequest({ secret: 'wrong-secret-value', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: wrongSecret, email: 'a@b.co' }));
     expect(response.status).toBe(401);
     const body = await response.json();
     expect(body.code).toBe('FOUNDER_DENIED');
@@ -122,7 +126,7 @@ describe('POST /api/founder/invite', () => {
   it('reports exactly which backend settings are missing (email is not required)', async () => {
     delete process.env.DATABASE_URL;
     delete process.env.LICENSE_ENCRYPTION_KEY;
-    const response = await invite.fetch(inviteRequest({ secret: 'acceptable-founder-admin-secret-value', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('INVITE_BACKEND_NOT_CONFIGURED');
@@ -136,7 +140,7 @@ describe('POST /api/founder/invite', () => {
     mocks.createBetaInvite.mockRejectedValueOnce(
       new Error('column "source" of relation "exhibitkit_licenses" does not exist'),
     );
-    const response = await invite.fetch(inviteRequest({ secret: 'acceptable-founder-admin-secret-value', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('INVITE_DB_MIGRATION_REQUIRED');
@@ -145,7 +149,7 @@ describe('POST /api/founder/invite', () => {
 
   it('mints and returns a beta invite for a valid founder request', async () => {
     const response = await invite.fetch(inviteRequest({
-      secret: 'acceptable-founder-admin-secret-value',
+      secret: founderSecret,
       email: 'tester@example.com',
       name: 'Test Tester',
       note: 'Round 1',

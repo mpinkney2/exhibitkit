@@ -89,7 +89,7 @@ Stripe secret keys and webhook secrets must remain server-side only. Do not plac
 
 - Developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is available **only** when `import.meta.env.DEV === true`.
 - Founder admin production unlock uses server-only `FOUNDER_ADMIN_SECRET` via `/api/founder/unlock` — never a `VITE_*` secret. The response is a short-lived signed token.
-- Paid access follows an Ed25519 entitlement token. The private key stays in `ENTITLEMENT_SIGNING_KEY`. Only `VITE_ENTITLEMENT_PUBLIC_KEY` ships to the browser.
+- Paid access follows an Ed25519 entitlement token. The private key stays in `ENTITLEMENT_SIGNING_KEY`. Only `VITE_ENTITLEMENT_PUBLIC_KEY` ships to the browser. If that key is missing, paid renaming stays off and the saved activation is left in place.
 - Never trust client-submitted prices or entitlement values for paid access.
 - Do not invent client-side licenses or simulated checkout.
 

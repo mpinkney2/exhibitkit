@@ -34,8 +34,10 @@ import {
   isGuestDemoKey,
 } from './licenseFormat.js';
 import {
+  CONFIGURATION_MESSAGE,
+  inspectEntitlementToken,
   isEntitlementTokenInForce,
-  verifyEntitlementToken,
+  workstationClaimMatches,
 } from './entitlementToken.js';
 
 const ENTITLEMENT_STORAGE = 'exhibitkit_entitlement_v1';
@@ -157,14 +159,29 @@ function isPaidPlan(record) {
 }
 
 /**
- * Signature-valid paid claims that are still inside the offline grace window
- * and the token expiry. The signed plan is authoritative.
+ * Signature-valid paid claims that are still inside the offline grace window,
+ * the token expiry, and this workstation. The signed plan is authoritative.
+ * A missing key or a signature the installation cannot check is not paid access.
  */
 function verifiedPaidClaims(record) {
   if (!record?.entitlementToken || isClientGuestRecord(record)) return null;
-  const claims = verifyEntitlementToken(record.entitlementToken);
-  if (!claims || !isEntitlementTokenInForce(claims)) return null;
-  return claims;
+  const inspection = inspectEntitlementToken(record.entitlementToken);
+  if (inspection.status !== 'valid') return null;
+  if (!isEntitlementTokenInForce(inspection.claims)) return null;
+  if (!workstationClaimMatches(inspection.claims, getWorkstationInfo().deviceId)) return null;
+  return inspection.claims;
+}
+
+function misconfiguredEntitlement(record) {
+  return {
+    ...emptyEntitlement(),
+    activationToken: record?.activationToken || null,
+    entitlementToken: record?.entitlementToken || null,
+    licenseFingerprint: record?.licenseFingerprint || null,
+    plan: PLAN_IDS.FREE,
+    configurationStatus: 'misconfigured',
+    configurationMessage: CONFIGURATION_MESSAGE,
+  };
 }
 
 function projectVerifiedEntitlement(record, claims) {
@@ -190,6 +207,10 @@ function effectiveEntitlement(record) {
   const base = record || emptyEntitlement();
   if (isClientGuestRecord(base)) {
     return { ...emptyEntitlement(), demoNotice: GUEST_DEMO_COMING_SOON_MESSAGE };
+  }
+  if (base.entitlementToken && !trustsDeveloperOverride(base)) {
+    const inspection = inspectEntitlementToken(base.entitlementToken);
+    if (inspection.status === 'misconfigured') return misconfiguredEntitlement(base);
   }
   const claims = verifiedPaidClaims(base);
   if (claims) return projectVerifiedEntitlement(base, claims);
@@ -293,6 +314,7 @@ export function isWithinFreeFileLimit(fileCount, entitlement = getEntitlement())
  */
 export function getEntitlementLabel(entitlement = getEntitlement()) {
   const record = effectiveEntitlement(entitlement);
+  if (record.configurationStatus === 'misconfigured') return 'Unverified';
   if (record.plan === PLAN_IDS.PRO && hasPaidRenamingAccess(record)) return 'Pro';
   if (record.plan === PLAN_IDS.FIRM && hasPaidRenamingAccess(record)) return 'Firm';
   if (isCasePassActive(record)) return 'Case Pass';
@@ -458,10 +480,23 @@ export async function refreshVerifiedEntitlementStatus(entitlement = readStored(
     if (!response.ok || !data.active || !data.entitlement?.entitlementToken) {
       return { ok: false, invalid: true, entitlement: effectiveEntitlement(stored) };
     }
-    const refreshed = applyEntitlementRecord(data.entitlement);
-    if (!hasPaidRenamingAccess(refreshed)) {
-      return { ok: false, invalid: true, entitlement: effectiveEntitlement(readStored() || stored) };
+    const incomingToken = data.entitlement.entitlementToken;
+    const inspection = inspectEntitlementToken(incomingToken);
+    if (inspection.status === 'misconfigured') {
+      return {
+        ok: false,
+        invalid: false,
+        misconfigured: true,
+        entitlement: misconfiguredEntitlement(stored),
+      };
     }
+    if (inspection.status !== 'valid' || !isEntitlementTokenInForce(inspection.claims)) {
+      return { ok: false, invalid: false, entitlement: effectiveEntitlement(stored) };
+    }
+    if (!workstationClaimMatches(inspection.claims, getWorkstationInfo().deviceId)) {
+      return { ok: false, invalid: false, entitlement: effectiveEntitlement(stored) };
+    }
+    const refreshed = applyEntitlementRecord(data.entitlement);
     return { ok: true, entitlement: refreshed };
   } catch {
     // A network outage keeps a signed entitlement only for the offline grace
@@ -581,6 +616,18 @@ export function applyProForTesting(options = {}) {
  */
 export function applyFounderUnlimitedPro() {
   return applyProForTesting({ updatesLapsed: false });
+}
+
+/**
+ * How a status refresh should update the workstation.
+ * Only a server rejection clears the stored activation. A local verification
+ * failure keeps it and surfaces a misconfigured state.
+ */
+export function settleLicenseRefresh(result) {
+  if (result?.invalid) return { clear: true, entitlement: null };
+  if (result?.misconfigured) return { clear: false, entitlement: result.entitlement || null };
+  if (result?.ok && result.entitlement) return { clear: false, entitlement: result.entitlement };
+  return { clear: false, entitlement: null };
 }
 
 /**

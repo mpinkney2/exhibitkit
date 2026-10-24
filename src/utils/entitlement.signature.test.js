@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import {
+  assertEntitlementPublicKeyConfig,
   bytesToBase64,
   isEntitlementTokenInForce,
   OFFLINE_GRACE_MS,
   signEntitlementToken,
   signFounderToken,
   verifyEntitlementToken,
+  workstationClaimHash,
 } from './entitlementToken.js';
+import { getWorkstationInfo } from './license.js';
 
 const { secretKey, publicKey } = ed25519.keygen();
 const publicKeyB64 = bytesToBase64(publicKey);
@@ -18,8 +21,19 @@ function tokenFor({
   issuedAt = new Date().toISOString(),
   expiry = new Date(Date.now() + 20 * DAY_MS).toISOString(),
   licenseId = 'lic_signed_1',
+  kid = 'current',
+  workstationId = getWorkstationInfo().deviceId,
+  workstationHash = workstationClaimHash(workstationId),
+  signingKey = secretKey,
 } = {}) {
-  return signEntitlementToken({ plan, expiry, licenseId, issuedAt }, secretKey);
+  return signEntitlementToken({
+    plan,
+    expiry,
+    licenseId,
+    issuedAt,
+    kid,
+    workstationHash,
+  }, signingKey);
 }
 
 function storeEntitlement(record) {
@@ -81,7 +95,9 @@ describe('signed entitlements', () => {
   it('treats a tampered token as Free', async () => {
     const token = tokenFor();
     const [payload, signature] = token.split('.');
-    const tamperedSignature = `${signature.slice(0, -1)}${signature.endsWith('A') ? 'B' : 'A'}`;
+    const index = 10;
+    const replacement = signature[index] === 'A' ? 'B' : 'A';
+    const tamperedSignature = `${signature.slice(0, index)}${replacement}${signature.slice(index + 1)}`;
     storeEntitlement({
       plan: 'pro_perpetual',
       serverVerified: true,
@@ -89,9 +105,11 @@ describe('signed entitlements', () => {
       purchasedAt: new Date().toISOString(),
     });
 
-    const { getEntitlement, hasProFeatures, PLAN_IDS } = await loadEntitlement();
+    const { getEntitlement, hasProFeatures, getEntitlementLabel, PLAN_IDS } = await loadEntitlement();
     expect(verifyEntitlementToken(`${payload}.${tamperedSignature}`, publicKey)).toBeNull();
     expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
+    expect(getEntitlement().configurationStatus).toBe('misconfigured');
+    expect(getEntitlementLabel()).toBe('Unverified');
     expect(hasProFeatures()).toBe(false);
   });
 
@@ -190,16 +208,226 @@ describe('signed entitlements', () => {
     expect(hasProFeatures()).toBe(false);
   });
 
-  it('stays Free when the public key is missing', async () => {
+  it('stays Free and keeps the activation when the public key is missing', async () => {
     vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY', '');
+    const activationToken = 'c'.repeat(43);
+    const entitlementToken = tokenFor();
     storeEntitlement({
       plan: 'pro_perpetual',
       serverVerified: true,
+      activationToken,
+      entitlementToken,
+    });
+
+    const {
+      getEntitlement,
+      hasProFeatures,
+      getEntitlementLabel,
+      refreshVerifiedEntitlementStatus,
+      settleLicenseRefresh,
+      PLAN_IDS,
+    } = await loadEntitlement();
+    expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
+    expect(getEntitlement().configurationStatus).toBe('misconfigured');
+    expect(getEntitlementLabel()).toBe('Unverified');
+    expect(hasProFeatures()).toBe(false);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      active: true,
+      entitlement: {
+        plan: 'pro_perpetual',
+        activationToken,
+        entitlementToken: tokenFor({ licenseId: 'lic_other' }),
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+
+    const result = await refreshVerifiedEntitlementStatus();
+    expect(result.misconfigured).toBe(true);
+    expect(result.invalid).toBe(false);
+    expect(settleLicenseRefresh(result).clear).toBe(false);
+    const stored = JSON.parse(localStorage.getItem('exhibitkit_entitlement_v1'));
+    expect(stored.activationToken).toBe(activationToken);
+    expect(stored.entitlementToken).toBe(entitlementToken);
+    expect(stored.plan).toBe('pro_perpetual');
+  });
+
+  it('does not clear the activation when the public key does not match', async () => {
+    const other = ed25519.keygen();
+    vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY', bytesToBase64(other.publicKey));
+    const activationToken = 'd'.repeat(43);
+    storeEntitlement({
+      plan: 'pro_perpetual',
+      serverVerified: true,
+      activationToken,
       entitlementToken: tokenFor(),
     });
 
+    const { getEntitlement, refreshVerifiedEntitlementStatus, settleLicenseRefresh } = await loadEntitlement();
+    expect(getEntitlement().configurationStatus).toBe('misconfigured');
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      active: true,
+      entitlement: { plan: 'pro_perpetual', activationToken, entitlementToken: tokenFor() },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+
+    const result = await refreshVerifiedEntitlementStatus();
+    expect(settleLicenseRefresh(result)).toMatchObject({ clear: false });
+    expect(result.invalid).toBe(false);
+    expect(JSON.parse(localStorage.getItem('exhibitkit_entitlement_v1')).activationToken).toBe(activationToken);
+  });
+
+  it('does not clear the activation when the token key id is unknown', async () => {
+    const activationToken = 'e'.repeat(43);
+    storeEntitlement({
+      plan: 'pro_perpetual',
+      serverVerified: true,
+      activationToken,
+      entitlementToken: tokenFor({ kid: 'previous' }),
+    });
+
+    const { getEntitlement, refreshVerifiedEntitlementStatus, settleLicenseRefresh } = await loadEntitlement();
+    expect(getEntitlement().configurationStatus).toBe('misconfigured');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      active: true,
+      entitlement: {
+        plan: 'pro_perpetual',
+        activationToken,
+        entitlementToken: tokenFor({ kid: 'previous' }),
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    const result = await refreshVerifiedEntitlementStatus();
+    expect(result.misconfigured).toBe(true);
+    expect(settleLicenseRefresh(result).clear).toBe(false);
+  });
+
+  it('verifies the current key and an overlapping previous key', async () => {
+    const previous = ed25519.keygen();
+    vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY_ID', 'current');
+    vi.stubEnv('VITE_ENTITLEMENT_ADDITIONAL_PUBLIC_KEYS', JSON.stringify({
+      previous: bytesToBase64(previous.publicKey),
+    }));
     const { getEntitlement, hasProFeatures, PLAN_IDS } = await loadEntitlement();
+
+    storeEntitlement({
+      plan: 'firm',
+      serverVerified: true,
+      entitlementToken: tokenFor({
+        kid: 'previous',
+        signingKey: previous.secretKey,
+        licenseId: 'lic_prev',
+      }),
+    });
+    expect(getEntitlement().plan).toBe(PLAN_IDS.PRO);
+    expect(hasProFeatures()).toBe(true);
+
+    localStorage.removeItem('exhibitkit_entitlement_v1');
+    storeEntitlement({
+      plan: 'firm',
+      serverVerified: true,
+      entitlementToken: tokenFor({ kid: 'current', licenseId: 'lic_current' }),
+    });
+    expect(getEntitlement().plan).toBe(PLAN_IDS.PRO);
+    expect(verifyEntitlementToken(tokenFor({ kid: 'current' }))?.kid).toBe('current');
+  });
+
+  it('does not grant paid access when the workstation claim does not match', async () => {
+    const activationToken = 'f'.repeat(43);
+    storeEntitlement({
+      plan: 'pro_perpetual',
+      serverVerified: true,
+      activationToken,
+      entitlementToken: tokenFor({
+        workstationId: 'EKIT-WORKSTATION-OTHERDEVICE01',
+        licenseId: 'lic_other_ws',
+      }),
+    });
+
+    const {
+      getEntitlement,
+      hasProFeatures,
+      refreshVerifiedEntitlementStatus,
+      settleLicenseRefresh,
+      PLAN_IDS,
+    } = await loadEntitlement();
     expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
+    expect(getEntitlement().configurationStatus).toBeUndefined();
     expect(hasProFeatures()).toBe(false);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      active: true,
+      entitlement: {
+        plan: 'pro_perpetual',
+        activationToken,
+        entitlementToken: tokenFor({ workstationId: 'EKIT-WORKSTATION-OTHERDEVICE01' }),
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    const result = await refreshVerifiedEntitlementStatus();
+    expect(result.misconfigured).toBeUndefined();
+    expect(result.invalid).toBe(false);
+    expect(settleLicenseRefresh(result).clear).toBe(false);
+    expect(JSON.parse(localStorage.getItem('exhibitkit_entitlement_v1')).activationToken).toBe(activationToken);
+  });
+
+  it('applies a signature-valid token for this workstation', async () => {
+    const activationToken = 'h'.repeat(43);
+    storeEntitlement({
+      plan: 'free',
+      activationToken,
+      entitlementToken: null,
+    });
+    const { refreshVerifiedEntitlementStatus, hasProFeatures, settleLicenseRefresh } = await loadEntitlement();
+    const entitlementToken = tokenFor({ licenseId: 'lic_refresh_ok' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      active: true,
+      entitlement: {
+        plan: 'pro_perpetual',
+        activationToken,
+        entitlementToken,
+        serverVerified: true,
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    const result = await refreshVerifiedEntitlementStatus();
+    expect(result.ok).toBe(true);
+    expect(settleLicenseRefresh(result).clear).toBe(false);
+    expect(hasProFeatures()).toBe(true);
+    expect(JSON.parse(localStorage.getItem('exhibitkit_entitlement_v1')).entitlementToken).toBe(entitlementToken);
+  });
+
+  it('clears only when the license service rejects the seat', async () => {
+    storeEntitlement({
+      plan: 'pro_perpetual',
+      serverVerified: true,
+      activationToken: 'g'.repeat(43),
+      entitlementToken: tokenFor(),
+    });
+    const { refreshVerifiedEntitlementStatus, settleLicenseRefresh } = await loadEntitlement();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: false,
+      active: false,
+    }), { status: 401, headers: { 'content-type': 'application/json' } })));
+    const result = await refreshVerifiedEntitlementStatus();
+    expect(result.invalid).toBe(true);
+    expect(settleLicenseRefresh(result).clear).toBe(true);
+  });
+});
+
+describe('production public key configuration', () => {
+  it('rejects a missing or short public key and accepts 32 bytes', () => {
+    expect(() => assertEntitlementPublicKeyConfig({})).toThrow(/32 bytes/);
+    expect(() => assertEntitlementPublicKeyConfig({
+      VITE_ENTITLEMENT_PUBLIC_KEY: bytesToBase64(new Uint8Array(16)),
+    })).toThrow(/32 bytes/);
+    expect(() => assertEntitlementPublicKeyConfig({
+      VITE_ENTITLEMENT_PUBLIC_KEY: publicKeyB64,
+    })).not.toThrow();
+    expect(() => assertEntitlementPublicKeyConfig({
+      VITE_ENTITLEMENT_PUBLIC_KEY: publicKeyB64,
+      VITE_ENTITLEMENT_ADDITIONAL_PUBLIC_KEYS: JSON.stringify({ previous: bytesToBase64(new Uint8Array(8)) }),
+    })).toThrow(/32-byte/);
   });
 });

@@ -1,9 +1,11 @@
 import { HttpError } from './http.js';
 import {
+  DEFAULT_ENTITLEMENT_KEY_ID,
   FOUNDER_TOKEN_TTL_MS,
   base64ToBytes,
   signEntitlementToken,
   signFounderToken,
+  workstationClaimHash,
 } from '../../src/utils/entitlementToken.js';
 
 /** Signed lifetime for plans that do not themselves expire (Pro / Firm). */
@@ -26,6 +28,21 @@ function signingSeed() {
   }
 }
 
+function signingKeyId() {
+  const kid = String(process.env.ENTITLEMENT_SIGNING_KEY_ID || DEFAULT_ENTITLEMENT_KEY_ID).trim()
+    || DEFAULT_ENTITLEMENT_KEY_ID;
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(kid)) {
+    throw new HttpError(503, SIGNING_UNAVAILABLE, 'ENTITLEMENT_SIGNING_UNAVAILABLE');
+  }
+  return kid;
+}
+
+/** Fail before a seat is written when license responses cannot be signed. */
+export function assertEntitlementSigningConfigured() {
+  signingSeed();
+  signingKeyId();
+}
+
 /**
  * Issue an Ed25519 entitlement token.
  * Claims: plan, expiry, license id, issued-at.
@@ -35,10 +52,12 @@ export function issueEntitlementToken({
   plan,
   licenseId,
   licenseExpiresAt = null,
+  workstationId = '',
   now = new Date(),
 } = {}) {
   const id = String(licenseId || '').trim();
-  if (!id) {
+  const workstationHash = workstationClaimHash(workstationId);
+  if (!id || !workstationHash) {
     throw new HttpError(503, SIGNING_UNAVAILABLE, 'ENTITLEMENT_SIGNING_UNAVAILABLE');
   }
   const issuedAt = now instanceof Date ? now : new Date(now);
@@ -53,6 +72,8 @@ export function issueEntitlementToken({
       licenseId: id,
       expiry: expiry.toISOString(),
       issuedAt: issuedAt.toISOString(),
+      kid: signingKeyId(),
+      workstationHash,
     }, signingSeed());
     return {
       token,
@@ -74,6 +95,7 @@ export function issueFounderToken(now = new Date()) {
     return signFounderToken({
       issuedAt: issuedAt.toISOString(),
       expiry: expiry.toISOString(),
+      kid: signingKeyId(),
     }, signingSeed());
   } catch (error) {
     if (error instanceof HttpError) throw error;

@@ -37,7 +37,7 @@ export default {
       return json({
         ok: true,
         active: true,
-        entitlement: entitlementFromDatabase(record, token),
+        entitlement: entitlementFromDatabase(record, token, null, workstationId),
       });
     } catch (error) {
       return errorResponse(error);

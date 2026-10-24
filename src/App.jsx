@@ -22,6 +22,7 @@ import {
   clearEntitlement,
   deactivateCurrentWorkstation,
   refreshVerifiedEntitlementStatus,
+  settleLicenseRefresh,
   getWorkstationInfo,
   FREE_MAX_FILES_PER_BATCH,
   migrateLegacyLicenseIfNeeded,
@@ -73,6 +74,11 @@ export default function App() {
   });
   const isPro = hasProFeatures(entitlement);
   const planLabel = getEntitlementLabel(entitlement);
+  const configurationNotice = entitlement.configurationStatus === 'misconfigured' ? (
+    <p className="entitlement-configuration-notice" role="status">
+      {entitlement.configurationMessage}
+    </p>
+  ) : null;
 
   // Workstation Profile Info
   const [workstation] = useState(getWorkstationInfo);
@@ -209,12 +215,13 @@ export default function App() {
       const result = await refreshVerifiedEntitlementStatus();
       if (cancelled) return;
 
-      if (result.ok && result.entitlement) {
-        setEntitlement(result.entitlement);
-      } else if (result.invalid) {
+      const settled = settleLicenseRefresh(result);
+      if (settled.clear) {
         clearEntitlement();
         setEntitlement(getEntitlement());
         setAppRoute('landing');
+      } else if (settled.entitlement) {
+        setEntitlement(settled.entitlement);
       }
     };
 
@@ -845,6 +852,7 @@ export default function App() {
   if (appRoute === 'landing') {
     return (
       <>
+        {configurationNotice}
         <LandingPage
           onLaunchFree={handleLaunchFree}
           onLaunchMessages={handleLaunchMessages}
@@ -868,6 +876,7 @@ export default function App() {
   if (appRoute === 'messages') {
     return (
       <>
+        {configurationNotice}
         <MessageWorkspace
           onBack={() => setAppRoute('landing')}
           onOpenPricing={() => openPricing('purchase')}
@@ -1096,6 +1105,8 @@ export default function App() {
                 <span className="badge badge-success">{planLabel}</span>
               ) : planLabel === 'Case Pass' ? (
                 <span className="badge badge-warning">Case Pass</span>
+              ) : planLabel === 'Unverified' ? (
+                <span className="badge badge-warning" title={entitlement.configurationMessage || ''}>Unverified</span>
               ) : (
                 <span className="badge badge-info">Free</span>
               )}
@@ -1253,6 +1264,7 @@ export default function App() {
               hasRenamed: lastRenameHistory.length > 0,
             })}
           />
+          {configurationNotice}
           {entitlement.demoNotice && (
             <p role="status" style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
               {entitlement.demoNotice}

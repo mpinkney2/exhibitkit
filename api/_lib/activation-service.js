@@ -14,6 +14,7 @@ import {
   transferLicense,
 } from './license-repository.js';
 import { entitlementFromDatabase } from './entitlement-response.js';
+import { assertEntitlementSigningConfigured } from './entitlement-token.js';
 import { HttpError } from './http.js';
 
 function cleanAppVersion(value) {
@@ -22,6 +23,7 @@ function cleanAppVersion(value) {
 }
 
 export async function activateLicenseKey(body, { transfer = false } = {}) {
+  assertEntitlementSigningConfigured();
   const licenseKey = normalizeLicenseKey(body.licenseKey);
   const workstationId = String(body.workstationId || '').trim();
 
@@ -82,5 +84,6 @@ export async function activateLicenseKey(body, { transfer = false } = {}) {
     { ...result, license_id: licenseId },
     activationToken,
     licenseFingerprint(licenseKey),
+    workstationId,
   );
 }

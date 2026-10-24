@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { bytesToBase64, signEntitlementToken } from './entitlementToken.js';
+import { bytesToBase64, signEntitlementToken, workstationClaimHash } from './entitlementToken.js';
+import { getWorkstationInfo } from './license.js';
 import {
   migrateLegacyLicenseIfNeeded,
   getEntitlement,
@@ -37,6 +38,7 @@ function signedRecord({
     expiry,
     licenseId,
     issuedAt,
+    workstationHash: workstationClaimHash(getWorkstationInfo().deviceId),
   }, secretKey);
   return {
     purchasedAt: issuedAt,
