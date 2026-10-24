@@ -5,6 +5,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   applyLicensingMigrations,
   isNoTransactionMigration,
+  migrationNoticeHandler,
+  requireOneNoTransactionStatement,
+  statementsOutsideTransaction,
 } from './migrate-licensing.mjs';
 
 const migrationsDir = new URL('../db/migrations/', import.meta.url);
@@ -23,6 +26,10 @@ describe('migration transaction marker', () => {
     expect(isNoTransactionMigration(index)).toBe(true);
     expect(isNoTransactionMigration(cleanup)).toBe(false);
     expect(isNoTransactionMigration('-- Created concurrently in the index migration\nBEGIN;\nSELECT 1;\n')).toBe(false);
+    expect(statementsOutsideTransaction(index)).toHaveLength(1);
+    expect(() => requireOneNoTransactionStatement('bad.sql', '-- migrate:no-transaction\nSELECT 1;\nSELECT 2;\n')).toThrow(
+      /exactly one statement/,
+    );
   });
 });
 
@@ -92,9 +99,46 @@ describe.skipIf(!databaseUrl)('licensing migrations on postgres', () => {
         WHERE indexrelid = 'exhibitkit_rate_limits_window_start_idx'::regclass
       `;
       expect(index[0].indisvalid).toBe(true);
+      const timeout = await sql`SHOW lock_timeout`;
+      expect(timeout[0].lock_timeout).toBe('5s');
+      const lock = await sql`SELECT pg_try_advisory_lock(hashtext('exhibitkit_schema_migrations')) AS locked`;
+      expect(lock[0].locked).toBe(true);
+      await sql`SELECT pg_advisory_unlock(hashtext('exhibitkit_schema_migrations'))`;
       expect(logs.filter((line) => line.startsWith('Applied migration 004_rate_limit_index.sql'))).toHaveLength(1);
       expect(logs.filter((line) => line.startsWith('Skipping migration 004_rate_limit_index.sql'))).toHaveLength(1);
       expect(logs.filter((line) => line.startsWith('Skipping migration 005_rate_limit_cleanup.sql'))).toHaveLength(1);
+    } finally {
+      logSpy.mockRestore();
+      await sql.end({ timeout: 5 });
+    }
+  });
+
+  it('does not log duplicate-relation notices on a second run', async () => {
+    const name = `exhibitkit_migrate_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    await admin.unsafe(`CREATE DATABASE ${name}`);
+    databases.push(name);
+    const url = new URL(databaseUrl);
+    url.pathname = `/${name}`;
+    const notices = [];
+    const logs = [];
+    const logSpy = vi.spyOn(console, 'log').mockImplementation((message) => {
+      logs.push(String(message));
+    });
+    const sql = postgres(url.toString(), {
+      max: 1,
+      prepare: false,
+      ssl: false,
+      connect_timeout: 10,
+      onnotice(notice) {
+        notices.push(notice);
+        migrationNoticeHandler(notice);
+      },
+    });
+    try {
+      await applyLicensingMigrations(sql, migrationsDir);
+      await applyLicensingMigrations(sql, migrationsDir);
+      expect(notices.some((notice) => notice.code === '42P07')).toBe(true);
+      expect(logs.some((line) => line.includes('42P07') || line.includes('already exists'))).toBe(false);
     } finally {
       logSpy.mockRestore();
       await sql.end({ timeout: 5 });
@@ -113,6 +157,13 @@ describe.skipIf(!databaseUrl)('licensing migrations on postgres', () => {
       await expect(applyLicensingMigrations(sql, migrationsDir)).rejects.toThrow(
         /exhibitkit_rate_limits_window_start_idx exists but is invalid/,
       );
+      await sql.unsafe(`DROP INDEX exhibitkit_rate_limits_window_start_idx`);
+      await expect(applyLicensingMigrations(sql, migrationsDir)).rejects.toThrow(
+        /exhibitkit_rate_limits_window_start_idx is missing/,
+      );
+      const lock = await sql`SELECT pg_try_advisory_lock(hashtext('exhibitkit_schema_migrations')) AS locked`;
+      expect(lock[0].locked).toBe(true);
+      await sql`SELECT pg_advisory_unlock(hashtext('exhibitkit_schema_migrations'))`;
     } finally {
       await sql.end({ timeout: 5 });
     }
