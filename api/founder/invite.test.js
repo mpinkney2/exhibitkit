@@ -3,13 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createBetaInvite: vi.fn(),
+  consumeRateLimit: vi.fn(async () => true),
 }));
 
 vi.mock('../_lib/beta-invite-service.js', () => ({
   createBetaInvite: mocks.createBetaInvite,
 }));
 
-import invite, { resetFounderInviteRateLimitForTesting } from './invite.js';
+vi.mock('../_lib/rate-limit.js', () => ({
+  consumeRateLimit: mocks.consumeRateLimit,
+}));
+
+import invite from './invite.js';
 
 const ORIGIN = 'https://exhibitkit.patentpreppers.com';
 
@@ -56,7 +61,8 @@ beforeEach(() => {
   process.env.APP_URL = ORIGIN;
   configureBackendEnv();
   vi.clearAllMocks();
-  resetFounderInviteRateLimitForTesting();
+  mocks.consumeRateLimit.mockReset();
+  mocks.consumeRateLimit.mockResolvedValue(true);
   mocks.createBetaInvite.mockResolvedValue(SAMPLE_INVITE);
 });
 
@@ -76,6 +82,7 @@ describe('POST /api/founder/invite', () => {
   it('rejects disallowed origins', async () => {
     const response = await invite.fetch(inviteRequest({ email: 'a@b.co' }, { origin: 'https://evil.example' }));
     expect(response.status).toBe(403);
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
@@ -88,15 +95,21 @@ describe('POST /api/founder/invite', () => {
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
-  it('returns 429 once the per-IP invite limit is exceeded', async () => {
-    for (let i = 0; i < 30; i += 1) {
-      // These use a wrong secret (401), but each still counts toward the limit.
-      await invite.fetch(inviteRequest({ secret: 'nope', email: 'a@b.co' }));
-    }
+  it('asks the durable limiter for 30 invitations per hour and stops when denied', async () => {
+    mocks.consumeRateLimit.mockResolvedValueOnce(false);
     const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
     expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('3600');
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMITED');
+    expect(mocks.consumeRateLimit).toHaveBeenCalledWith('founder_invite_ip', '203.0.113.42', 30, 3600);
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+  });
+
+  it('does not mint when the durable limiter fails', async () => {
+    mocks.consumeRateLimit.mockRejectedValueOnce(new Error('database unavailable'));
+    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    expect(response.status).toBe(500);
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
@@ -105,6 +118,7 @@ describe('POST /api/founder/invite', () => {
     expect(response.status).toBe(401);
     const body = await response.json();
     expect(body.code).toBe('FOUNDER_DENIED');
+    expect(mocks.consumeRateLimit).toHaveBeenCalledWith('founder_invite_ip', '203.0.113.42', 30, 3600);
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 

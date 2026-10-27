@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
-import { isAllowedBrowserOrigin } from './http.js';
+import { getClientIp, isAllowedBrowserOrigin } from './http.js';
 
 afterEach(() => {
   delete process.env.APP_URL;
@@ -67,5 +67,55 @@ describe('isAllowedBrowserOrigin', () => {
       'https://exhibitkit.patentpreppers.com',
     );
     expect(isAllowedBrowserOrigin(request)).toBe(true);
+  });
+});
+
+describe('getClientIp', () => {
+  it('prefers x-real-ip over a caller-supplied x-forwarded-for list', () => {
+    const request = new Request('https://exhibitkit.patentpreppers.com/api/license/activate', {
+      headers: {
+        'x-real-ip': ' 192.0.2.20 ',
+        'x-forwarded-for': '198.51.100.9, 203.0.113.10',
+      },
+    });
+    expect(getClientIp(request)).toBe('192.0.2.20');
+  });
+
+  it('uses the last x-forwarded-for hop when x-real-ip is absent', () => {
+    const request = new Request('https://exhibitkit.patentpreppers.com/api/license/activate', {
+      headers: {
+        'x-forwarded-for': '198.51.100.9, 203.0.113.10',
+      },
+    });
+    expect(getClientIp(request)).toBe('203.0.113.10');
+  });
+
+  it('keeps a single forwarded address and ignores an empty x-real-ip', () => {
+    const request = new Request('https://exhibitkit.patentpreppers.com/api/license/activate', {
+      headers: {
+        'x-real-ip': '   ',
+        'x-forwarded-for': '203.0.113.10',
+      },
+    });
+    expect(getClientIp(request)).toBe('203.0.113.10');
+  });
+
+  it('preserves an IPv6 trusted hop and caps long values', () => {
+    const ipv6 = new Request('https://exhibitkit.patentpreppers.com/api/license/activate', {
+      headers: { 'x-forwarded-for': '198.51.100.9, 2001:db8::1' },
+    });
+    expect(getClientIp(ipv6)).toBe('2001:db8::1');
+
+    const longIp = `203.0.113.10${'x'.repeat(200)}`;
+    const request = new Request('https://exhibitkit.patentpreppers.com/api/license/activate', {
+      headers: { 'x-real-ip': longIp },
+    });
+    expect(getClientIp(request)).toHaveLength(128);
+    expect(getClientIp(request)).toBe(longIp.slice(0, 128));
+  });
+
+  it('returns unknown when no client address header is present', () => {
+    const request = new Request('https://exhibitkit.patentpreppers.com/api/license/activate');
+    expect(getClientIp(request)).toBe('unknown');
   });
 });
