@@ -14,7 +14,8 @@ vi.mock('./database.js', () => ({
   resetDatabaseForTesting: () => {},
 }));
 
-import { consumeRateLimit } from './rate-limit.js';
+import { readFileSync } from 'node:fs';
+import { assertRateLimitConfigured, consumeRateLimit } from './rate-limit.js';
 
 const HASH_SECRET = 'hash-secret-with-at-least-thirty-two-characters';
 
@@ -26,8 +27,74 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete process.env.DATABASE_URL;
   delete process.env.LICENSE_HASH_SECRET;
   delete process.env.RATE_LIMIT_HASH_SECRET;
+});
+
+describe('assertRateLimitConfigured', () => {
+  it('returns a generic error and logs the missing settings', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    delete process.env.DATABASE_URL;
+    delete process.env.LICENSE_HASH_SECRET;
+    delete process.env.RATE_LIMIT_HASH_SECRET;
+    try {
+      assertRateLimitConfigured();
+      expect.unreachable();
+    } catch (error) {
+      expect(error.status).toBe(503);
+      expect(error.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
+      expect(error.message).toBe('Rate limiting is not configured on the server.');
+      expect(error.message).not.toMatch(/DATABASE_URL|LICENSE_HASH_SECRET|RATE_LIMIT_HASH_SECRET/);
+    }
+    const logged = errorSpy.mock.calls.flat().join(' ');
+    expect(logged).toContain('DATABASE_URL');
+    expect(logged).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
+    errorSpy.mockRestore();
+  });
+
+  it('accepts either hash secret when the database is configured', () => {
+    process.env.DATABASE_URL = 'postgres://test';
+    delete process.env.LICENSE_HASH_SECRET;
+    process.env.RATE_LIMIT_HASH_SECRET = 'y'.repeat(32);
+    expect(() => assertRateLimitConfigured()).not.toThrow();
+  });
+
+  it('rejects a hash secret that is present but too short', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.DATABASE_URL = 'postgres://test';
+    process.env.LICENSE_HASH_SECRET = 'short';
+    delete process.env.RATE_LIMIT_HASH_SECRET;
+    expect(() => assertRateLimitConfigured()).toThrowError(/Rate limiting is not configured on the server/);
+    const logged = errorSpy.mock.calls.flat().join(' ');
+    expect(logged).toContain('RATE_LIMIT_HASH_SECRET or LICENSE_HASH_SECRET');
+    expect(logged).not.toContain('DATABASE_URL');
+    errorSpy.mockRestore();
+  });
+});
+
+describe('rate limit retention migration', () => {
+  it('deletes a bounded batch of expired rows on about one percent of calls', () => {
+    const sql = readFileSync(new URL('../../db/migrations/005_rate_limit_cleanup.sql', import.meta.url), 'utf8');
+    expect(sql.startsWith('-- migrate:no-transaction')).toBe(false);
+    expect(sql.toLowerCase()).not.toContain('concurrently');
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION exhibitkit_consume_rate_limit');
+    expect(sql).toContain('DELETE FROM exhibitkit_rate_limits');
+    expect(sql).toContain("window_start < now() - interval '2 days'");
+    expect(sql).toContain('random() < 0.01');
+    expect(sql).toContain('LIMIT 100');
+    expect(sql).not.toContain('CREATE INDEX');
+  });
+
+  it('creates the window index outside a transaction before the cleanup migration', () => {
+    const sql = readFileSync(new URL('../../db/migrations/004_rate_limit_index.sql', import.meta.url), 'utf8');
+    const migrator = readFileSync(new URL('../../scripts/migrate-licensing.mjs', import.meta.url), 'utf8');
+    expect(sql.startsWith('-- migrate:no-transaction\n')).toBe(true);
+    expect(sql).toContain('CREATE INDEX CONCURRENTLY IF NOT EXISTS exhibitkit_rate_limits_window_start_idx');
+    expect(sql).not.toMatch(/\bBEGIN\b/);
+    expect(migrator).toContain("const MIGRATION_MARKER = '-- migrate:no-transaction'");
+    expect(migrator).toContain('isNoTransactionMigration');
+  });
 });
 
 describe('consumeRateLimit', () => {
