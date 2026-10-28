@@ -73,14 +73,16 @@ LICENSE_EMAIL_FROM="ExhibitKIT <licenses@patentpreppers.com>"
 LICENSE_HASH_SECRET=...
 RATE_LIMIT_HASH_SECRET=...
 LICENSE_ENCRYPTION_KEY=...
+ENTITLEMENT_SIGNING_KEY=...
 LICENSE_TRANSFER_COOLDOWN_HOURS=24
 EXHIBITKIT_VERSION=v0.10.0
 
-# Optional — production founder live-test unlock (see docs/FOUNDER_ADMIN.md)
+# Optional — production founder live-test unlock (see docs/FOUNDER_ADMIN.md).
+# At least 32 characters. Do not reuse a default, example, or test placeholder.
 # FOUNDER_ADMIN_SECRET=...
 ```
 
-Generate the three license secrets locally with:
+Generate the license secrets and the entitlement signing keypair locally with:
 
 ```bash
 npm run license:secrets
@@ -88,11 +90,22 @@ npm run license:secrets
 
 Copy the output directly into Vercel. Do not save it in Git or share it in screenshots.
 
-The only public values are:
+`ENTITLEMENT_SIGNING_KEY` is the server-only Ed25519 seed. License activation, transfer, and status responses include an entitlement token signed with it. Founder unlock tokens use the same key. Set the matching public key as a build-time variable (it is public):
+
+```env
+VITE_ENTITLEMENT_PUBLIC_KEY=...
+```
+
+Use both values from the same `npm run license:secrets` run. The browser verifies the signature whenever it reads an entitlement. A production build fails if `VITE_ENTITLEMENT_PUBLIC_KEY` is missing or is not 32 bytes. When the browser cannot verify a signature, paid access stays off and the activation stored in that browser is left as-is.
+
+New tokens include key id `current` unless `ENTITLEMENT_SIGNING_KEY_ID` is set. To rotate, deploy the new signing seed with a new id, set `VITE_ENTITLEMENT_PUBLIC_KEY` to the new public key, and put the previous public key in `VITE_ENTITLEMENT_ADDITIONAL_PUBLIC_KEYS` until older tokens expire. Then redeploy.
+
+The other public values are:
 
 ```env
 VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/dRm4gze2Ob4c4NF3mKg7e01
 VITE_LICENSE_API_URL=/api/license
+VITE_ENTITLEMENT_PUBLIC_KEY=...
 ```
 
 ## 5. Redeploy and test before selling
@@ -113,5 +126,5 @@ Only after that end-to-end test passes should the Stripe variables be switched t
 
 - Webhook fulfillment is safe to retry: the Stripe Checkout Session ID is unique and Resend receives a deterministic idempotency key.
 - License and recovery requests are rate-limited in Postgres. Vercel Firewall rate limiting can be added as a second layer.
-- The app checks active server-issued seats at startup and every six hours. A temporary network outage does not immediately disable a previously verified perpetual license.
+- The app checks active server-issued seats at startup and every six hours. A signed entitlement remains usable offline for 7 days after it was issued, and never past the token expiry.
 - Because ExhibitKIT runs in the browser, no client-side licensing system can be absolute DRM against someone who modifies the application code. The implementation prevents arbitrary formatted keys, enforces seats centrally, and provides reliable fulfillment without sending legal documents to the server.

@@ -23,3 +23,9 @@ d586eb682ec8365e7c8c29407dd661ada6652df6:api/founder/invite.integration.test.js:
 d9102757a9d510c4575616d2ad9d77970552d624:.env.example:exhibitkit-founder-or-passphrase:7
 d9102757a9d510c4575616d2ad9d77970552d624:README.md:exhibitkit-founder-or-passphrase:67
 d9102757a9d510c4575616d2ad9d77970552d624:src/utils/founder.js:exhibitkit-founder-or-passphrase:16
+# Published test assignments in 1aee72e. The tip generates these values instead.
+1aee72ecf61e0714d7b46830d12e1d1512c36d03:api/founder/invite.integration.test.js:exhibitkit-founder-or-passphrase:51
+1aee72ecf61e0714d7b46830d12e1d1512c36d03:api/founder/invite.test.js:exhibitkit-founder-or-passphrase:55
+1aee72ecf61e0714d7b46830d12e1d1512c36d03:api/founder/invite.test.js:exhibitkit-founder-or-passphrase:92
+1aee72ecf61e0714d7b46830d12e1d1512c36d03:api/founder/unlock.test.js:exhibitkit-founder-or-passphrase:23
+1aee72ecf61e0714d7b46830d12e1d1512c36d03:api/founder/unlock.test.js:exhibitkit-founder-or-passphrase:45

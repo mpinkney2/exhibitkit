@@ -1,4 +1,6 @@
 import { safeEqual } from '../_lib/license-crypto.js';
+import { configuredFounderSecret } from '../_lib/founder-secret.js';
+import { issueFounderToken } from '../_lib/entitlement-token.js';
 import { assertRateLimitConfigured, consumeRateLimit } from '../_lib/rate-limit.js';
 import {
   errorResponse,
@@ -15,7 +17,8 @@ import {
  * Body: { secret: string }
  *
  * Validates against server-only FOUNDER_ADMIN_SECRET (never a VITE_ var).
- * On success the client may keep a sessionStorage unlock flag for this tab.
+ * On success returns a short-lived Ed25519 founder token. The client verifies
+ * that token; a sessionStorage boolean is not an unlock.
  */
 export default {
   async fetch(request) {
@@ -25,8 +28,8 @@ export default {
     }
 
     try {
-      const expected = String(process.env.FOUNDER_ADMIN_SECRET || '').trim();
-      if (!expected || expected.length < 16) {
+      const expected = configuredFounderSecret();
+      if (!expected) {
         throw new HttpError(
           503,
           'Founder admin is not configured on the server.',
@@ -51,7 +54,7 @@ export default {
         throw new HttpError(401, 'Incorrect founder secret.', 'FOUNDER_DENIED');
       }
 
-      return json({ ok: true });
+      return json({ ok: true, founderToken: issueFounderToken() });
     } catch (error) {
       return errorResponse(error);
     }

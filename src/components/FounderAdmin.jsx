@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Shield, X, Lock, Unlock, RefreshCw, Mail } from 'lucide-react';
 import {
   isFounderAdminConfigured,
@@ -7,18 +7,10 @@ import {
   lockFounder,
   shouldOfferFounderEntry,
   clearFounderQueryFromUrl,
-  DEFAULT_FOUNDER_SECRET,
-  isUsingDefaultFounderSecret,
   inviteBetaTester,
 } from '../utils/founder.js';
 import {
   getEntitlement,
-  clearEntitlement,
-  applyCasePassForTesting,
-  applyExpiredCasePassForTesting,
-  applyPendingCasePassForTesting,
-  applyProForTesting,
-  applyFounderUnlimitedPro,
   getEntitlementLabel,
   hasProFeatures,
   areUpdatesIncluded,
@@ -26,7 +18,10 @@ import {
   getWorkstationInfo,
 } from '../utils/entitlement.js';
 import { getCheckoutConfig } from '../utils/checkout.js';
-import { isDevMode, DEV_TEST_KEY } from '../utils/license.js';
+
+const FounderDevStages = import.meta.env.DEV
+  ? lazy(() => import('./FounderDevStages.jsx'))
+  : null;
 
 const panelStyle = {
   position: 'fixed',
@@ -121,7 +116,6 @@ export default function FounderAdmin({
   if (!visible) return null;
 
   const configured = isFounderAdminConfigured();
-  const usingDefaultSecret = isUsingDefaultFounderSecret();
   const checkout = getCheckoutConfig();
   const current = entitlement || getEntitlement();
   const workstation = getWorkstationInfo();
@@ -227,7 +221,7 @@ export default function FounderAdmin({
           padding: '8px 10px',
         }}
       >
-        Live-test console only. Stage switches write local entitlement cache — they are not Stripe purchases.
+        Live-test console only. Local development can switch entitlement stages on this browser. Those switches are not Stripe purchases. Production paid access follows a signed license.
       </div>
 
       {!unlocked ? (
@@ -254,9 +248,9 @@ export default function FounderAdmin({
               <Unlock size={13} /> {unlocking ? 'Checking…' : 'Unlock founder admin'}
             </span>
           </button>
-          {usingDefaultSecret && (
+          {!configured && (
             <div style={{ color: 'var(--color-text-muted, #9ca3af)' }}>
-              Default secret: <code>{DEFAULT_FOUNDER_SECRET}</code>
+              Set <code>VITE_FOUNDER_ADMIN_SECRET</code> in <code>.env.local</code> to unlock founder admin on this machine.
             </div>
           )}
           {error && <div style={{ color: '#f87171' }}>{error}</div>}
@@ -303,25 +297,11 @@ export default function FounderAdmin({
             </pre>
           </section>
 
-          <section style={{ display: 'grid', gap: 6 }}>
-            <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
-              Founder unlimited
-            </strong>
-            <button
-              type="button"
-              style={btnPrimary}
-              onClick={() => applyStage(
-                'Founder unlimited Pro (no payment)',
-                () => applyFounderUnlimitedPro(),
-                { enterWorkspace: true },
-              )}
-            >
-              Founder Pro — unlimited renaming (skip payment)
-            </button>
-            <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
-              Grants Pro renaming + unlimited batches on this browser while founder admin stays unlocked. Not a Stripe purchase.
-            </div>
-          </section>
+          {FounderDevStages && (
+            <Suspense fallback={null}>
+              <FounderDevStages onApply={applyStage} />
+            </Suspense>
+          )}
 
           <section style={{ display: 'grid', gap: 6 }}>
             <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
@@ -402,35 +382,11 @@ export default function FounderAdmin({
             )}
           </section>
 
-          <section style={{ display: 'grid', gap: 6 }}>
-            <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
-              Entitlement stages
-            </strong>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <button type="button" style={btn} onClick={() => applyStage('Free', () => { clearEntitlement(); return getEntitlement(); })}>
-                Free
-              </button>
-              <button type="button" style={btn} onClick={() => applyStage('Case Pass active', () => applyCasePassForTesting())}>
-                Case Pass active
-              </button>
-              <button type="button" style={btn} onClick={() => applyStage('Case Pass expired', () => applyExpiredCasePassForTesting())}>
-                Case Pass expired
-              </button>
-              <button type="button" style={btn} onClick={() => applyStage('Case Pass pending', () => applyPendingCasePassForTesting())}>
-                Case Pass pending
-              </button>
-              <button
-                type="button"
-                style={btn}
-                onClick={() => applyStage('Pro (updates included)', () => applyProForTesting(), { enterWorkspace: true })}
-              >
-                Pro + updates
-              </button>
-              <button type="button" style={btn} onClick={() => applyStage('Pro (updates lapsed)', () => applyProForTesting({ updatesLapsed: true }), { enterWorkspace: true })}>
-                Pro updates lapsed
-              </button>
+          {import.meta.env.DEV && FounderDevStages ? null : (
+            <div style={{ color: 'var(--color-text-muted, #9ca3af)', lineHeight: 1.4 }}>
+              Paid renaming on this deployment follows a signed license. Use a beta invite to issue a real key.
             </div>
-          </section>
+          )}
 
           <section style={{ display: 'grid', gap: 6 }}>
             <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af' }}>
@@ -457,11 +413,6 @@ export default function FounderAdmin({
               <div>Pro CTA: <strong>{checkout.proCheckoutEnabled ? 'enabled' : 'disabled'}</strong></div>
               {checkout.reason && <div style={{ color: '#fbbf24' }}>{checkout.reason}</div>}
             </div>
-            {isDevMode() && (
-              <div style={{ color: '#9ca3af' }}>
-                Dev license key: <code>{DEV_TEST_KEY}</code>
-              </div>
-            )}
           </section>
 
           <button

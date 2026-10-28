@@ -79,16 +79,17 @@ Stripe secret keys and webhook secrets must remain server-side only. Do not plac
 
 ### Founder live testing
 
-**Local:** Open `http://localhost:5173/?founder=1` and unlock with the DEV default (`ekit-founder-2026`), or set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` (local only).
+**Local:** Set `VITE_FOUNDER_ADMIN_SECRET` in `.env.local` (there is no built-in default), then open `http://localhost:5173/?founder=1`.
 
-**Production / preview:** Set server-only `FOUNDER_ADMIN_SECRET` in Vercel (no `VITE_` prefix), redeploy, then open `https://YOUR_DOMAIN/?founder=1`. Unlock calls `POST /api/founder/unlock`. Never put the founder secret in a `VITE_*` variable — Vite exposes those in the browser bundle. Full steps: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
+**Production / preview:** Set server-only `FOUNDER_ADMIN_SECRET` in Vercel (at least 32 characters, no `VITE_` prefix) and the entitlement signing keypair described in [`docs/LICENSE_BACKEND_SETUP.md`](docs/LICENSE_BACKEND_SETUP.md). Redeploy, then open `https://YOUR_DOMAIN/?founder=1`. Unlock calls `POST /api/founder/unlock`, which returns a short-lived signed token the browser verifies. Never put the founder secret or the signing private key in a `VITE_*` variable — Vite exposes those in the browser bundle. Full steps: [`docs/FOUNDER_ADMIN.md`](docs/FOUNDER_ADMIN.md).
 
 ---
 
 ## Production Hardening
 
 - Developer test key (`PATENTPREPPERS-EXHIBITKIT-PRO`) is available **only** when `import.meta.env.DEV === true`.
-- Founder admin production unlock uses server-only `FOUNDER_ADMIN_SECRET` via `/api/founder/unlock` — never a `VITE_*` secret.
+- Founder admin production unlock uses server-only `FOUNDER_ADMIN_SECRET` via `/api/founder/unlock` — never a `VITE_*` secret. The response is a short-lived signed token.
+- Paid access follows an Ed25519 entitlement token. The private key stays in `ENTITLEMENT_SIGNING_KEY`. Only `VITE_ENTITLEMENT_PUBLIC_KEY` ships to the browser. If that key is missing, paid renaming stays off and the saved activation is left in place.
 - Never trust client-submitted prices or entitlement values for paid access.
 - Do not invent client-side licenses or simulated checkout.
 
