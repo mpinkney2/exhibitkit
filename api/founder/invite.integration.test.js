@@ -3,6 +3,7 @@
 // End-to-end wiring test: real endpoint -> real beta-invite-service -> real
 // license-repository -> real license-crypto/email, faking only the Neon SQL
 // client and the Resend SDK (the two things unavailable in this environment).
+import { randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => {
@@ -49,9 +50,10 @@ import invite from './invite.js';
 import { isLicenseKeyFormat } from '../_lib/license-crypto.js';
 
 const ORIGIN = 'https://exhibitkit.patentpreppers.com';
+const founderSecret = randomBytes(32).toString('base64url');
 
 beforeEach(() => {
-  process.env.FOUNDER_ADMIN_SECRET = 'production-founder-secret-ok';
+  process.env['FOUNDER_ADMIN_SECRET'] = founderSecret;
   process.env.APP_URL = ORIGIN;
   process.env.DATABASE_URL = 'postgres://test';
   process.env.LICENSE_HASH_SECRET = 'x'.repeat(48);
@@ -80,7 +82,7 @@ describe('POST /api/founder/invite (end-to-end wiring)', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: ORIGIN, 'x-forwarded-for': '203.0.113.7' },
       body: JSON.stringify({
-        secret: 'production-founder-secret-ok',
+        secret: founderSecret,
         email: 'Beta.Tester@Example.com',
         name: 'Beta Tester',
         note: 'cohort 1',

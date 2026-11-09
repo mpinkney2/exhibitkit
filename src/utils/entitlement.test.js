@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { ed25519 } from '@noble/curves/ed25519.js';
+import { bytesToBase64, signEntitlementToken, workstationClaimHash } from './entitlementToken.js';
+import { getWorkstationInfo } from './license.js';
 import {
   migrateLegacyLicenseIfNeeded,
   getEntitlement,
@@ -20,12 +23,43 @@ import {
 } from './entitlement.js';
 import { activateLicense } from './license.js';
 
+const { secretKey, publicKey } = ed25519.keygen();
+const publicKeyB64 = bytesToBase64(publicKey);
+
+function signedRecord({
+  plan = PLAN_IDS.PRO,
+  issuedAt = new Date().toISOString(),
+  expiry = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+  licenseId = 'lic_test_1',
+  ...rest
+} = {}) {
+  const entitlementToken = signEntitlementToken({
+    plan,
+    expiry,
+    licenseId,
+    issuedAt,
+    workstationHash: workstationClaimHash(getWorkstationInfo().deviceId),
+  }, secretKey);
+  return {
+    purchasedAt: issuedAt,
+    expiresAt: plan === PLAN_IDS.CASE_PASS ? expiry : null,
+    casePassStatus: plan === PLAN_IDS.CASE_PASS ? 'active' : 'none',
+    serverVerified: true,
+    activationToken: 'a'.repeat(43),
+    ...rest,
+    plan,
+    entitlementToken,
+  };
+}
+
 beforeEach(() => {
   localStorage.clear();
+  vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY', publicKeyB64);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('Free five-file limit', () => {
@@ -70,15 +104,13 @@ describe('Pro perpetual entitlement', () => {
   it('remains active after updatesIncludedUntil elapses', () => {
     const purchasedAt = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString();
     const updatesIncludedUntil = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
-    const ent = applyEntitlementRecord({
-      plan: PLAN_IDS.PRO,
+    const ent = applyEntitlementRecord(signedRecord({
       licenseKey: 'EKIT-TEST-AAAA-BBBB',
       purchasedAt,
       updatesIncludedUntil,
       updateRenewalStatus: 'lapsed',
       purchasedVersion: 'v0.9.3',
-      serverVerified: true,
-    });
+    }));
 
     expect(areUpdatesIncluded(ent)).toBe(false);
     expect(hasProFeatures(ent)).toBe(true);
@@ -88,18 +120,13 @@ describe('Pro perpetual entitlement', () => {
   it('restores Pro only after the license service verifies the key', async () => {
     const verifiedResponse = new Response(JSON.stringify({
       ok: true,
-      entitlement: {
-        plan: PLAN_IDS.PRO,
+      entitlement: signedRecord({
         purchasedAt: '2026-08-21T12:00:00.000Z',
-        expiresAt: null,
-        casePassStatus: 'none',
         updatesIncludedUntil: '2027-08-21T12:00:00.000Z',
         updateRenewalStatus: 'included',
         purchasedVersion: 'v0.10.0',
-        serverVerified: true,
-        activationToken: 'a'.repeat(43),
         licenseFingerprint: '••••-IJKL',
-      },
+      }),
     }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -133,12 +160,9 @@ describe('Pro perpetual entitlement', () => {
   });
 
   it('keeps a previously verified perpetual license during a temporary server outage', async () => {
-    const ent = applyEntitlementRecord({
-      plan: PLAN_IDS.PRO,
-      serverVerified: true,
-      activationToken: 'a'.repeat(43),
+    const ent = applyEntitlementRecord(signedRecord({
       purchasedAt: '2026-08-21T12:00:00.000Z',
-    });
+    }));
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 503 })));
 
     const result = await refreshVerifiedEntitlementStatus(ent);
@@ -242,7 +266,7 @@ describe('guest and demo keys', () => {
     expect(getMaxRealFilesPerBatch()).toBe(FREE_MAX_FILES_PER_BATCH);
   });
 
-  it('still grants Pro for a server-verified license and a founder override', () => {
+  it('does not grant Pro from an unsigned serverVerified flag, and DEV overrides still do', () => {
     const verified = applyEntitlementRecord({
       plan: PLAN_IDS.PRO,
       licenseKey: 'EKIT-TEST-AAAA-BBBB',
@@ -250,8 +274,8 @@ describe('guest and demo keys', () => {
       activationToken: 'a'.repeat(43),
       purchasedAt: '2026-08-21T12:00:00.000Z',
     });
-    expect(verified.plan).toBe(PLAN_IDS.PRO);
-    expect(hasProFeatures(verified)).toBe(true);
+    expect(verified.plan).toBe(PLAN_IDS.FREE);
+    expect(hasProFeatures(verified)).toBe(false);
 
     clearEntitlement();
     const founder = applyFounderUnlimitedPro();

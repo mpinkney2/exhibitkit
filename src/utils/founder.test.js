@@ -1,4 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { ed25519 } from '@noble/curves/ed25519.js';
+import { bytesToBase64, signFounderToken } from './entitlementToken.js';
+
+const { secretKey, publicKey } = ed25519.keygen();
+const publicKeyB64 = bytesToBase64(publicKey);
+
+function freshFounderToken() {
+  return signFounderToken({
+    issuedAt: new Date().toISOString(),
+    expiry: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  }, secretKey);
+}
 
 describe('founder admin access', () => {
   beforeEach(() => {
@@ -34,30 +46,28 @@ describe('founder admin access', () => {
     expect(isFounderUnlocked()).toBe(false);
   });
 
-  it('always resolves a usable founder secret in DEV', async () => {
+  it('does not fall back to a built-in founder secret in DEV', async () => {
     vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', '');
-    const { DEFAULT_FOUNDER_SECRET, getFounderSecret, unlockFounder, isFounderAdminConfigured } = await import('./founder.js');
-    expect(isFounderAdminConfigured()).toBe(true);
-    expect(getFounderSecret()).toBe(DEFAULT_FOUNDER_SECRET);
-    expect((await unlockFounder(DEFAULT_FOUNDER_SECRET)).ok).toBe(true);
+    const { getFounderSecret, unlockFounder, isFounderAdminConfigured, isFounderUnlocked } = await import('./founder.js');
+    expect(isFounderAdminConfigured()).toBe(false);
+    expect(getFounderSecret()).toBe('');
+    const result = await unlockFounder('anything');
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/not configured/i);
+    expect(isFounderUnlocked()).toBe(false);
   });
 
-  it('uses DEV default secret when env is unset', async () => {
-    vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', '');
-    const { DEFAULT_FOUNDER_SECRET, getFounderSecret, unlockFounder } = await import('./founder.js');
-    expect(getFounderSecret()).toBe(DEFAULT_FOUNDER_SECRET);
-    expect((await unlockFounder(DEFAULT_FOUNDER_SECRET)).ok).toBe(true);
-  });
-
-  it('does not expose a client secret in production and unlocks via API', async () => {
+  it('does not expose a client secret in production and unlocks via a signed token', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('PROD', true);
     vi.stubEnv('MODE', 'production');
     vi.stubEnv('VITE_FOUNDER_ADMIN_SECRET', 'should-be-ignored-in-prod');
+    vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY', publicKeyB64);
+    const founderToken = freshFounderToken();
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ ok: true }),
+      json: async () => ({ ok: true, founderToken }),
     }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -65,19 +75,33 @@ describe('founder admin access', () => {
       getFounderSecret,
       unlockFounder,
       isFounderUnlocked,
-      DEFAULT_FOUNDER_SECRET,
     } = await import('./founder.js');
 
     expect(getFounderSecret()).toBe('');
-    expect((await unlockFounder(DEFAULT_FOUNDER_SECRET)).ok).toBe(true);
+    expect((await unlockFounder('candidate-secret')).ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/founder/unlock',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ secret: DEFAULT_FOUNDER_SECRET }),
+        body: JSON.stringify({ secret: 'candidate-secret' }),
       }),
     );
     expect(isFounderUnlocked()).toBe(true);
+  });
+
+  it('does not unlock production when the response has no verifiable token', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('PROD', true);
+    vi.stubEnv('MODE', 'production');
+    vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY', publicKeyB64);
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true }),
+    })));
+
+    const { unlockFounder, isFounderUnlocked } = await import('./founder.js');
+    expect((await unlockFounder('candidate-secret')).ok).toBe(false);
+    expect(isFounderUnlocked()).toBe(false);
   });
 
   it('surfaces API denial in production', async () => {
@@ -97,32 +121,26 @@ describe('founder admin access', () => {
     expect(isFounderUnlocked()).toBe(false);
   });
 
-  it('grants Pro features from founder override only while founder is unlocked in production', async () => {
+  it('does not grant Pro from a founder flag or developerOverride outside DEV', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('PROD', true);
     vi.stubEnv('MODE', 'production');
+    vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY', publicKeyB64);
     localStorage.clear();
     sessionStorage.clear();
 
-    const { FOUNDER_SESSION_KEY } = await import('./founder.js');
+    const { isFounderUnlocked } = await import('./founder.js');
     const {
       applyFounderUnlimitedPro,
       hasProFeatures,
-      refreshVerifiedEntitlementStatus,
+      getEntitlement,
+      PLAN_IDS,
     } = await import('./entitlement.js');
 
+    sessionStorage.setItem('exhibitkit_founder_unlocked', 'true');
     applyFounderUnlimitedPro();
-    expect(hasProFeatures()).toBe(false);
-
-    sessionStorage.setItem(FOUNDER_SESSION_KEY, 'true');
-    expect(hasProFeatures()).toBe(true);
-
-    const refresh = await refreshVerifiedEntitlementStatus();
-    expect(refresh.ok).toBe(true);
-    expect(refresh.invalid).toBeFalsy();
-    expect(hasProFeatures()).toBe(true);
-
-    sessionStorage.removeItem(FOUNDER_SESSION_KEY);
+    expect(isFounderUnlocked()).toBe(false);
+    expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
     expect(hasProFeatures()).toBe(false);
   });
 });
@@ -183,10 +201,12 @@ describe('beta tester invitations', () => {
     vi.stubEnv('PROD', true);
     vi.stubEnv('MODE', 'production');
 
+    vi.stubEnv('VITE_ENTITLEMENT_PUBLIC_KEY', publicKeyB64);
+    const founderToken = freshFounderToken();
     const fetchMock = vi.fn(async (url) => ({
       ok: true,
       json: async () => (url === '/api/founder/unlock'
-        ? { ok: true }
+        ? { ok: true, founderToken }
         : { ok: true, key: 'EKIT-BETA-PROD-0002', fingerprint: '••••-0002', email: 't@example.com', expiresAt: '2026-10-18T00:00:00.000Z', days: 30, emailStatus: 'sent' }),
     }));
     vi.stubGlobal('fetch', fetchMock);

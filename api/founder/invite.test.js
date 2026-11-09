@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -21,6 +22,8 @@ vi.mock('../_lib/rate-limit.js', async (importOriginal) => {
 import invite from './invite.js';
 
 const ORIGIN = 'https://exhibitkit.patentpreppers.com';
+const founderSecret = randomBytes(32).toString('base64url');
+const wrongSecret = randomBytes(32).toString('base64url');
 
 function inviteRequest(body, { origin = ORIGIN, method = 'POST' } = {}) {
   return new Request(`${ORIGIN}/api/founder/invite`, {
@@ -62,7 +65,7 @@ function clearBackendEnv() {
 }
 
 beforeEach(() => {
-  process.env.FOUNDER_ADMIN_SECRET = 'production-founder-secret-ok';
+  process.env['FOUNDER_ADMIN_SECRET'] = founderSecret;
   process.env.APP_URL = ORIGIN;
   configureBackendEnv();
   vi.clearAllMocks();
@@ -97,12 +100,26 @@ describe('POST /api/founder/invite', () => {
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('FOUNDER_NOT_CONFIGURED');
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 when FOUNDER_ADMIN_SECRET is too short', async () => {
+    const shortSecret = 'x'.repeat(31);
+    process.env['FOUNDER_ADMIN_SECRET'] = shortSecret;
+    const response = await invite.fetch(inviteRequest({
+      secret: shortSecret,
+      email: 'a@b.co',
+    }));
+    expect(response.status).toBe(503);
+    expect((await response.json()).code).toBe('FOUNDER_NOT_CONFIGURED');
+    expect(mocks.consumeRateLimit).not.toHaveBeenCalled();
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
   it('asks the durable limiter for 30 invitations per hour and stops when denied', async () => {
     mocks.consumeRateLimit.mockResolvedValueOnce(false);
-    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(429);
     expect(response.headers.get('retry-after')).toBe('3600');
     const body = await response.json();
@@ -113,13 +130,13 @@ describe('POST /api/founder/invite', () => {
 
   it('does not mint when the durable limiter fails', async () => {
     mocks.consumeRateLimit.mockRejectedValueOnce(new Error('database unavailable'));
-    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(500);
     expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 
   it('rejects an incorrect founder secret without minting', async () => {
-    const response = await invite.fetch(inviteRequest({ secret: 'wrong-secret-value', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: wrongSecret, email: 'a@b.co' }));
     expect(response.status).toBe(401);
     const body = await response.json();
     expect(body.code).toBe('FOUNDER_DENIED');
@@ -131,7 +148,7 @@ describe('POST /api/founder/invite', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     delete process.env.DATABASE_URL;
     delete process.env.LICENSE_ENCRYPTION_KEY;
-    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
@@ -147,7 +164,7 @@ describe('POST /api/founder/invite', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     delete process.env.LICENSE_HASH_SECRET;
     delete process.env.RATE_LIMIT_HASH_SECRET;
-    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('RATE_LIMIT_NOT_CONFIGURED');
@@ -159,7 +176,7 @@ describe('POST /api/founder/invite', () => {
 
   it('reports exactly which backend settings are missing (email is not required)', async () => {
     delete process.env.LICENSE_ENCRYPTION_KEY;
-    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('INVITE_BACKEND_NOT_CONFIGURED');
@@ -173,7 +190,7 @@ describe('POST /api/founder/invite', () => {
     mocks.createBetaInvite.mockRejectedValueOnce(
       new Error('column "source" of relation "exhibitkit_licenses" does not exist'),
     );
-    const response = await invite.fetch(inviteRequest({ secret: 'production-founder-secret-ok', email: 'a@b.co' }));
+    const response = await invite.fetch(inviteRequest({ secret: founderSecret, email: 'a@b.co' }));
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.code).toBe('INVITE_DB_MIGRATION_REQUIRED');
@@ -182,7 +199,7 @@ describe('POST /api/founder/invite', () => {
 
   it('mints and returns a beta invite for a valid founder request', async () => {
     const response = await invite.fetch(inviteRequest({
-      secret: 'production-founder-secret-ok',
+      secret: founderSecret,
       email: 'tester@example.com',
       name: 'Test Tester',
       note: 'Round 1',

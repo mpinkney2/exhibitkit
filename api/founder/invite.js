@@ -1,4 +1,5 @@
 import { safeEqual } from '../_lib/license-crypto.js';
+import { configuredFounderSecret } from '../_lib/founder-secret.js';
 import { assertRateLimitConfigured, consumeRateLimit } from '../_lib/rate-limit.js';
 import {
   errorResponse,
@@ -61,8 +62,8 @@ export default {
     }
 
     try {
-      const expected = String(process.env.FOUNDER_ADMIN_SECRET || '').trim();
-      if (!expected || expected.length < 16) {
+      const expected = configuredFounderSecret();
+      if (!expected) {
         throw new HttpError(
           503,
           'Founder admin is not configured on the server.',

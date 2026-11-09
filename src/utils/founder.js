@@ -6,16 +6,20 @@
  *   2. Enter the founder secret
  *
  * Unlock paths:
- *   - Local DEV: compares against DEFAULT_FOUNDER_SECRET or optional
- *     VITE_FOUNDER_ADMIN_SECRET (local override only — never set in Vercel)
- *   - Production / preview: POST /api/founder/unlock, which checks
- *     server-only FOUNDER_ADMIN_SECRET (no VITE_ prefix, never in the bundle)
+ *   - Local DEV: compares against VITE_FOUNDER_ADMIN_SECRET from .env.local.
+ *     There is no built-in default. Never set that variable in Vercel.
+ *   - Production / preview: POST /api/founder/unlock. The server checks
+ *     FOUNDER_ADMIN_SECRET and returns a short-lived signed founder token.
+ *     The client verifies the token. A sessionStorage boolean is not an unlock.
  *
- * This is a live-test console for entitlement stages — not customer licensing.
+ * This is a live-test console — not customer licensing.
  */
 
-export const DEFAULT_FOUNDER_SECRET = 'ekit-founder-2026';
-export const FOUNDER_SESSION_KEY = 'exhibitkit_founder_unlocked';
+import { verifyFounderToken } from './entitlementToken.js';
+
+export const FOUNDER_TOKEN_STORAGE = 'exhibitkit_founder_token';
+const FOUNDER_DEV_UNLOCK_KEY = 'exhibitkit_founder_dev_unlocked';
+const LEGACY_FOUNDER_FLAG = 'exhibitkit_founder_unlocked';
 export const FOUNDER_QUERY_FLAG = 'founder';
 
 /**
@@ -44,20 +48,17 @@ export function isFounderAdminAvailable() {
 
 /**
  * Local DEV secret only. Production never reads a client-side founder secret.
+ * There is no built-in default.
  */
 export function getFounderSecret() {
   if (!import.meta.env.DEV) return '';
-  return envSecret() || DEFAULT_FOUNDER_SECRET;
+  return envSecret();
 }
 
 export function isFounderAdminConfigured() {
   if (import.meta.env.DEV) return Boolean(getFounderSecret());
   // Production unlock is server-configured; show the form and let the API decide.
   return true;
-}
-
-export function isUsingDefaultFounderSecret() {
-  return import.meta.env.DEV && !envSecret();
 }
 
 /**
@@ -74,17 +75,48 @@ export function shouldOfferFounderEntry(search = window.location.search, hash = 
   return false;
 }
 
-export function isFounderUnlocked() {
+function readDevUnlockFlag() {
   try {
-    return sessionStorage.getItem(FOUNDER_SESSION_KEY) === 'true';
+    return sessionStorage.getItem(FOUNDER_DEV_UNLOCK_KEY) === 'true';
   } catch {
     return false;
   }
 }
 
-function persistUnlock() {
+function readValidFounderToken() {
   try {
-    sessionStorage.setItem(FOUNDER_SESSION_KEY, 'true');
+    const token = sessionStorage.getItem(FOUNDER_TOKEN_STORAGE);
+    if (!token) return false;
+    if (verifyFounderToken(token)) return true;
+    sessionStorage.removeItem(FOUNDER_TOKEN_STORAGE);
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function isFounderUnlocked() {
+  if (readValidFounderToken()) return true;
+  // A local flag is only a DEV convenience for the console. Production requires
+  // a signed founder token, and the flag never grants paid access.
+  return import.meta.env.DEV === true && readDevUnlockFlag();
+}
+
+function persistDevUnlock() {
+  try {
+    sessionStorage.removeItem(LEGACY_FOUNDER_FLAG);
+    sessionStorage.setItem(FOUNDER_DEV_UNLOCK_KEY, 'true');
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Unable to persist founder session.' };
+  }
+}
+
+function persistFounderToken(token) {
+  try {
+    sessionStorage.removeItem(LEGACY_FOUNDER_FLAG);
+    sessionStorage.removeItem(FOUNDER_DEV_UNLOCK_KEY);
+    sessionStorage.setItem(FOUNDER_TOKEN_STORAGE, token);
     return { ok: true };
   } catch {
     return { ok: false, error: 'Unable to persist founder session.' };
@@ -103,11 +135,14 @@ export async function unlockFounder(candidate) {
 
   if (import.meta.env.DEV) {
     const expected = getFounderSecret();
+    if (!expected) {
+      return { ok: false, error: 'Founder admin is not configured for local development.' };
+    }
     if (trimmed !== expected) {
       return { ok: false, error: 'Incorrect founder secret.' };
     }
     unlockedSecret = trimmed;
-    return persistUnlock();
+    return persistDevUnlock();
   }
 
   try {
@@ -117,14 +152,14 @@ export async function unlockFounder(candidate) {
       body: JSON.stringify({ secret: trimmed }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) {
+    if (!response.ok || !data.ok || !data.founderToken || !verifyFounderToken(data.founderToken)) {
       return {
         ok: false,
         error: data.error || 'Unlock failed.',
       };
     }
     unlockedSecret = trimmed;
-    return persistUnlock();
+    return persistFounderToken(data.founderToken);
   } catch {
     return { ok: false, error: 'Unable to reach founder unlock service.' };
   }
@@ -196,7 +231,9 @@ export async function inviteBetaTester({ email, name, note, days, secret } = {})
 export function lockFounder() {
   unlockedSecret = '';
   try {
-    sessionStorage.removeItem(FOUNDER_SESSION_KEY);
+    sessionStorage.removeItem(FOUNDER_TOKEN_STORAGE);
+    sessionStorage.removeItem(FOUNDER_DEV_UNLOCK_KEY);
+    sessionStorage.removeItem(LEGACY_FOUNDER_FLAG);
   } catch {
     // ignore
   }

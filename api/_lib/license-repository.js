@@ -119,6 +119,19 @@ export async function transferLicense(record) {
   return rows[0]?.result || { code: 'invalid' };
 }
 
+export async function getLicenseIdByKeyHash(licenseKeyHash) {
+  if (!licenseKeyHash) return null;
+  const sql = getDatabase();
+  const rows = await sql`
+    SELECT id
+    FROM exhibitkit_licenses
+    WHERE license_key_hash = ${licenseKeyHash}
+    LIMIT 1
+  `;
+  const id = rows[0]?.id;
+  return id ? String(id) : null;
+}
+
 export async function getActivationStatus(activationTokenHash, workstationHash) {
   const sql = getDatabase();
   const rows = await sql`
@@ -132,6 +145,7 @@ export async function getActivationStatus(activationTokenHash, workstationHash) 
       AND license.status = 'active'
       AND (license.expires_at IS NULL OR license.expires_at > now())
     RETURNING
+      license.id AS license_id,
       license.plan,
       license.purchased_at,
       license.expires_at,
