@@ -25,7 +25,7 @@ const h = vi.hoisted(() => {
     return Promise.resolve([]);
   };
   const sent = [];
-  return { captured, fakeSql, sent };
+  return { captured, fakeSql, sent, failSend: null };
 });
 
 vi.mock('../_lib/database.js', () => ({
@@ -39,6 +39,7 @@ vi.mock('resend', () => ({
       this.emails = {
         send: async (payload, options) => {
           h.sent.push({ payload, options });
+          if (h.failSend) return h.failSend(payload, options);
           return { data: { id: 'msg_int_1' }, error: null };
         },
       };
@@ -63,6 +64,7 @@ beforeEach(() => {
   process.env.EXHIBITKIT_VERSION = 'v1.2.3';
   h.captured.length = 0;
   h.sent.length = 0;
+  h.failSend = null;
 });
 
 afterEach(() => {
@@ -126,5 +128,61 @@ describe('POST /api/founder/invite (end-to-end wiring)', () => {
     expect(h.sent[0].payload.to).toBe('beta.tester@example.com');
     expect(h.sent[0].payload.html).toContain(body.key);
     expect(h.sent[0].options.idempotencyKey).toBe('beta-invite/lic_int_1');
+  });
+
+  it('returns the minted key and logs a redacted provider failure when email sending fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    h.failSend = (payload, options) => ({
+      data: null,
+      error: {
+        name: 'validation_error',
+        statusCode: 422,
+        message: [
+          payload.to,
+          payload.from,
+          process.env.RESEND_API_KEY,
+          're_test_key',
+          options.idempotencyKey,
+          payload.html.slice(payload.html.indexOf('EKIT-'), payload.html.indexOf('EKIT-') + 24),
+        ].join(' '),
+        headers: { authorization: 'Bearer re_test_key' },
+      },
+    });
+
+    try {
+      const request = new Request(`${ORIGIN}/api/founder/invite`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: ORIGIN, 'x-forwarded-for': '203.0.113.8' },
+        body: JSON.stringify({ secret: founderSecret, email: 'Beta.Tester@Example.com' }),
+      });
+      const response = await invite.fetch(request);
+      expect(response.status).toBe(200);
+      const body = await response.json();
+
+      expect(body.ok).toBe(true);
+      expect(isLicenseKeyFormat(body.key)).toBe(true);
+      expect(body.emailStatus).toBe('failed');
+      expect(body.emailError).toEqual({ name: 'validation_error', statusCode: 422 });
+      expect(body.emailError).not.toHaveProperty('message');
+
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      const [label, details] = errorSpy.mock.calls[0];
+      expect(label).toBe('[beta-invite] email send failed');
+      expect(Object.keys(details).sort()).toEqual(['message', 'name', 'statusCode']);
+      expect(details).toMatchObject({ name: 'validation_error', statusCode: 422 });
+      expect(details.message.length).toBeLessThanOrEqual(300);
+      const logged = JSON.stringify(details);
+      expect(logged).not.toContain(body.key);
+      expect(logged).not.toContain('lic_int_1');
+      expect(logged).not.toContain('test-resend-key');
+      expect(logged).not.toContain('re_test_key');
+      expect(logged).not.toContain('re_');
+      expect(logged).not.toContain('@');
+      expect(logged).not.toContain('licenses@example.com');
+      expect(logged).not.toContain('authorization');
+      expect(logged).not.toContain('203.0.113.8');
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

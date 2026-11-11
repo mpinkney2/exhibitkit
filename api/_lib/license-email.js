@@ -26,6 +26,29 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+const PROVIDER_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+
+function safeProviderName(value) {
+  const name = typeof value === 'string' ? value.trim() : '';
+  if (!PROVIDER_NAME.test(name) || /^re_/i.test(name)) return 'provider_error';
+  return name;
+}
+
+function safeStatusCode(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
+}
+
+// Copy the provider name, message, and HTTP status onto the thrown error.
+// The raw payload is not attached; it can carry request headers.
+function betaInviteProviderFailure(error) {
+  const name = safeProviderName(error?.name);
+  const providerMessage = typeof error?.message === 'string' ? error.message : '';
+  const failure = new Error(providerMessage || `Beta invite email failed: ${name}`);
+  failure.name = name;
+  failure.statusCode = safeStatusCode(error?.statusCode);
+  return failure;
+}
+
 function emailShell(content) {
   return `<!doctype html>
   <html lang="en">
@@ -99,7 +122,7 @@ export async function sendBetaInviteEmail({ to, licenseKey, expiresAt, licenseId
     { idempotencyKey: `beta-invite/${licenseId}` },
   );
 
-  if (error) throw new Error(`Beta invite email failed: ${error.name || 'provider_error'}`);
+  if (error) throw betaInviteProviderFailure(error);
   return data?.id || null;
 }
 

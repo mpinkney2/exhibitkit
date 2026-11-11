@@ -216,6 +216,7 @@ describe('POST /api/founder/invite', () => {
       days: 30,
       emailStatus: 'sent',
     });
+    expect(body.emailError).toBeUndefined();
     expect(mocks.createBetaInvite).toHaveBeenCalledWith({
       email: 'tester@example.com',
       days: 30,
@@ -223,5 +224,50 @@ describe('POST /api/founder/invite', () => {
       note: 'Round 1',
       invitedBy: 'founder',
     });
+  });
+
+  it('returns the license and a name/status emailError when delivery fails', async () => {
+    mocks.createBetaInvite.mockResolvedValueOnce({
+      ...SAMPLE_INVITE,
+      emailStatus: 'failed',
+      emailError: {
+        name: 'validation_error',
+        statusCode: 422,
+        message: 'hidden person@example.com and re_test_key',
+        headers: { authorization: 'Bearer re_test_key' },
+      },
+    });
+
+    const response = await invite.fetch(inviteRequest({
+      secret: founderSecret,
+      email: 'tester@example.com',
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.key).toBe(SAMPLE_INVITE.key);
+    expect(body.emailStatus).toBe('failed');
+    expect(body.emailError).toEqual({ name: 'validation_error', statusCode: 422 });
+    expect(body.emailError).not.toHaveProperty('message');
+    expect(body.emailError).not.toHaveProperty('headers');
+    expect(JSON.stringify(body.emailError)).not.toContain('person@example.com');
+    expect(JSON.stringify(body.emailError)).not.toContain('re_');
+  });
+
+  it('replaces a key-shaped provider name before returning emailError', async () => {
+    mocks.createBetaInvite.mockResolvedValueOnce({
+      ...SAMPLE_INVITE,
+      emailStatus: 'failed',
+      emailError: { name: 're_test_key', statusCode: 401, message: 'hidden' },
+    });
+
+    const response = await invite.fetch(inviteRequest({
+      secret: founderSecret,
+      email: 'tester@example.com',
+    }));
+    const body = await response.json();
+    expect(body.key).toBe(SAMPLE_INVITE.key);
+    expect(body.emailError).toEqual({ name: 'provider_error', statusCode: 401 });
+    expect(JSON.stringify(body.emailError)).not.toContain('re_');
+    expect(JSON.stringify(body.emailError)).not.toContain('hidden');
   });
 });

@@ -39,6 +39,60 @@ function addDays(isoDate, days) {
   return next.toISOString();
 }
 
+const DIAGNOSTIC_MESSAGE_LIMIT = 300;
+const PROVIDER_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+
+function safeProviderName(value) {
+  const name = typeof value === 'string' ? value.trim() : '';
+  if (!PROVIDER_NAME.test(name) || /^re_/i.test(name)) return 'provider_error';
+  return name;
+}
+
+function safeStatusCode(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
+}
+
+function secretLiterals(values) {
+  return values
+    .filter((value) => typeof value === 'string' && value.length >= 4)
+    .sort((left, right) => right.length - left.length);
+}
+
+// Strip values that must never appear in logs, then cap the length. Redact
+// before truncating so a value split by the cap cannot survive as a fragment.
+function redactDiagnosticMessage(message, literals) {
+  let text = typeof message === 'string' ? message : '';
+  for (const secret of secretLiterals(literals)) {
+    if (text.includes(secret)) text = text.split(secret).join('[redacted]');
+  }
+  text = text
+    .replace(/\b(?:authorization|proxy-authorization|cookie|set-cookie|x-api-key)\s*[:=][^\n]*/gi, '[redacted]')
+    .replace(/\bbearer\s+\S+/gi, '[redacted]')
+    .replace(/\bre_[A-Za-z0-9_-]+/gi, '[redacted]')
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[redacted]')
+    .replace(/\bEKIT-(?:[A-Z0-9]{4}-){2,3}[A-Z0-9]{4}\b/gi, '[redacted]');
+  return text.length > DIAGNOSTIC_MESSAGE_LIMIT
+    ? text.slice(0, DIAGNOSTIC_MESSAGE_LIMIT)
+    : text;
+}
+
+function emailFailureLog(error, context) {
+  const message = typeof error?.message === 'string'
+    ? error.message
+    : (typeof error === 'string' ? error : '');
+  return {
+    name: safeProviderName(error?.name),
+    message: redactDiagnosticMessage(message, [
+      process.env.RESEND_API_KEY,
+      process.env.LICENSE_EMAIL_FROM,
+      context.recipient,
+      context.licenseKey,
+      context.licenseId,
+    ]),
+    statusCode: safeStatusCode(error?.statusCode),
+  };
+}
+
 /**
  * Mint a real, server-verified time-limited Pro license for a beta tester and
  * email the key. Reuses the same crypto, storage, and activation pipeline as
@@ -95,6 +149,7 @@ export async function createBetaInvite({
   );
 
   let emailStatus;
+  let emailError;
   if (!emailConfigured) {
     emailStatus = 'skipped';
   } else {
@@ -107,10 +162,17 @@ export async function createBetaInvite({
       });
       await updateLicenseEmailStatus(record.id, 'sent', providerId);
       emailStatus = 'sent';
-    } catch {
+    } catch (error) {
       // Keep the minted license; the founder still receives the key to send manually.
+      const diagnostic = emailFailureLog(error, {
+        recipient: record.customer_email,
+        licenseKey,
+        licenseId: record.id,
+      });
+      console.error('[beta-invite] email send failed', diagnostic);
       await updateLicenseEmailStatus(record.id, 'failed');
       emailStatus = 'failed';
+      emailError = { name: diagnostic.name, statusCode: diagnostic.statusCode };
     }
   }
 
@@ -122,5 +184,6 @@ export async function createBetaInvite({
     expiresAt: new Date(record.expires_at).toISOString(),
     days: betaDays,
     emailStatus,
+    ...(emailError ? { emailError } : {}),
   };
 }
