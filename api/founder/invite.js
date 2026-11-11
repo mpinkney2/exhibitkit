@@ -25,6 +25,23 @@ function missingBackendConfig() {
   return REQUIRED_BACKEND_ENV.filter((name) => !String(process.env[name] || '').trim());
 }
 
+const PROVIDER_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+
+// Founder-facing delivery failure: provider name and HTTP status only.
+function publicEmailError(value) {
+  if (!value || typeof value !== 'object') return null;
+  const rawName = typeof value.name === 'string' ? value.name.trim() : '';
+  const name = PROVIDER_NAME.test(rawName) && !/^re_/i.test(rawName)
+    ? rawName
+    : 'provider_error';
+  const statusCode = Number.isInteger(value.statusCode)
+    && value.statusCode >= 100
+    && value.statusCode <= 599
+    ? value.statusCode
+    : null;
+  return { name, statusCode };
+}
+
 /**
  * Map a low-level failure to a safe, actionable founder-facing error where we
  * can recognize it (e.g. the beta-invite migration has not been applied).
@@ -112,6 +129,7 @@ export default {
         throw error;
       }
 
+      const emailError = publicEmailError(invite.emailError);
       return json({
         ok: true,
         key: invite.key,
@@ -120,6 +138,7 @@ export default {
         expiresAt: invite.expiresAt,
         days: invite.days,
         emailStatus: invite.emailStatus,
+        ...(emailError ? { emailError } : {}),
       });
     } catch (error) {
       return errorResponse(error);

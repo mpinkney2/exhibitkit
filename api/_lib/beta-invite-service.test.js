@@ -19,6 +19,8 @@ vi.mock('./license-email.js', () => ({
 import { createBetaInvite, MAX_BETA_DAYS, MIN_BETA_DAYS } from './beta-invite-service.js';
 import { isLicenseKeyFormat } from './license-crypto.js';
 
+let errorSpy;
+
 beforeEach(() => {
   process.env.LICENSE_HASH_SECRET = 'x'.repeat(48);
   process.env.LICENSE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
@@ -26,6 +28,7 @@ beforeEach(() => {
   process.env.LICENSE_EMAIL_FROM = 'ExhibitKIT <licenses@example.com>';
   process.env.EXHIBITKIT_VERSION = 'v1.2.3';
   vi.clearAllMocks();
+  errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   mocks.insertBetaLicense.mockImplementation(async (record) => ({
     id: 'lic_test_1',
     customer_email: record.customerEmail,
@@ -37,6 +40,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  errorSpy.mockRestore();
   delete process.env.LICENSE_HASH_SECRET;
   delete process.env.LICENSE_ENCRYPTION_KEY;
   delete process.env.RESEND_API_KEY;
@@ -60,6 +64,8 @@ describe('createBetaInvite', () => {
     expect(result.email).toBe('tester@example.com');
     expect(result.days).toBe(30);
     expect(result.emailStatus).toBe('sent');
+    expect(result.emailError).toBeUndefined();
+    expect(errorSpy).not.toHaveBeenCalled();
 
     const record = mocks.insertBetaLicense.mock.calls[0][0];
     expect(record.plan).toBe('pro_perpetual');
@@ -98,7 +104,108 @@ describe('createBetaInvite', () => {
 
     expect(isLicenseKeyFormat(result.key)).toBe(true);
     expect(result.emailStatus).toBe('failed');
+    expect(result.emailError).toEqual({ name: 'Error', statusCode: null });
     expect(mocks.updateLicenseEmailStatus).toHaveBeenCalledWith('lic_test_1', 'failed');
+    expect(errorSpy).toHaveBeenCalledWith('[beta-invite] email send failed', {
+      name: 'Error',
+      message: 'provider down',
+      statusCode: null,
+    });
+  });
+
+  it('logs a redacted diagnostic and still returns the license when the provider echoes secrets', async () => {
+    const fromAddress = process.env.LICENSE_EMAIL_FROM;
+    const apiKey = process.env.RESEND_API_KEY;
+    let mintedKey = '';
+    mocks.sendBetaInviteEmail.mockImplementationOnce(async ({ to, licenseKey, licenseId }) => {
+      mintedKey = licenseKey;
+      const failure = new Error([
+        `to=${to}`,
+        `from=${fromAddress}`,
+        `key=${licenseKey}`,
+        `lower=${licenseKey.toLowerCase()}`,
+        `id=${licenseId}`,
+        `api=${apiKey}`,
+        'token=re_test_key',
+        'authorization: Bearer re_test_key',
+        'other.person@example.com',
+      ].join(' '));
+      failure.name = 'validation_error';
+      failure.statusCode = 422;
+      failure.headers = { authorization: 'Bearer header-only-token', to, from: fromAddress };
+      throw failure;
+    });
+
+    const result = await createBetaInvite({ email: 'tester@example.com' });
+
+    expect(result.key).toBe(mintedKey);
+    expect(isLicenseKeyFormat(result.key)).toBe(true);
+    expect(result.email).toBe('tester@example.com');
+    expect(result.emailStatus).toBe('failed');
+    expect(result.emailError).toEqual({ name: 'validation_error', statusCode: 422 });
+    expect(result.emailError).not.toHaveProperty('message');
+    expect(mocks.updateLicenseEmailStatus).toHaveBeenCalledWith('lic_test_1', 'failed');
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const [label, details] = errorSpy.mock.calls[0];
+    expect(label).toBe('[beta-invite] email send failed');
+    expect(Object.keys(details).sort()).toEqual(['message', 'name', 'statusCode']);
+    expect(details.name).toBe('validation_error');
+    expect(details.statusCode).toBe(422);
+    expect(details.message.length).toBeLessThanOrEqual(300);
+    expect(details.message).toContain('[redacted]');
+
+    const logged = JSON.stringify(details);
+    expect(logged).not.toContain(mintedKey);
+    expect(logged).not.toContain(mintedKey.toLowerCase());
+    expect(logged).not.toContain('lic_test_1');
+    expect(logged).not.toContain(apiKey);
+    expect(logged).not.toContain('re_test_key');
+    expect(logged).not.toContain('re_');
+    expect(logged).not.toContain('@');
+    expect(logged).not.toContain('licenses@example.com');
+    expect(logged).not.toContain('tester@example.com');
+    expect(logged).not.toContain('ExhibitKIT <');
+    expect(logged).not.toContain('authorization');
+    expect(logged).not.toContain('Bearer');
+    expect(logged).not.toContain('header-only-token');
+  });
+
+  it('redacts an email that would be split by the log length cap', async () => {
+    mocks.sendBetaInviteEmail.mockRejectedValueOnce(
+      Object.assign(new Error(`${'p'.repeat(295)} user@example.com`), {
+        name: 'validation_error',
+        statusCode: 400,
+      }),
+    );
+
+    const result = await createBetaInvite({ email: 'a@b.co' });
+    const details = errorSpy.mock.calls[0][1];
+
+    expect(isLicenseKeyFormat(result.key)).toBe(true);
+    expect(result.emailStatus).toBe('failed');
+    expect(details.message).toHaveLength(300);
+    expect(details.message).not.toContain('user@');
+    expect(details.message).not.toContain('example.com');
+    expect(details.statusCode).toBe(400);
+  });
+
+  it('does not log a key-shaped provider name', async () => {
+    const failure = new Error('mailbox unavailable');
+    failure.name = 're_test_key';
+    failure.statusCode = 401;
+    mocks.sendBetaInviteEmail.mockRejectedValueOnce(failure);
+
+    const result = await createBetaInvite({ email: 'a@b.co' });
+
+    expect(result.key).toMatch(/^EKIT-/);
+    expect(result.emailError).toEqual({ name: 'provider_error', statusCode: 401 });
+    expect(errorSpy.mock.calls[0][1]).toMatchObject({
+      name: 'provider_error',
+      message: 'mailbox unavailable',
+      statusCode: 401,
+    });
+    expect(JSON.stringify(errorSpy.mock.calls[0])).not.toContain('re_');
   });
 
   it('mints without sending when email is not configured', async () => {
@@ -108,7 +215,9 @@ describe('createBetaInvite', () => {
 
     expect(isLicenseKeyFormat(result.key)).toBe(true);
     expect(result.emailStatus).toBe('skipped');
+    expect(result.emailError).toBeUndefined();
     expect(mocks.sendBetaInviteEmail).not.toHaveBeenCalled();
     expect(mocks.updateLicenseEmailStatus).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });
