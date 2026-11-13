@@ -21,11 +21,18 @@ export const HOWTO_KNOWLEDGE = [
       'Follow the strip at the top: Select files or a folder, Review the proposed names, then click Rename. Confirm you have backups before in-place changes run. Export a CSV map first if you want an audit trail.',
   },
   {
+    id: 'bates-names',
+    question: 'How do Bates-style file names work?',
+    keywords: ['bates', 'stamp', 'acme', 'smith000123', 'control number'],
+    answer:
+      'A Bates-style name has 2 to 12 letters, an optional hyphen, underscore, or space, and 4 to 10 digits, with an optional range. Review shows a Bates badge. The default numbers exhibits sequentially and keeps the Bates number in the description. You can switch that saved choice to use the Bates number as the exhibit ID. An edit in the grid overrides the choice for that file.',
+  },
+  {
     id: 'select-folder',
     question: 'How do I select a folder or PDFs?',
     keywords: ['select', 'folder', 'directory', 'ingest', 'drop', 'upload', 'files', 'pdf', 'sample', 'load'],
     answer:
-      'Click Select Local Folder for in-place renaming, or Select PDF Files to prepare a batch. Nothing is uploaded. For a safe dry run, use Load Sample Exhibits under the drop zone.',
+      'Click Select Local Folder for in-place renaming, or Select PDF Files to prepare a batch. Nothing is uploaded. Load Sample Exhibits fetches the Starter test pack as real sample PDFs. Download test pack on the same screen offers Starter, Standard, and Large fictional packs.',
   },
   {
     id: 'presets',

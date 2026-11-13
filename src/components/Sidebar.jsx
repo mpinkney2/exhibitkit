@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, RefreshCw, X } from 'lucide-react';
 import MatterProfiles from './MatterProfiles';
+import BatesModeControl from './BatesModeControl';
 import { APP_VERSION } from '../utils/license';
 import { PRACTICE_AREAS, getPresetMeta, CUSTOM_TEMPLATE_TOKENS } from '../config/presets';
 
@@ -16,6 +17,7 @@ const DEFAULT_SECTIONS = {
   year: true,
   description: true,
   custom: true,
+  bates: true,
 };
 
 function loadSidebarWidth() {
@@ -96,7 +98,11 @@ export default function Sidebar({
   onOpenModal,
   onShowNotification,
   className = '',
-  onCloseMobile
+  onCloseMobile,
+  batesMode = 'sequential',
+  setBatesMode,
+  showBatesSetting = false,
+  batesSettingDisabled = false,
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const [sectionsOpen, setSectionsOpen] = useState(loadSectionState);
@@ -383,6 +389,22 @@ export default function Sidebar({
             </div>
           </CollapsibleSection>
 
+          {showBatesSetting && setBatesMode && (
+            <CollapsibleSection
+              id="bates"
+              title="Bates filenames"
+              open={sectionsOpen.bates}
+              onToggle={toggleSection}
+            >
+              <BatesModeControl
+                mode={batesMode}
+                onChange={setBatesMode}
+                disabled={batesSettingDisabled}
+                name="bates-mode-sidebar"
+              />
+            </CollapsibleSection>
+          )}
+
           <CollapsibleSection
             id="year"
             title="Title Year Detection"
@@ -576,6 +598,8 @@ export default function Sidebar({
               <button onClick={() => onOpenModal('support')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)' }}>Support</button>
               <span>·</span>
               <button onClick={() => onOpenModal('how')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)' }}>How to Use</button>
+              <span>·</span>
+              <a href="#limits" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Limits & sizes</a>
               <span>·</span>
               <button onClick={() => onOpenModal('feedback')} style={{ padding: 0, fontSize: '11px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)' }}>Feedback</button>
             </div>

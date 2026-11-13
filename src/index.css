@@ -602,6 +602,97 @@ input:checked + .slider:before {
   border: 1px solid var(--status-danger-border);
 }
 
+.badge-bates {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  color: var(--color-accent, #1d4ed8);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.bates-mode {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.bates-mode legend {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.bates-mode p,
+.bates-mode label {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.bates-mode label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.bates-mode input {
+  margin-top: 2px;
+}
+
+.test-pack-panel {
+  width: 100%;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.test-pack-panel h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.test-pack-panel p {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.test-pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.test-pack-actions a,
+.test-pack-limits {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-accent);
+  background: var(--color-surface-1);
+  font-size: 12.5px;
+  font-weight: 550;
+  text-decoration: none;
+}
+
 .badge-info {
   background: var(--accent-primary-glow);
   color: #a5b4fc;

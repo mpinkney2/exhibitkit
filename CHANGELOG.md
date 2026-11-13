@@ -6,6 +6,10 @@ All notable changes to **ExhibitKit** will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Fictional Starter, Standard, and Large exhibit test packs, generated at build time, with a download control and a Limits and sizes page.
+- Optional Bates-style filename detection. The default keeps sequential exhibit numbers and puts the Bates number in the description.
+
 ### Changed
 - License responses include an Ed25519-signed entitlement. The browser verifies it on each read. Offline use is limited to 7 days after issuance and never extends past the token expiry.
 - Founder unlock returns a short-lived signed token. Local stage overrides apply in development builds only.

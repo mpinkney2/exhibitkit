@@ -1,8 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FolderOpen, AlertCircle } from 'lucide-react';
+import { FREE_MAX_FILES_PER_BATCH } from '../config/pricing';
+import { PUBLISHED_PACKS, packStats } from '../config/testPacks';
+import { fetchTestPackIndex, formatByteSize } from '../utils/testPackClient';
 
 export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }) {
   const [dragActive, setDragActive] = useState(false);
+  const [packIndex, setPackIndex] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTestPackIndex()
+      .then((index) => {
+        if (!cancelled) setPackIndex(index);
+      })
+      .catch(() => {
+        if (!cancelled) setPackIndex(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const measuredById = new Map((packIndex?.packs || []).map((pack) => [pack.id, pack]));
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -152,6 +172,30 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
               style={{ display: 'none' }} 
             />
           </label>
+        </div>
+
+        <div className="test-pack-panel">
+          <h3>Download test pack</h3>
+          <p>
+            Fictional SAMPLE PDFs for a fake case. Not real records.
+          </p>
+          <div className="test-pack-actions">
+            {PUBLISHED_PACKS.map((pack) => {
+              const stats = packStats(pack);
+              const measured = measuredById.get(pack.id);
+              const size = measured ? formatByteSize(measured.zipBytes) : '…';
+              return (
+                <a key={pack.id} href={`/test-packs/${pack.id}.zip`} download={`${pack.id}.zip`}>
+                  {pack.label} · {stats.fileCount} files · {size}
+                </a>
+              );
+            })}
+          </div>
+          <p>
+            On iPhone: download a pack, save it to Files or iCloud Drive, unzip it, then tap Select PDF Files.
+            Starter matches the Free limit of {FREE_MAX_FILES_PER_BATCH} PDFs. Standard and Large contain more files than Free allows.
+          </p>
+          <a className="test-pack-limits" href="#limits">Limits and sizes</a>
         </div>
 
         <div style={{ marginTop: '24px', color: 'var(--color-text-muted)', fontSize: '12px', fontFamily: 'var(--font-sans)' }}>

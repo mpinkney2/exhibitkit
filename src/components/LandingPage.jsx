@@ -468,6 +468,7 @@ export default function LandingPage({
         <p>Local-first exhibit renaming and management for OnCue and TrialDirector.</p>
         <div className="landing-footer-links">
           <a className="landing-suite-home" href="https://patentpreppers.com">PatentPreppers</a>
+          <a href="#limits">Limits and sizes</a>
           <a href="mailto:support@patentpreppers.com">support@patentpreppers.com</a>
         </div>
       </footer>

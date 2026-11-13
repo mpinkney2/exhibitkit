@@ -28,3 +28,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Generated fictional exhibit packs (starter, standard, large). Rebuild with npm run test-packs.
+public/test-packs/
