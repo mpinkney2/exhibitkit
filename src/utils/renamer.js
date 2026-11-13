@@ -52,6 +52,27 @@ export function extractYear(text) {
 }
 
 /**
+ * Year used for sorting and year-as-ID.
+ * Bates control numbers stay out of this, including names like ACME-2019.pdf.
+ * A description the user typed is read before the original filename.
+ * @param {object} input
+ * @returns {string|null}
+ */
+export function resolveIngestYear({
+  bates = null,
+  sourceDescription = '',
+  description = '',
+  userEditedDescription = false,
+  existingYear = null,
+  originalName = '',
+} = {}) {
+  const text = userEditedDescription ? description : sourceDescription;
+  const fromText = extractYear(text);
+  if (bates) return fromText || null;
+  return fromText || existingYear || extractYear(originalName) || null;
+}
+
+/**
  * @param {object} fields
  * @returns {object}
  */

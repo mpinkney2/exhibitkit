@@ -38,6 +38,7 @@ import {
   sortItems,
   resolveExhibitNumber,
   resolveExhibitIdentity,
+  resolveIngestYear,
   extractYear,
 } from './utils/renamer';
 import { readBatesMode, writeBatesMode } from './utils/batesMode';
@@ -281,7 +282,14 @@ export default function App() {
 
     const updated = sorted.map((item, idx) => {
       const sourceDescription = item.sourceDescription ?? item.description ?? '';
-      const year = item.year || extractYear(sourceDescription) || extractYear(item.originalName);
+      const year = resolveIngestYear({
+        bates: item.bates,
+        sourceDescription,
+        description: item.description,
+        userEditedDescription: item.userEditedDescription,
+        existingYear: item.year,
+        originalName: item.originalName,
+      });
       const identity = resolveExhibitIdentity({
         bates: item.bates || null,
         sourceDescription,

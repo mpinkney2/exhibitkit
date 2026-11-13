@@ -13,6 +13,7 @@ import {
   resolveDuplicates,
   resolveExhibitIdentity,
   resolveExhibitNumber,
+  resolveIngestYear,
   shortenDescription,
   sortItems,
   validateProposedNames,
@@ -330,6 +331,35 @@ test('Bates mode defaults to sequential and manual edits win', () => {
     description: 'Notes',
     preset: 'patent-dod',
   })).toBe('ACME000123 - n.d. - Notes.pdf');
+});
+
+test('resolveIngestYear keeps Bates control numbers out of the year field', () => {
+  expect(resolveIngestYear({
+    bates: { prefix: 'ACME', start: '2019' },
+    sourceDescription: '',
+    originalName: 'ACME-2019.pdf',
+    existingYear: null,
+  })).toBe(null);
+  expect(resolveIngestYear({
+    bates: { prefix: 'ACME', start: '2019' },
+    sourceDescription: 'Hearing 2018',
+    originalName: 'ACME-2019.pdf',
+  })).toBe('2018');
+});
+
+test('resolveIngestYear reads a year typed into the description', () => {
+  expect(resolveIngestYear({
+    sourceDescription: 'Meeting Notes',
+    description: 'Board Minutes 2020',
+    userEditedDescription: true,
+    originalName: 'Meeting Notes.pdf',
+    existingYear: null,
+  })).toBe('2020');
+  expect(resolveIngestYear({
+    sourceDescription: 'Smith 2012 Memo',
+    originalName: 'Smith 2012 Memo.pdf',
+    existingYear: '2012',
+  })).toBe('2012');
 });
 
 test('descriptionLead keeps a Bates range hyphen', () => {
