@@ -160,6 +160,28 @@ test('applyTemplateTokens supports structured patent fields', () => {
   expect(result).toBe('DOD - 12 - 2012 - Smith - Report');
 });
 
+test('generateProposedFilename keeps outline tokens and the source extension', () => {
+  expect(generateProposedFilename({
+    preset: 'outline-staging',
+    customTemplate: '{Seq}_{ExhibitNo}_{ShortDesc}',
+    seq: 12,
+    exhibitNo: 'PX-0142',
+    description: 'Email from Smith',
+    padLength: 3,
+    caseStyle: 'as-is',
+  })).toBe('012_PX-0142_Email from Smith.pdf');
+
+  expect(generateProposedFilename({
+    preset: 'oncue',
+    prefix: 'DX',
+    number: '4',
+    description: 'Site inspection',
+    padLength: 3,
+    caseStyle: 'title',
+    extension: '.mp4',
+  })).toBe('DX004 Site Inspection.mp4');
+});
+
 test('generateProposedFilename applies area-specific preset aliases', () => {
   expect(generateProposedFilename({
     prefix: 'FL',

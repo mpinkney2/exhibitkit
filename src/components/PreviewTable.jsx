@@ -12,6 +12,17 @@ const DEFAULT_COLUMNS = [
   { id: 'proposed', label: 'Proposed Output Filename', width: 260, minWidth: 140, align: 'left' },
 ];
 
+const OUTLINE_COLUMNS = [
+  { id: 'status', label: 'Status', width: 90, minWidth: 70, align: 'left' },
+  { id: 'order', label: 'Order', width: 72, minWidth: 56, align: 'center' },
+  { id: 'original', label: 'Original Filename', width: 210, minWidth: 120, align: 'left' },
+  { id: 'official', label: 'Official no.', width: 120, minWidth: 88, align: 'left' },
+  { id: 'designation', label: 'Designation', width: 120, minWidth: 88, align: 'left' },
+  { id: 'type', label: 'Type', width: 150, minWidth: 110, align: 'left' },
+  { id: 'description', label: 'Document Description', width: 200, minWidth: 120, align: 'left' },
+  { id: 'proposed', label: 'Proposed Output Filename', width: 240, minWidth: 140, align: 'left' },
+];
+
 function loadSavedWidths() {
   try {
     const raw = localStorage.getItem(COLUMN_STORAGE_KEY);
@@ -24,9 +35,10 @@ function loadSavedWidths() {
   }
 }
 
-function buildInitialColumns() {
+function buildInitialColumns(showOutline) {
   const saved = loadSavedWidths();
-  return DEFAULT_COLUMNS.map((col) => {
+  const defs = showOutline ? OUTLINE_COLUMNS : DEFAULT_COLUMNS;
+  return defs.map((col) => {
     const savedWidth = saved?.[col.id];
     const width = typeof savedWidth === 'number' ? savedWidth : col.width;
     return { ...col, width: Math.max(col.minWidth, width) };
@@ -43,8 +55,14 @@ export default function PreviewTable({
   batesMode = 'sequential',
   onBatesModeChange,
   batesSettingDisabled = false,
+  showOutline = false,
 }) {
-  const [columns, setColumns] = useState(buildInitialColumns);
+  const [columns, setColumns] = useState(() => buildInitialColumns(showOutline));
+  const [outlineLayout, setOutlineLayout] = useState(showOutline);
+  if (showOutline !== outlineLayout) {
+    setOutlineLayout(showOutline);
+    setColumns(buildInitialColumns(showOutline));
+  }
   const dragRef = useRef(null);
 
   useEffect(() => {
@@ -97,7 +115,8 @@ export default function PreviewTable({
   }, [columns]);
 
   const resetColumnWidths = () => {
-    setColumns(DEFAULT_COLUMNS.map((col) => ({ ...col })));
+    const defs = showOutline ? OUTLINE_COLUMNS : DEFAULT_COLUMNS;
+    setColumns(defs.map((col) => ({ ...col })));
   };
 
   const getStatusBadge = (status, message) => {
@@ -172,6 +191,87 @@ export default function PreviewTable({
 
   const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
 
+  const renderCell = (columnId, item, index) => {
+    const editKey = item.id || index;
+    switch (columnId) {
+      case 'status':
+        return getStatusBadge(item.status, item.message);
+      case 'order':
+        return (
+          <span title={(item.outlineReferences || []).join(' | ') || undefined}>
+            {item.outlineOrder || '—'}
+          </span>
+        );
+      case 'original':
+        return (
+          <div className="original-filename-cell" title={item.originalName}>
+            {item.bates ? <span className="badge-bates">Bates</span> : null}
+            {item.originalName}
+          </div>
+        );
+      case 'official':
+        return (
+          <span title={item.officialExhibitNo || 'No exhibit number on this filename'} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+            {item.officialExhibitNo || '—'}
+          </span>
+        );
+      case 'designation':
+        return (
+          <input
+            type="text"
+            className="table-input"
+            value={item.designation || ''}
+            placeholder="Page or page:line"
+            aria-label={`Designation for ${item.originalName}`}
+            onChange={(event) => onUpdateItem(editKey, 'designation', event.target.value)}
+          />
+        );
+      case 'type':
+        return (
+          <select
+            className="table-input"
+            value={item.mediaKind || 'exhibit'}
+            aria-label={`Type for ${item.originalName}`}
+            onChange={(event) => onUpdateItem(editKey, 'mediaKind', event.target.value)}
+          >
+            <option value="exhibit">Exhibit</option>
+            <option value="video">Video (V)</option>
+            <option value="demonstrative">Demonstrative (D)</option>
+          </select>
+        );
+      case 'exhibitId':
+        return (
+          <input
+            type="text"
+            className="table-input"
+            value={item.number || ''}
+            placeholder="e.g. 101"
+            onChange={(event) => onUpdateItem(editKey, 'number', event.target.value)}
+            style={{ textAlign: 'center', fontFamily: 'var(--font-mono)' }}
+          />
+        );
+      case 'description':
+        return (
+          <input
+            type="text"
+            className="table-input"
+            value={item.description || ''}
+            placeholder="Enter exhibit title/description"
+            title={item.description || 'Enter exhibit title/description'}
+            onChange={(event) => onUpdateItem(editKey, 'description', event.target.value)}
+          />
+        );
+      case 'proposed':
+        return (
+          <div className={getProposedClass(item.status)} title={item.proposedName}>
+            {item.proposedName}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div style={{
       backgroundColor: 'var(--color-surface-1)',
@@ -181,6 +281,7 @@ export default function PreviewTable({
       display: 'flex',
       flexDirection: 'column',
       flex: 1,
+      minHeight: 320,
       marginBottom: '20px'
     }}>
       {/* Table Action Bar */}
@@ -348,44 +449,17 @@ export default function PreviewTable({
           <tbody>
             {items.map((item, index) => (
               <tr
-                key={`${item.originalName}-${index}`}
+                key={item.id || `${item.originalName}-${index}`}
                 className={
                   item.status === 'warning' ? 'has-conflict' :
                   item.status === 'danger' ? 'has-error' : ''
                 }
               >
-                <td>{getStatusBadge(item.status, item.message)}</td>
-                <td>
-                  <div className="original-filename-cell" title={item.originalName}>
-                    {item.bates ? <span className="badge-bates">Bates</span> : null}
-                    {item.originalName}
-                  </div>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="table-input"
-                    value={item.number || ''}
-                    placeholder="e.g. 101"
-                    onChange={(e) => onUpdateItem(index, 'number', e.target.value)}
-                    style={{ textAlign: 'center', fontFamily: 'var(--font-mono)' }}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="table-input"
-                    value={item.description || ''}
-                    placeholder="Enter exhibit title/description"
-                    title={item.description || "Enter exhibit title/description"}
-                    onChange={(e) => onUpdateItem(index, 'description', e.target.value)}
-                  />
-                </td>
-                <td>
-                  <div className={getProposedClass(item.status)} title={item.proposedName}>
-                    {item.proposedName}
-                  </div>
-                </td>
+                {columns.map((col) => (
+                  <td key={col.id} style={{ textAlign: col.align || 'left' }}>
+                    {renderCell(col.id, item, index)}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>

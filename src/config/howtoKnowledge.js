@@ -32,7 +32,7 @@ export const HOWTO_KNOWLEDGE = [
     question: 'How do I select a folder or PDFs?',
     keywords: ['select', 'folder', 'directory', 'ingest', 'drop', 'upload', 'files', 'pdf', 'sample', 'load'],
     answer:
-      'Click Select Local Folder for in-place renaming, or Select PDF Files to prepare a batch. Nothing is uploaded. Load Sample Exhibits fetches the Starter test pack as real sample PDFs. Download test pack on the same screen offers Starter, Standard, and Large fictional packs.',
+      'Click Select Local Folder for in-place renaming, or Select Exhibit Files to prepare a batch of PDFs, video, and slides. Nothing is uploaded. Load Sample Exhibits fetches the Starter test pack as real sample PDFs. Download test pack on the same screen offers Starter, Standard, and Large fictional packs.',
   },
   {
     id: 'presets',
@@ -81,7 +81,7 @@ export const HOWTO_KNOWLEDGE = [
     question: 'How do I export a rename map?',
     keywords: ['export', 'csv', 'html', 'zip', 'audit', 'log', 'map'],
     answer:
-      'Use Export CSV (or HTML) in the bottom action bar to save original vs proposed names. Free includes CSV/HTML. ZIP batch export and in-place rename need Case Pass or Pro.',
+      'Use Export CSV (or HTML) in the bottom action bar to save original vs proposed names. After an outline match, that export is a crosswalk: outline order, official number, designation, citations, original filename, and new name. Free includes CSV/HTML. ZIP batch export and in-place rename need Case Pass or Pro.',
   },
   {
     id: 'privacy',
@@ -109,20 +109,27 @@ export const HOWTO_KNOWLEDGE = [
     question: 'How do I use a custom filename template?',
     keywords: ['custom', 'template', 'token', 'tokens'],
     answer:
-      'Choose Custom Template in Renaming Preset, then build a pattern with tokens such as {Prefix}, {Number}, and {Description}. The guideline under the sidebar shows an example as you edit.',
+      'Choose Custom Template or Outline staging in Renaming Preset. Tokens include {Prefix}, {Number}, {Description}, {Seq}, {ExhibitNo}, {ShortDesc}, and {Type}. {ExhibitNo} keeps the official number as written. {Type} adds V for video and D for a demonstrative. The guideline under the sidebar shows an example as you edit.',
   },
   {
     id: 'free-limit',
     question: 'What can I do on Free vs Pro?',
     keywords: ['free', 'pro', 'limit', 'upgrade', 'case', 'pass', 'license', 'firm', 'price'],
     answer:
-      'Free: preview and CSV/HTML export, up to 5 files per batch, plus unlimited sample exhibits. Case Pass ($39 / 30 days) and Pro ($149 perpetual) unlock in-place rename, ZIP export, undo, and matter profiles. Firm is coming soon.',
+      'Free: preview and CSV/HTML export, outline matching and a crosswalk, up to 5 files per batch, plus unlimited sample exhibits. Case Pass ($39 / 30 days) and Pro ($149 perpetual) unlock larger batches, in-place rename, ZIP export, undo, and matter profiles. Firm is coming soon.',
   },
   {
     id: 'matter-profiles',
     question: 'How do matter profiles work?',
     keywords: ['matter', 'profile', 'profiles', 'save', 'settings'],
     answer:
-      'Pro and Case Pass can save prefix, padding, preset, and template settings per matter and reload them later. Look for Matter Profiles at the bottom of the sidebar.',
+      'Pro and Case Pass can save prefix, padding, preset, and template settings per matter and reload them later. That includes the Outline staging pattern. Look for Matter Profiles at the bottom of the sidebar.',
+  },
+  {
+    id: 'outline-order',
+    question: 'How do I stage exhibits in outline order?',
+    keywords: ['outline', 'hot', 'seat', 'designation', 'crosswalk', 'paste', 'staging', 'page', 'line', 'citation'],
+    answer:
+      'Load the exhibit folder, then paste citations in outline order and click Match outline. ExhibitKit matches the official number and tolerates padding, spacing, case, and hyphen variants. Ambiguous rows let you pick a file. Missing citations are listed. A file cited twice stays one row and keeps both citations. Page, page range, and page:line text become an editable Designation. Use staging names for {Seq}_{ExhibitNo}_{ShortDesc}. The CSV and HTML export is the crosswalk. Matching stays on this device. Free covers a batch of 5 files. Case Pass or Pro covers a larger folder, Matter Profiles, and ZIP or in-place rename of the staged copies.',
   },
 ];

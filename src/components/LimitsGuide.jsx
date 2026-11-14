@@ -10,6 +10,7 @@ import {
   PREPARED_BATCH_ZIP_NAME,
   PUBLISHED_PACK_STATS,
 } from '../config/limitsFacts';
+import { OUTLINE_MATCH_GUIDE } from '../utils/outlineImport';
 import { fetchTestPackIndex, formatByteSize } from '../utils/testPackClient';
 import './LimitsGuide.css';
 
@@ -105,6 +106,16 @@ export default function LimitsGuide({ onBack }) {
               <td>Yes</td>
             </tr>
             <tr>
+              <td>Outline match, designation edits, and the CSV/HTML crosswalk</td>
+              <td>Yes, up to {FREE_MAX_FILES_PER_BATCH} files</td>
+              <td>Yes, no file-count cap</td>
+            </tr>
+            <tr>
+              <td>Save the outline pattern as a Matter Profile</td>
+              <td>No</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
               <td>In-place folder rename</td>
               <td>No</td>
               <td>Yes, in a Chromium browser</td>
@@ -130,16 +141,16 @@ export default function LimitsGuide({ onBack }) {
           <tbody>
             <tr>
               <td>Chromium (Chrome, Edge), when folder access is available</td>
-              <td>Select Local Folder renames PDFs in that folder. The control is shown only when the browser exposes showDirectoryPicker.</td>
+              <td>Select Local Folder renames exhibit files in that folder. The control is shown only when the browser exposes showDirectoryPicker.</td>
             </tr>
             <tr>
               <td>Other browsers, including iPhone Safari</td>
-              <td>Select PDF Files, then download one ZIP named {PREPARED_BATCH_ZIP_NAME}. Folder rename is not offered.</td>
+              <td>Select Exhibit Files, then download one ZIP named {PREPARED_BATCH_ZIP_NAME}. Folder rename is not offered.</td>
             </tr>
           </tbody>
         </table>
         <p className="limits-note">
-          On iPhone: download a test pack, save it to Files or iCloud Drive, unzip it, then tap Select PDF Files.
+          On iPhone: download a test pack, save it to Files or iCloud Drive, unzip it, then tap Select Exhibit Files.
         </p>
       </section>
 
@@ -163,6 +174,32 @@ export default function LimitsGuide({ onBack }) {
             ))}
           </tbody>
         </table>
+      </section>
+
+      <section>
+        <h2>Outline order</h2>
+        <p>
+          Paste citations in outline order to stage just those files. The match runs locally. Free can do this inside the {FREE_MAX_FILES_PER_BATCH}-file batch, including the CSV and HTML crosswalk. Case Pass or Pro covers a larger folder, saves the Outline staging pattern as a Matter Profile, and writes the staged copies with ZIP or in-place rename.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>What the code does</th>
+            </tr>
+          </thead>
+          <tbody>
+            {OUTLINE_MATCH_GUIDE.map((rule) => (
+              <tr key={rule.id}>
+                <td>{rule.label}</td>
+                <td>{rule.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="limits-note">
+          The Outline staging preset names copies {'{Seq}_{ExhibitNo}_{ShortDesc}'}. Seq uses the zero-padding setting and is at least two digits. ExhibitNo is the official number as written. ShortDesc trims the description at Max title length. {'{Type}'} adds V for video and D for a demonstrative or slide deck.
+        </p>
       </section>
 
       <section>
