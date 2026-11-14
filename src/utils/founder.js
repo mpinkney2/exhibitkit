@@ -228,6 +228,112 @@ export async function inviteBetaTester({ email, name, note, days, secret } = {})
   }
 }
 
+/**
+ * Invite several testers with one shared day count and optional note.
+ * The server dedupes the list, skips invalid addresses, and skips addresses
+ * that already have an active beta. See the API for the per-address statuses.
+ *
+ * @param {{ emails: string, note?: string, days?: number, secret?: string }} params
+ */
+export async function inviteBetaTesters({ emails, note, days, secret } = {}) {
+  const list = String(emails || '').trim();
+  if (!list) {
+    return { ok: false, error: 'Paste at least one email address.' };
+  }
+
+  const activeSecret = (secret || '').trim()
+    || unlockedSecret
+    || (import.meta.env.DEV ? getFounderSecret() : '');
+  if (!activeSecret) {
+    return {
+      ok: false,
+      needsSecret: true,
+      error: 'Re-enter the founder secret to send invitations.',
+    };
+  }
+
+  const numericDays = Number(days);
+  try {
+    const response = await fetch('/api/founder/invite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        secret: activeSecret,
+        list,
+        note: (note || '').trim() || undefined,
+        days: Number.isFinite(numericDays) ? numericDays : undefined,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      return {
+        ok: false,
+        needsSecret: data.code === 'FOUNDER_DENIED',
+        error: data.error || 'Could not send the beta invitations.',
+        bulk: true,
+        results: Array.isArray(data.results) ? data.results : [],
+        duplicatesRemoved: data.duplicatesRemoved || 0,
+      };
+    }
+    unlockedSecret = activeSecret;
+    return {
+      ok: true,
+      bulk: true,
+      days: data.days,
+      duplicatesRemoved: data.duplicatesRemoved || 0,
+      results: Array.isArray(data.results) ? data.results : [],
+    };
+  } catch {
+    return { ok: false, error: 'Unable to reach the beta invite service.' };
+  }
+}
+
+/**
+ * Founder-only beta invite report. Requires the same founder secret.
+ *
+ * @param {{ status?: string, secret?: string }} params
+ */
+export async function fetchBetaInviteReport({ status = 'all', secret } = {}) {
+  const activeSecret = (secret || '').trim()
+    || unlockedSecret
+    || (import.meta.env.DEV ? getFounderSecret() : '');
+  if (!activeSecret) {
+    return {
+      ok: false,
+      needsSecret: true,
+      error: 'Re-enter the founder secret to load the invite report.',
+    };
+  }
+
+  try {
+    const response = await fetch('/api/founder/invites', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        secret: activeSecret,
+        status,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      return {
+        ok: false,
+        needsSecret: data.code === 'FOUNDER_DENIED',
+        error: data.error || 'Could not load the invite report.',
+      };
+    }
+    unlockedSecret = activeSecret;
+    return {
+      ok: true,
+      emailTracking: data.emailTracking,
+      emailTrackingMessage: data.emailTrackingMessage,
+      invites: Array.isArray(data.invites) ? data.invites : [],
+    };
+  } catch {
+    return { ok: false, error: 'Unable to reach the invite report.' };
+  }
+}
+
 export function lockFounder() {
   unlockedSecret = '';
   try {

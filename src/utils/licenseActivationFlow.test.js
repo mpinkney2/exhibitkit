@@ -89,4 +89,52 @@ describe('recheckLicenseOnDevice', () => {
     expect(checkedAt).toBeGreaterThanOrEqual(before);
     expect(readDeviceSession().lastValidatedAt).not.toBe(CHECKED_AT);
   });
+
+  it('keeps an expired time-limited license on this device and drops paid access', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      ok: true,
+      active: false,
+      reason: 'expired',
+      license: {
+        plan: 'pro_perpetual',
+        licenseSource: 'beta',
+        expiresAt: '2026-11-01T00:00:00.000Z',
+        licenseEmail: 'owner@example.com',
+        licenseFingerprint: '••••-IJKL',
+      },
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    const result = await recheckLicenseOnDevice(getWorkstationInfo().deviceId);
+
+    expect(result.cleared).toBe(false);
+    expect(result.expired).toBe(true);
+    expect(result.view.endedLabel).toBe('Beta ended');
+    expect(result.view.hasLicense).toBe(true);
+    expect(result.entitlement.plan).toBe('free');
+    expect(readDeviceSession()?.email).toBe('owner@example.com');
+    const stored = JSON.parse(localStorage.getItem('exhibitkit_entitlement_v1'));
+    expect(stored.licenseSource).toBe('beta');
+    expect(stored.licenseEmail).toBe('owner@example.com');
+    expect(stored.entitlementToken).toBeNull();
+  });
+
+  it('still clears a revoked seat', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      ok: false,
+      active: false,
+    }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    const result = await recheckLicenseOnDevice(getWorkstationInfo().deviceId);
+
+    expect(result.cleared).toBe(true);
+    expect(result.expired).toBe(false);
+    expect(result.view.hasLicense).toBe(false);
+    expect(readDeviceSession()).toBeNull();
+  });
 });

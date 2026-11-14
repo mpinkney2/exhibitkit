@@ -1,0 +1,5 @@
+# Test files live next to the handlers so Vitest can import them.
+# Vercel would otherwise deploy every .js file under api/ as a Serverless
+# Function, and the Hobby plan allows 12 functions per deployment.
+api/**/*.test.js
+api/**/*.integration.test.js

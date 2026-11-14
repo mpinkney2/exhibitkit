@@ -579,13 +579,15 @@ export default function Sidebar({
             {licenseView && (
               <button
                 type="button"
-                className="sidebar-license-status"
+                className={`sidebar-license-status is-${licenseView.chipTone || 'free'}`}
                 onClick={onOpenLicense}
               >
                 <span className="sidebar-license-kicker">{licenseView.hasLicense ? 'Signed in as' : 'License'}</span>
                 <span className="sidebar-license-summary">
                   {licenseView.hasLicense
-                    ? `${licenseView.planLabel} · ${licenseView.status}${licenseView.maskedEmail ? ` · ${licenseView.maskedEmail}` : ''}`
+                    ? (licenseView.endedLabel
+                      ? `${licenseView.endedLabel}${licenseView.maskedEmail ? ` · ${licenseView.maskedEmail}` : ''}`
+                      : `${licenseView.planLabel} · ${licenseView.statusLine || licenseView.status}${licenseView.maskedEmail ? ` · ${licenseView.maskedEmail}` : ''}`)
                     : licenseView.summary}
                 </span>
                 {licenseView.sessionPhrase && (

@@ -1,3 +1,4 @@
+import { licenseChipText } from '../utils/licenseDeviceStatus';
 import './LicenseDevicePanel.css';
 
 export default function LicenseStatusCluster({
@@ -8,16 +9,13 @@ export default function LicenseStatusCluster({
 }) {
   if (!view) return null;
 
-  const emailText = revealed && view.email ? view.email : view.maskedEmail;
-  const label = !view.hasLicense
-    ? view.summary
-    : `Signed in as ${view.planLabel} · ${view.status}${emailText ? ` · ${emailText}` : ''}`;
+  const label = licenseChipText(view, { revealed });
 
   return (
     <div className="license-status-cluster" role="group" aria-label="License status">
       <button
         type="button"
-        className={`license-status-chip is-${view.status === 'Not activated' ? 'free' : view.status.toLowerCase()}`}
+        className={`license-status-chip is-${view.chipTone || (view.status === 'Not activated' ? 'free' : 'active')}`}
         onClick={onOpen}
         data-testid="license-status-indicator"
       >

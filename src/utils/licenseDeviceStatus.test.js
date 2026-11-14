@@ -96,11 +96,61 @@ describe('license status on this device', () => {
     expect(view.planLabel).toBe('Beta');
     expect(view.status).toBe('Expired');
     expect(view.summary).toContain('Signed in as Beta · Expired');
+    expect(view.endedLabel).toBe('Beta ended');
+    expect(view.chipLabel).toContain('Beta ended');
+    expect(view.chipTone).toBe('ended');
+    expect(view.expiresLabel).toBe('2026-11-01 · Ended');
     expect(view.restoredFromPreviousSession).toBe(true);
     expect(view.sessionPhrase).toBe('Activated on this device on 2026-11-14');
   });
 
-  it('keeps an expired Case Pass visible instead of pretending the device is unused', () => {
+  it('shows days left on an active beta and warns inside 7 days', () => {
+    const now = new Date('2026-11-14T18:00:00.000Z');
+    const active = licensedRecord({
+      licenseSource: 'beta',
+      expiresAt: '2026-11-26T18:00:00.000Z',
+    });
+    const activeView = viewOf(active, noteFreshActivation(active, { loadId: 'load-1', now }), { now });
+    expect(activeView.daysLeftLabel).toBe('12 days left');
+    expect(activeView.chipLabel).toBe('Signed in as Beta · 12 days left · o***@example.com');
+    expect(activeView.expiresLabel).toBe('2026-11-26 · 12 days left');
+    expect(activeView.nearExpiry).toBe(false);
+    expect(activeView.chipTone).toBe('active');
+
+    const ending = licensedRecord({
+      licenseSource: 'beta',
+      expiresAt: '2026-11-17T18:00:00.000Z',
+    });
+    const warning = viewOf(ending, noteFreshActivation(ending, { loadId: 'load-2', now }), { now });
+    expect(warning.daysLeftLabel).toBe('3 days left');
+    expect(warning.nearExpiry).toBe(true);
+    expect(warning.chipTone).toBe('warning');
+    expect(warning.upgradeNote).toMatch(/3 days left on this beta/);
+    expect(warning.upgradeNote).toMatch(/Upgrade to Pro/);
+
+    const lastDay = licensedRecord({
+      licenseSource: 'beta',
+      expiresAt: '2026-11-14T22:00:00.000Z',
+    });
+    const last = viewOf(lastDay, noteFreshActivation(lastDay, { loadId: 'load-3', now }), { now });
+    expect(last.daysLeftLabel).toBe('Last day');
+    expect(last.nearExpiry).toBe(true);
+    expect(last.upgradeNote).toMatch(/last day of this beta/i);
+
+    const oneDay = licensedRecord({
+      plan: 'case_pass',
+      licenseSource: 'stripe',
+      expiresAt: '2026-11-15T18:00:00.000Z',
+      casePassStatus: 'active',
+    });
+    const singular = viewOf(oneDay, noteFreshActivation(oneDay, { loadId: 'load-4', now }), { now });
+    expect(singular.planLabel).toBe('Case Pass');
+    expect(singular.daysLeftLabel).toBe('1 day left');
+    expect(singular.chipLabel).toBe('Signed in as Case Pass · 1 day left · o***@example.com');
+    expect(singular.expiresLabel).toBe('2026-11-15 · 1 day left');
+  });
+
+  it('names an ended beta and Case Pass without dropping the stored license', () => {
     const entitlement = licensedRecord({
       plan: 'case_pass',
       licenseSource: 'stripe',
@@ -112,6 +162,10 @@ describe('license status on this device', () => {
     const view = viewOf(entitlement, ensureDeviceSession(entitlement, { loadId: 'load-2' }), { featuresActive: false });
     expect(view.planLabel).toBe('Case Pass');
     expect(view.status).toBe('Expired');
+    expect(view.endedLabel).toBe('Case Pass ended');
+    expect(view.chipLabel).toContain('Case Pass ended');
+    expect(view.endedNotice.kept).toMatch(/files and matter profiles/i);
+    expect(view.endedNotice.limited).toMatch(/5 files per batch/);
     expect(view.sessionPhrase).toBe('Activated on this device on 2026-11-01');
   });
 });

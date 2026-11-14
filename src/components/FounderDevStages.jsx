@@ -6,6 +6,7 @@ import {
   applyPendingCasePassForTesting,
   applyProForTesting,
   applyFounderUnlimitedPro,
+  applyBetaForTesting,
 } from '../utils/entitlement.js';
 import { DEV_TEST_KEY } from '../utils/license.js';
 
@@ -66,6 +67,15 @@ export default function FounderDevStages({ onApply }) {
           </button>
           <button type="button" style={btn} onClick={() => onApply('Case Pass expired', () => applyExpiredCasePassForTesting())}>
             Case Pass expired
+          </button>
+          <button type="button" style={btn} onClick={() => onApply('Beta 12 days', () => applyBetaForTesting({ days: 12 }))}>
+            Beta · 12 days
+          </button>
+          <button type="button" style={btn} onClick={() => onApply('Beta 3 days', () => applyBetaForTesting({ days: 3 }))}>
+            Beta · 3 days
+          </button>
+          <button type="button" style={btn} onClick={() => onApply('Beta ended', () => applyBetaForTesting({ expired: true }))}>
+            Beta ended
           </button>
           <button type="button" style={btn} onClick={() => onApply('Case Pass pending', () => applyPendingCasePassForTesting())}>
             Case Pass pending

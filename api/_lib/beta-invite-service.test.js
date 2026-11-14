@@ -5,18 +5,27 @@ const mocks = vi.hoisted(() => ({
   insertBetaLicense: vi.fn(),
   updateLicenseEmailStatus: vi.fn(),
   sendBetaInviteEmail: vi.fn(),
+  findActiveBetaLicense: vi.fn(),
 }));
 
 vi.mock('./license-repository.js', () => ({
   insertBetaLicense: mocks.insertBetaLicense,
   updateLicenseEmailStatus: mocks.updateLicenseEmailStatus,
+  findActiveBetaLicense: mocks.findActiveBetaLicense,
 }));
 
 vi.mock('./license-email.js', () => ({
   sendBetaInviteEmail: mocks.sendBetaInviteEmail,
 }));
 
-import { createBetaInvite, MAX_BETA_DAYS, MIN_BETA_DAYS } from './beta-invite-service.js';
+import {
+  createBetaInvite,
+  createBetaInvites,
+  MAX_BETA_DAYS,
+  MAX_INVITES_PER_BATCH,
+  MIN_BETA_DAYS,
+  parseInviteList,
+} from './beta-invite-service.js';
 import { isLicenseKeyFormat } from './license-crypto.js';
 
 let errorSpy;
@@ -37,6 +46,7 @@ beforeEach(() => {
   }));
   mocks.sendBetaInviteEmail.mockResolvedValue('resend_msg_1');
   mocks.updateLicenseEmailStatus.mockResolvedValue(undefined);
+  mocks.findActiveBetaLicense.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -219,5 +229,67 @@ describe('createBetaInvite', () => {
     expect(mocks.sendBetaInviteEmail).not.toHaveBeenCalled();
     expect(mocks.updateLicenseEmailStatus).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('createBetaInvites', () => {
+  it('dedupes, validates, and skips an address that already has an active beta', async () => {
+    const parsed = parseInviteList('A@Example.com, not-an-email\na@example.com; b@example.com');
+    expect(parsed.duplicatesRemoved).toBe(1);
+    expect(parsed.addresses.map((address) => address.email || address.input)).toEqual([
+      'a@example.com',
+      'not-an-email',
+      'b@example.com',
+    ]);
+
+    mocks.findActiveBetaLicense.mockImplementation(async (emailHash) => {
+      expect(emailHash).toMatch(/^[a-f0-9]{64}$/);
+      return emailHash === (await import('./license-crypto.js')).hashEmail('b@example.com')
+        ? { id: 'lic_existing', expires_at: '2026-12-01T00:00:00.000Z' }
+        : null;
+    });
+
+    let minted = 0;
+    const outcome = await createBetaInvites({
+      emails: 'A@Example.com, not-an-email\na@example.com; b@example.com',
+      days: 10,
+      note: 'cohort',
+      reserveMint: async () => {
+        minted += 1;
+        return true;
+      },
+    });
+
+    expect(outcome.duplicatesRemoved).toBe(1);
+    expect(outcome.days).toBe(10);
+    expect(outcome.results.map((result) => result.status)).toEqual([
+      'sent',
+      'invalid',
+      'already_active',
+    ]);
+    expect(outcome.results[2].expiresAt).toBe('2026-12-01T00:00:00.000Z');
+    expect(outcome.results[2].key).toBeUndefined();
+    expect(minted).toBe(1);
+    expect(mocks.insertBetaLicense).toHaveBeenCalledTimes(1);
+    expect(mocks.insertBetaLicense.mock.calls[0][0].inviteNote).toBe('cohort');
+  });
+
+  it('stops minting when the founder budget is used up and reports the rest', async () => {
+    const outcome = await createBetaInvites({
+      emails: 'one@example.com, two@example.com',
+      days: 20,
+      reserveMint: async () => false,
+    });
+    expect(outcome.results.map((result) => result.status)).toEqual(['rate_limited', 'rate_limited']);
+    expect(mocks.insertBetaLicense).not.toHaveBeenCalled();
+  });
+
+  it('rejects a list larger than the batch cap before minting', async () => {
+    const emails = Array.from({ length: MAX_INVITES_PER_BATCH + 1 }, (_, index) => `t${index}@example.com`);
+    await expect(createBetaInvites({ emails })).rejects.toMatchObject({
+      status: 400,
+      code: 'BATCH_TOO_LARGE',
+    });
+    expect(mocks.insertBetaLicense).not.toHaveBeenCalled();
   });
 });

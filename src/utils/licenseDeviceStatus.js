@@ -3,7 +3,12 @@
  * Display only. Never returns or stores a full license key or activation token.
  */
 
-import { SUPPORT_EMAIL } from '../config/pricing.js';
+import { FREE_MAX_FILES_PER_BATCH, SUPPORT_EMAIL } from '../config/pricing.js';
+import {
+  calendarDaysRemaining,
+  daysRemainingPhrase,
+  isNearExpiry,
+} from './licenseTime.js';
 
 export const DEVICE_LICENSE_STORAGE = 'exhibitkit_device_license_v1';
 
@@ -233,6 +238,66 @@ export function licenseStatusFor(entitlement, session, now = new Date()) {
   return 'Active';
 }
 
+export function endedLabelFor(planLabel, status) {
+  if (status !== 'Expired') return null;
+  if (planLabel === 'Case Pass') return 'Case Pass ended';
+  if (planLabel === 'Beta') return 'Beta ended';
+  return null;
+}
+
+export function nearExpiryNote(planLabel, phrase) {
+  if (!phrase) return null;
+  const kind = planLabel === 'Case Pass' ? 'Case Pass' : 'beta';
+  const when = phrase === 'Last day'
+    ? `This is the last day of this ${kind}.`
+    : `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)} on this ${kind}.`;
+  return `${when} Upgrade to Pro to keep batches over ${FREE_MAX_FILES_PER_BATCH} files, ZIP export, in-place rename, and matter profiles.`;
+}
+
+export function licenseChipText(view, { revealed = false } = {}) {
+  if (!view?.hasLicense) return view?.summary || 'Free — no license on this device';
+  const emailText = revealed && view.email ? view.email : view.maskedEmail;
+  const emailSuffix = emailText ? ` · ${emailText}` : '';
+  if (view.endedLabel) return `${view.endedLabel}${emailSuffix}`;
+  if (view.daysLeftLabel) return `Signed in as ${view.planLabel} · ${view.daysLeftLabel}${emailSuffix}`;
+  return `Signed in as ${view.planLabel} · ${view.status}${emailSuffix}`;
+}
+
+export const LICENSE_ENDED_NOTICE_KEY = 'exhibitkit_license_ended_notice_v1';
+
+export function endedNoticeKey(view) {
+  if (!view?.ended) return '';
+  return `${view.planLabel || 'license'}:${view.expiryDate || ''}`;
+}
+
+export function readDismissedEndedNotice(storage = localStorage) {
+  try {
+    return storage.getItem(LICENSE_ENDED_NOTICE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function dismissEndedNotice(key, storage = localStorage) {
+  try {
+    if (key) storage.setItem(LICENSE_ENDED_NOTICE_KEY, key);
+  } catch {
+    // The notice can still be closed for this render.
+  }
+}
+
+export function endedNoticeCopy(planLabel) {
+  const casePass = planLabel === 'Case Pass';
+  return {
+    title: casePass ? 'Case Pass ended' : 'Beta ended',
+    lead: casePass
+      ? 'Your Case Pass has ended. You are on the Free plan now.'
+      : 'Your beta access has ended. You are on the Free plan now.',
+    kept: 'Your files and matter profiles are still on this device.',
+    limited: `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. ZIP export, in-place rename, and matter profiles need a Case Pass or Pro.`,
+  };
+}
+
 export const BROWSER_STORAGE_INFO = 'Saved in this browser’s local storage for this device only. ExhibitKit has no account password. This screen shows the last 4 characters of the key, never the full key. Removing the license signs out this device and does not delete the license.';
 
 export function describeLicenseState({
@@ -257,9 +322,32 @@ export function describeLicenseState({
   const activationDate = storedSession?.activatedAt || null;
   const expiryDate = validIso(entitlement?.expiresAt) || storedSession?.expiresAt || null;
   const datedPlan = planLabel === 'Case Pass' || planLabel === 'Beta';
-  const expiresLabel = datedPlan
-    ? (formatDate(expiryDate) || 'Not recorded')
-    : (hasLicense ? 'Does not expire' : '—');
+  const daysLeft = datedPlan && status !== 'Expired' ? calendarDaysRemaining(expiryDate, now) : null;
+  const daysLeftLabel = daysRemainingPhrase(daysLeft);
+  const endedLabel = endedLabelFor(planLabel, status);
+  const nearExpiry = Boolean(datedPlan && status === 'Active' && isNearExpiry(daysLeft));
+  const dateLabel = formatDate(expiryDate);
+  const expiresLabel = !hasLicense
+    ? '—'
+    : (!datedPlan
+      ? 'Does not expire'
+      : (endedLabel
+        ? (dateLabel ? `${dateLabel} · Ended` : 'Ended')
+        : (daysLeftLabel
+          ? (dateLabel ? `${dateLabel} · ${daysLeftLabel}` : daysLeftLabel)
+          : (dateLabel || 'Not recorded'))));
+  const emailSuffix = maskedEmail ? ` · ${maskedEmail}` : '';
+  const chipLabel = !hasLicense
+    ? 'Free — no license on this device'
+    : (endedLabel
+      ? `${endedLabel}${emailSuffix}`
+      : (daysLeftLabel
+        ? `Signed in as ${planLabel} · ${daysLeftLabel}${emailSuffix}`
+        : `Signed in as ${planLabel} · ${status}${emailSuffix}`));
+  const statusLine = endedLabel || daysLeftLabel || status;
+  const chipTone = !hasLicense
+    ? 'free'
+    : (endedLabel ? 'ended' : (nearExpiry ? 'warning' : (status === 'Active' ? 'active' : 'expired')));
   const deviceIdShort = shortTail(workstationId, 8);
   const activationIdShort = storedSession?.activationIdShort
     || shortTail(entitlement?.activationToken, 4)
@@ -282,6 +370,16 @@ export function describeLicenseState({
     activationDate,
     expiryDate,
     expiresLabel,
+    daysLeft: daysLeftLabel ? daysLeft : null,
+    daysLeftLabel,
+    ended: Boolean(endedLabel),
+    endedLabel,
+    endedNotice: endedLabel ? endedNoticeCopy(planLabel) : null,
+    nearExpiry,
+    upgradeNote: nearExpiry ? nearExpiryNote(planLabel, daysLeftLabel) : null,
+    chipLabel,
+    statusLine,
+    chipTone,
     deviceIdShort,
     activationIdShort,
     restoredFromPreviousSession,

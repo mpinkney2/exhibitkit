@@ -111,6 +111,7 @@ describe.skipIf(!databaseUrl)('licensing migrations on postgres', () => {
         '003_enable_rls.sql',
         '004_rate_limit_index.sql',
         '005_rate_limit_cleanup.sql',
+        '006_email_events.sql',
       ]);
       const definition = await sql`
         SELECT pg_get_functiondef('exhibitkit_consume_rate_limit'::regproc) AS body

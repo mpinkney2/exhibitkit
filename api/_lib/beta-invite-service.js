@@ -9,6 +9,7 @@ import {
   normalizeEmail,
 } from './license-crypto.js';
 import {
+  findActiveBetaLicense,
   insertBetaLicense,
   updateLicenseEmailStatus,
 } from './license-repository.js';
@@ -18,6 +19,22 @@ import { HttpError } from './http.js';
 export const DEFAULT_BETA_DAYS = 30;
 export const MIN_BETA_DAYS = 1;
 export const MAX_BETA_DAYS = 180;
+export const MAX_INVITES_PER_BATCH = 50;
+
+/**
+ * Bulk duplicate policy:
+ * - The paste is split on commas, semicolons, and newlines.
+ * - Addresses are trimmed and compared case-insensitively. Repeats in one
+ *   paste are removed. Only the first is invited. `duplicatesRemoved` counts them.
+ * - An address that already has an active, unexpired beta license is not
+ *   minted again. The result status is `already_active`. A beta that has
+ *   expired, or a license that is revoked, can be invited again.
+ * - Addresses that are not emails are returned as `invalid` and are not minted.
+ * - After dedupe, more than MAX_INVITES_PER_BATCH addresses is rejected and
+ *   nothing is minted.
+ * - One shared day count (clamped to 1–180) and one optional note apply to
+ *   every address. Bulk invites do not take a per-address name.
+ */
 
 // Non-Stripe origin marker used for the required unique session id + price id.
 const BETA_PRICE_SENTINEL = 'beta-invite';
@@ -26,6 +43,30 @@ function clampDays(value) {
   const days = Number(value);
   if (!Number.isFinite(days)) return DEFAULT_BETA_DAYS;
   return Math.max(MIN_BETA_DAYS, Math.min(MAX_BETA_DAYS, Math.round(days)));
+}
+
+export function parseInviteList(input) {
+  const raw = Array.isArray(input) ? input.join('\n') : String(input || '');
+  const pieces = raw.split(/[,;\n\r]+/).map((part) => part.trim()).filter(Boolean);
+  const seen = new Set();
+  let duplicatesRemoved = 0;
+  const addresses = [];
+  for (const piece of pieces) {
+    const normalized = normalizeEmail(piece);
+    const valid = isEmailFormat(normalized);
+    const key = valid ? normalized : `invalid:${piece.toLowerCase()}`;
+    if (seen.has(key)) {
+      duplicatesRemoved += 1;
+      continue;
+    }
+    seen.add(key);
+    addresses.push({
+      input: piece,
+      email: valid ? normalized : null,
+      valid,
+    });
+  }
+  return { addresses, duplicatesRemoved };
 }
 
 function cleanText(value, maxLength) {
@@ -185,5 +226,93 @@ export async function createBetaInvite({
     days: betaDays,
     emailStatus,
     ...(emailError ? { emailError } : {}),
+  };
+}
+
+function publicInviteResult(invite) {
+  return {
+    email: invite.email,
+    status: invite.emailStatus === 'failed' ? 'email_failed' : invite.emailStatus,
+    key: invite.key,
+    fingerprint: invite.fingerprint,
+    expiresAt: invite.expiresAt,
+    days: invite.days,
+    emailStatus: invite.emailStatus,
+    ...(invite.emailError ? { emailError: invite.emailError } : {}),
+  };
+}
+
+/**
+ * Mint beta invites for a pasted list. `reserveMint` returns false when the
+ * founder mint budget for this hour is used up. Invalid addresses and
+ * addresses that already have an active beta do not consume that budget.
+ *
+ * @param {{ emails: string | string[], days?: number, note?: string, invitedBy?: string, reserveMint?: () => Promise<boolean> }} params
+ */
+export async function createBetaInvites({
+  emails,
+  days = DEFAULT_BETA_DAYS,
+  note,
+  invitedBy = 'founder',
+  reserveMint,
+} = {}) {
+  const parsed = parseInviteList(emails);
+  if (parsed.addresses.length === 0) {
+    throw new HttpError(400, 'Enter at least one email address.', 'INVALID_EMAIL');
+  }
+  if (parsed.addresses.length > MAX_INVITES_PER_BATCH) {
+    throw new HttpError(
+      400,
+      `A batch can include up to ${MAX_INVITES_PER_BATCH} addresses after duplicates are removed. Split the list and send again.`,
+      'BATCH_TOO_LARGE',
+    );
+  }
+
+  const betaDays = clampDays(days);
+  const results = [];
+  let budgetSpent = false;
+
+  for (const address of parsed.addresses) {
+    if (!address.valid) {
+      results.push({ email: address.input, status: 'invalid' });
+      continue;
+    }
+    if (budgetSpent) {
+      results.push({ email: address.email, status: 'rate_limited' });
+      continue;
+    }
+
+    const existing = await findActiveBetaLicense(hashEmail(address.email));
+    if (existing) {
+      results.push({
+        email: address.email,
+        status: 'already_active',
+        expiresAt: existing.expires_at ? new Date(existing.expires_at).toISOString() : null,
+      });
+      continue;
+    }
+
+    if (reserveMint) {
+      const allowed = await reserveMint();
+      if (!allowed) {
+        budgetSpent = true;
+        results.push({ email: address.email, status: 'rate_limited' });
+        continue;
+      }
+    }
+
+    const invite = await createBetaInvite({
+      email: address.email,
+      days: betaDays,
+      note,
+      invitedBy,
+    });
+    results.push(publicInviteResult(invite));
+  }
+
+  return {
+    days: betaDays,
+    duplicatesRemoved: parsed.duplicatesRemoved,
+    results,
   };
 }

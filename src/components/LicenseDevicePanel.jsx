@@ -19,6 +19,7 @@ export default function LicenseDevicePanel({
   onActivate,
   onRecheck,
   onRemove,
+  onUpgrade,
 }) {
   const titleId = useId();
   const dialogRef = useRef(null);
@@ -104,6 +105,11 @@ export default function LicenseDevicePanel({
       setError('This license is no longer active on this device.');
       return;
     }
+    if (result?.expired) {
+      setSuccess('');
+      setError('');
+      return;
+    }
     if (result?.offline) {
       setError('The license service could not be reached. The saved license on this device was left in place.');
       return;
@@ -178,7 +184,7 @@ export default function LicenseDevicePanel({
           </div>
           <div>
             <dt>Status</dt>
-            <dd>{view.status}</dd>
+            <dd>{view.endedLabel || view.status}</dd>
           </div>
           <div>
             <dt>License email</dt>
@@ -217,6 +223,26 @@ export default function LicenseDevicePanel({
           </div>
         </dl>
 
+        {view.upgradeNote && (
+          <div className="license-near-expiry" role="note" data-testid="license-near-expiry-note">
+            <p>{view.upgradeNote}</p>
+            {onUpgrade && (
+              <button type="button" className="btn btn-primary" onClick={onUpgrade}>
+                Upgrade to Pro
+              </button>
+            )}
+          </div>
+        )}
+        {view.endedNotice && (
+          <div className="license-near-expiry" role="note" data-testid="license-ended-panel-note">
+            <p>{view.endedNotice.lead} {view.endedNotice.kept} {view.endedNotice.limited}</p>
+            {onUpgrade && (
+              <button type="button" className="btn btn-primary" onClick={onUpgrade}>
+                Upgrade to Pro
+              </button>
+            )}
+          </div>
+        )}
         {view.accessNote && <p className="license-panel-note">{view.accessNote}</p>}
         {view.configurationMessage && <p className="license-panel-note">{view.configurationMessage}</p>}
         <p className="license-panel-storage">{view.storageInfo}</p>

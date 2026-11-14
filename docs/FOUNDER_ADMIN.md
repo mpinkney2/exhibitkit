@@ -51,6 +51,26 @@ Do **not** put the founder secret in any `VITE_*` variable. Vite inlines those i
 - Production paid access follows a signed license entitlement. Use beta invites when a tester needs a real key.
 - Keep `FOUNDER_ADMIN_SECRET` distinct from Stripe, database, and license crypto secrets.
 
+## Beta invites and the invite report
+
+Unlock founder admin, then use **Beta invites**. One address still sends a single key. **Send to list** accepts commas, newlines, or semicolons, removes duplicates, skips invalid addresses, and skips an address that already has an active unexpired beta. One Days value (1–180, with 10/20/30 presets) and one optional note apply to the whole list. A list is capped at 50 addresses. Each HTTP request still counts toward 30 requests per hour per IP before the secret is checked. After the secret checks out, each minted address in a list counts toward 200 mints per hour. Addresses past that budget are returned as not sent.
+
+**Invite report** lists beta invites: email, name or note, sent date, days, expiry, email delivery, activation time, last status check, days left, and email events. Filter by status and export CSV. The report is founder-only and checks `FOUNDER_ADMIN_SECRET` on the server.
+
+Email events need a new server-only variable and a Resend webhook. Do not prefix it with `VITE_`.
+
+| Name | Value |
+|------|-------|
+| `RESEND_WEBHOOK_SECRET` | Signing secret from the Resend webhook endpoint. Server-only. |
+
+1. Apply database migrations (`npm run db:migrate`), including `db/migrations/006_email_events.sql`.
+2. In Resend, open the sending domain used by `LICENSE_EMAIL_FROM` and enable **open tracking**. Click tracking is needed for click events.
+3. Add a webhook endpoint: `https://YOUR_DOMAIN/api/webhooks/resend`.
+4. Subscribe to `email.delivered`, `email.opened`, `email.clicked`, and `email.bounced`.
+5. Copy the webhook signing secret into `RESEND_WEBHOOK_SECRET` and redeploy.
+
+Until `RESEND_WEBHOOK_SECRET` is set, `POST /api/webhooks/resend` rejects requests and the invite report says `email tracking not configured`. The report still lists invites if the email-events table is missing.
+
 ## What you can test
 
 **Founder unlimited (local development):**

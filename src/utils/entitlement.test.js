@@ -11,6 +11,8 @@ import {
   getMaxRealFilesPerBatch,
   restoreFromLicenseKey,
   refreshVerifiedEntitlementStatus,
+  keepExpiredLicense,
+  readStoredEntitlement,
   applyCasePassForTesting,
   applyEntitlementRecord,
   applyFounderUnlimitedPro,
@@ -168,6 +170,40 @@ describe('Pro perpetual entitlement', () => {
     const result = await refreshVerifiedEntitlementStatus(ent);
     expect(result.offline).toBe(true);
     expect(hasProFeatures(getEntitlement())).toBe(true);
+  });
+
+  it('keeps the beta record and applies Free limits after the license service says it expired', async () => {
+    applyEntitlementRecord(signedRecord({
+      purchasedAt: '2026-08-21T12:00:00.000Z',
+      licenseEmail: 'beta@example.com',
+      licenseSource: 'beta',
+      expiresAt: '2026-11-01T00:00:00.000Z',
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      active: false,
+      reason: 'expired',
+      license: {
+        plan: 'pro_perpetual',
+        licenseSource: 'beta',
+        expiresAt: '2026-11-01T00:00:00.000Z',
+        licenseEmail: 'beta@example.com',
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+
+    const refreshed = await refreshVerifiedEntitlementStatus();
+    expect(refreshed.expired).toBe(true);
+    expect(refreshed.invalid).toBe(false);
+    keepExpiredLicense(refreshed.license);
+
+    expect(getEntitlement().plan).toBe(PLAN_IDS.FREE);
+    expect(hasProFeatures()).toBe(false);
+    expect(getMaxRealFilesPerBatch()).toBe(FREE_MAX_FILES_PER_BATCH);
+    expect(isWithinFreeFileLimit(FREE_MAX_FILES_PER_BATCH + 1)).toBe(false);
+    const stored = readStoredEntitlement();
+    expect(stored.licenseSource).toBe('beta');
+    expect(stored.licenseEmail).toBe('beta@example.com');
+    expect(stored.expiresAt).toBe('2026-11-01T00:00:00.000Z');
   });
 });
 
