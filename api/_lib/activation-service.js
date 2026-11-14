@@ -10,6 +10,7 @@ import {
 } from './license-crypto.js';
 import {
   activateLicense,
+  getLicenseHolderProfile,
   getLicenseIdByKeyHash,
   transferLicense,
 } from './license-repository.js';
@@ -80,8 +81,14 @@ export async function activateLicenseKey(body, { transfer = false } = {}) {
   }
 
   const licenseId = result.license_id || result.id || await getLicenseIdByKeyHash(record.licenseKeyHash);
+  const profile = await getLicenseHolderProfile(licenseId).catch(() => null);
   return entitlementFromDatabase(
-    { ...result, license_id: licenseId },
+    {
+      ...result,
+      license_id: licenseId,
+      customer_email: profile?.customer_email || null,
+      source: profile?.source || null,
+    },
     activationToken,
     licenseFingerprint(licenseKey),
     workstationId,

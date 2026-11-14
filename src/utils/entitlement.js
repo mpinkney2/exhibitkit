@@ -29,6 +29,7 @@ import {
   DEV_TEST_KEY,
   APP_VERSION,
 } from './license.js';
+import { forgetDeviceLicense } from './licenseDeviceStatus.js';
 import {
   GUEST_DEMO_COMING_SOON_MESSAGE,
   isGuestDemoKey,
@@ -94,6 +95,8 @@ function emptyEntitlement() {
     entitlementToken: null,
     verifiedAt: null,
     licenseFingerprint: null,
+    licenseEmail: null,
+    licenseSource: null,
     guestDemo: false,
     guestLabel: null,
     guestDemoExpired: false,
@@ -249,6 +252,16 @@ function normalizeEntitlement(record) {
  * Returns current entitlement (after migration + Case Pass expiry evaluation).
  * @returns {EntitlementRecord}
  */
+/**
+ * Stored license record for this browser, including a license that no longer
+ * grants paid access. Display uses this so an expired key stays visible.
+ */
+export function readStoredEntitlement() {
+  const stored = readStored();
+  if (!stored) return emptyEntitlement();
+  return normalizeEntitlement(stored);
+}
+
 export function getEntitlement() {
   migrateLegacyLicenseIfNeeded();
   const stored = readStored() || emptyEntitlement();
@@ -647,6 +660,7 @@ export function settleLicenseRefresh(result) {
 export function clearEntitlement() {
   writeStored(emptyEntitlement());
   legacyDeactivateLicense();
+  forgetDeviceLicense();
   getWorkstationInfo();
 }
 

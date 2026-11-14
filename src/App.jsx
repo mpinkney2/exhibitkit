@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { ShieldAlert, Info, AlertTriangle, ShieldCheck, ArrowLeft, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
@@ -11,6 +11,8 @@ import MessageWorkspace from './components/MessageWorkspace';
 import WorkflowProgress from './components/WorkflowProgress';
 import HowToBot from './components/HowToBot';
 import LimitsGuide from './components/LimitsGuide';
+import LicenseStatusCluster from './components/LicenseStatusCluster';
+import LicenseDevicePanel from './components/LicenseDevicePanel';
 import './components/MessageWorkspace.css';
 import './components/HowToBot.css';
 import JSZip from 'jszip';
@@ -19,11 +21,6 @@ import {
   hasProFeatures,
   isWithinFreeFileLimit,
   getEntitlementLabel,
-  restoreFromLicenseKey,
-  clearEntitlement,
-  deactivateCurrentWorkstation,
-  refreshVerifiedEntitlementStatus,
-  settleLicenseRefresh,
   getWorkstationInfo,
   FREE_MAX_FILES_PER_BATCH,
   migrateLegacyLicenseIfNeeded,
@@ -46,6 +43,12 @@ import { pdfFilesFromZipBytes } from './utils/testPackClient';
 import { PREPARED_BATCH_ZIP_NAME } from './config/limitsFacts';
 import { getPresetRuleDefaults } from './config/presets';
 import { PRO_PRICE_LABEL } from './utils/payment';
+import {
+  activateLicenseOnDevice,
+  currentDeviceLicenseView,
+  recheckLicenseOnDevice,
+  removeLicenseFromDevice,
+} from './utils/licenseActivationFlow';
 import { RENAME_WORKFLOW_STEPS, getRenameWorkflowIndex } from './utils/workflowProgress';
 
 // Always available; production unlock is server-gated via /api/founder/unlock.
@@ -88,6 +91,11 @@ export default function App() {
 
   // Workstation Profile Info
   const [workstation] = useState(getWorkstationInfo);
+  const [licensePanelOpen, setLicensePanelOpen] = useState(false);
+  const [licenseEmailRevealed, setLicenseEmailRevealed] = useState(false);
+  const [activationReplaceMessage, setActivationReplaceMessage] = useState('');
+  const [activationSuccess, setActivationSuccess] = useState('');
+  const licenseView = currentDeviceLicenseView(workstation.deviceId, { settle: true });
 
   // Naming Rule States
   const [preset, setPreset] = useState('oncue');
@@ -174,55 +182,81 @@ export default function App() {
     localStorage.setItem('exhibitkit_theme', theme);
   }, [theme]);
 
-  const handleActivateLicense = async (key, confirmTransfer = false) => {
+  const handleActivateLicense = async (key, confirmTransfer = false, confirmReplace = false) => {
     setActivationInProgress(true);
     setActivationError('');
     setActivationNotice('');
-    const result = await restoreFromLicenseKey(key, {
+    const result = await activateLicenseOnDevice(key, {
       workstationId: workstation.deviceId,
       confirmTransfer,
+      confirmReplace,
     });
     setActivationInProgress(false);
+    if (result.needsReplace) {
+      setActivationNeedsTransfer(false);
+      setActivationReplaceMessage(result.message);
+      return result;
+    }
     if (result.notice) {
       setActivationNeedsTransfer(false);
+      setActivationReplaceMessage('');
       setActivationNotice(result.notice);
       setEntitlement(result.entitlement || getEntitlement());
-      return;
+      return result;
     }
     if (result.ok) {
       setActivationNeedsTransfer(false);
-      setEntitlement(result.entitlement);
-      setIsPricingOpen(false);
+      setActivationReplaceMessage('');
       setActivationError('');
-      setAppRoute('workspace');
-      showNotification("ExhibitKIT Pro restored on this workstation.", "success");
-    } else {
-      setActivationNeedsTransfer(Boolean(result.needsTransfer));
-      setActivationError(result.error || "Invalid license key. Please double-check your purchase email.");
+      setActivationSuccess(result.successMessage);
+      setEntitlement(result.entitlement);
+      showNotification(result.successMessage, 'success');
+      return result;
+    }
+    setActivationReplaceMessage('');
+    setActivationNeedsTransfer(Boolean(result.needsTransfer));
+    setActivationError(result.error || 'Invalid license key. Please double-check your purchase email.');
+    return result;
+  };
+
+  const handleEntitlementActivated = (next, options = {}) => {
+    setEntitlement(next || getEntitlement());
+    setIsPricingOpen(false);
+    setActivationSuccess('');
+    setAppRoute('workspace');
+    if (!options.message) {
+      showNotification('License activated on this device.', 'success');
     }
   };
 
-  const handleEntitlementActivated = (next) => {
-    setEntitlement(next || getEntitlement());
-    setIsPricingOpen(false);
-    setAppRoute('workspace');
-    showNotification("ExhibitKIT Pro restored on this workstation.", "success");
+  const handleRecheckLicense = async () => {
+    const result = await recheckLicenseOnDevice(workstation.deviceId);
+    if (result.cleared) {
+      setEntitlement(getEntitlement());
+      setLicensePanelOpen(false);
+      setAppRoute('landing');
+      showNotification('This license is no longer active on this device.', 'warning');
+    } else if (result.entitlement) {
+      setEntitlement(result.entitlement);
+    }
+    return result;
   };
 
-  const handleDeactivate = async () => {
-    const deactivation = await deactivateCurrentWorkstation(entitlement);
-    clearEntitlement();
+  const handleRemoveLicense = async () => {
+    const result = await removeLicenseFromDevice(entitlement, workstation.deviceId);
     setEntitlement(getEntitlement());
     setItems([]);
     setDirectoryHandle(null);
-    setDirectoryName("");
+    setDirectoryName('');
+    setLicensePanelOpen(false);
     setAppRoute('landing');
     showNotification(
-      deactivation.offline
-        ? "License cleared locally. Use your key to transfer if the former seat remains reserved."
-        : "License deactivated on this workstation.",
-      deactivation.offline ? "warning" : "info"
+      result.offline
+        ? 'License removed from this browser. The license itself was not deleted. This device’s seat may still be reserved until the service can be reached.'
+        : 'License removed from this device. The license itself was not deleted.',
+      result.offline ? 'warning' : 'info',
     );
+    return result;
   };
 
   // Helper to trigger alert notifications
@@ -239,16 +273,14 @@ export default function App() {
     let cancelled = false;
 
     const refreshLicense = async () => {
-      const result = await refreshVerifiedEntitlementStatus();
+      const result = await recheckLicenseOnDevice(workstation.deviceId);
       if (cancelled) return;
 
-      const settled = settleLicenseRefresh(result);
-      if (settled.clear) {
-        clearEntitlement();
+      if (result.cleared) {
         setEntitlement(getEntitlement());
         setAppRoute('landing');
-      } else if (settled.entitlement) {
-        setEntitlement(settled.entitlement);
+      } else if (result.entitlement) {
+        setEntitlement(result.entitlement);
       }
     };
 
@@ -258,7 +290,7 @@ export default function App() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [workstation.deviceId]);
 
   // Centralized proposed name update logic
   const updateProposedNames = (itemsList, overrides = {}) => {
@@ -924,8 +956,41 @@ export default function App() {
     showNotification('Message exhibit workspace ready. Evidence stays on this device.', 'info');
   };
 
+  const licenseCluster = (
+    <LicenseStatusCluster
+      view={licenseView}
+      onOpen={() => setLicensePanelOpen(true)}
+      revealed={licenseEmailRevealed}
+      onToggleReveal={() => setLicenseEmailRevealed((current) => !current)}
+    />
+  );
+  const licensePanel = (
+    <LicenseDevicePanel
+      isOpen={licensePanelOpen}
+      onClose={() => setLicensePanelOpen(false)}
+      view={licenseView}
+      onActivate={(key, options = {}) => handleActivateLicense(
+        key,
+        Boolean(options.confirmTransfer),
+        Boolean(options.confirmReplace),
+      )}
+      onRecheck={handleRecheckLicense}
+      onRemove={handleRemoveLicense}
+    />
+  );
+  const closePricing = () => {
+    setIsPricingOpen(false);
+    setEntitlement(getEntitlement());
+  };
+
   if (showLimits) {
-    return <LimitsGuide onBack={closeLimits} />;
+    return (
+      <>
+        {licenseCluster}
+        <LimitsGuide onBack={closeLimits} />
+        {licensePanel}
+      </>
+    );
   }
 
   // Layout Renderings
@@ -954,10 +1019,13 @@ export default function App() {
           onRestoreLicense={() => openPricing('restore')}
           theme={theme}
           onToggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+          licenseSlot={licenseCluster}
         />
+        {licensePanel}
         <PricingModal
           isOpen={isPricingOpen}
-          onClose={() => setIsPricingOpen(false)}
+          onClose={closePricing}
+          onActivateLicense={handleActivateLicense}
           onActivated={handleEntitlementActivated}
           workstationId={workstation.deviceId}
           initialView={pricingIntent}
@@ -975,10 +1043,13 @@ export default function App() {
           onBack={() => setAppRoute('landing')}
           onOpenPricing={() => openPricing('purchase')}
           showNotification={showNotification}
+          licenseSlot={licenseCluster}
         />
+        {licensePanel}
         <PricingModal
           isOpen={isPricingOpen}
-          onClose={() => setIsPricingOpen(false)}
+          onClose={closePricing}
+          onActivateLicense={handleActivateLicense}
           onActivated={handleEntitlementActivated}
           workstationId={workstation.deviceId}
           initialView={pricingIntent}
@@ -996,7 +1067,8 @@ export default function App() {
   if (appRoute === 'stripe_success') {
     return (
       <>
-      <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '16px' }}>
+        {licenseCluster}
         <div className="glass-panel" style={{ maxWidth: '520px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', border: '1px solid var(--status-success-border)' }}>
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--status-success-bg)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
@@ -1008,7 +1080,7 @@ export default function App() {
             </p>
           </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); handleActivateLicense(licenseInputValue); }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <form onSubmit={(e) => { e.preventDefault(); handleActivateLicense(licenseInputValue, false, false); }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Activation License Key</label>
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -1019,6 +1091,8 @@ export default function App() {
                     setLicenseInputValue(e.target.value);
                     setActivationError('');
                     setActivationNotice('');
+                    setActivationSuccess('');
+                    setActivationReplaceMessage('');
                     setActivationNeedsTransfer(false);
                   }}
                   placeholder="Format: EKIT-XXXX-XXXX-XXXX-XXXX"
@@ -1029,6 +1103,27 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {activationSuccess && (
+              <div role="status" data-testid="license-activation-success" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: 'var(--color-success, #047857)', fontSize: '13px', lineHeight: 1.5, background: 'rgba(5, 150, 105, 0.08)', border: '1px solid rgba(5, 150, 105, 0.24)', padding: '8px 12px', borderRadius: '6px' }}>
+                <ShieldCheck size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>{activationSuccess}</span>
+              </div>
+            )}
+
+            {activationReplaceMessage && (
+              <div role="alert" data-testid="license-replace-notice" style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', lineHeight: 1.5, background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.24)', padding: '8px 12px', borderRadius: '6px' }}>
+                <span>{activationReplaceMessage}</span>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={activationInProgress}
+                  onClick={() => handleActivateLicense(licenseInputValue, false, true)}
+                >
+                  Replace it with the new key
+                </button>
+              </div>
+            )}
 
             {activationNotice && (
               <div role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5, background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.24)', padding: '8px 12px', borderRadius: '6px' }}>
@@ -1049,7 +1144,7 @@ export default function App() {
                 type="button"
                 className="btn btn-secondary"
                 disabled={activationInProgress}
-                onClick={() => handleActivateLicense(licenseInputValue, true)}
+                onClick={() => handleActivateLicense(licenseInputValue, true, true)}
               >
                 Transfer license here and deactivate the former workstation
               </button>
@@ -1061,10 +1156,11 @@ export default function App() {
           </div>
 
           <button className="btn btn-secondary" onClick={() => setAppRoute('workspace')} style={{ width: '100%', fontSize: '13px' }}>
-            <ArrowLeft size={14} /> Continue to Demo Workspace
+            <ArrowLeft size={14} /> {activationSuccess ? 'Continue to workspace' : 'Continue to Demo Workspace'}
           </button>
         </div>
       </div>
+      {licensePanel}
       {founderAdmin}
       </>
     );
@@ -1073,7 +1169,8 @@ export default function App() {
   if (appRoute === 'stripe_cancel') {
     return (
       <>
-      <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div className="landing-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '16px' }}>
+        {licenseCluster}
         <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'center' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
             <Info size={24} />
@@ -1093,10 +1190,12 @@ export default function App() {
           </div>
         </div>
       </div>
+      {licensePanel}
       {isPricingOpen && (
         <PricingModal 
           isOpen={isPricingOpen} 
-          onClose={() => setIsPricingOpen(false)} 
+          onClose={closePricing} 
+          onActivateLicense={handleActivateLicense}
           onActivated={handleEntitlementActivated}
           workstationId={workstation.deviceId}
           initialView={pricingIntent}
@@ -1148,6 +1247,8 @@ export default function App() {
         setBatesMode={(value) => handleRuleChange('batesMode', value)}
         showBatesSetting={items.some((item) => item.bates)}
         batesSettingDisabled={isPreviewFreezed}
+        licenseView={licenseView}
+        onOpenLicense={() => setLicensePanelOpen(true)}
       />
 
       {isMobileSidebarOpen && (
@@ -1198,17 +1299,7 @@ export default function App() {
               </span>
             </div>
 
-            <div className="top-bar-badge">
-              {planLabel === 'Pro' || planLabel === 'Firm' ? (
-                <span className="badge badge-success">{planLabel}</span>
-              ) : planLabel === 'Case Pass' ? (
-                <span className="badge badge-warning">Case Pass</span>
-              ) : planLabel === 'Unverified' ? (
-                <span className="badge badge-warning" title={entitlement.configurationMessage || ''}>Unverified</span>
-              ) : (
-                <span className="badge badge-info">Free</span>
-              )}
-            </div>
+            {licenseCluster}
 
             {directoryName && (
               <span className="top-bar-folder" title={directoryName}>
@@ -1231,16 +1322,7 @@ export default function App() {
               </div>
             </div>
 
-            {isPro ? (
-              <button
-                type="button"
-                className="top-bar-pro-active"
-                onClick={handleDeactivate}
-                title="Click to deactivate license on this workstation"
-              >
-                Pro Active
-              </button>
-            ) : (
+            {!isPro && (
               <button
                 type="button"
                 className="top-bar-upgrade"
@@ -1591,9 +1673,11 @@ export default function App() {
       )}
 
       {/* Stripe checkout & license pricing */}
+      {licensePanel}
       <PricingModal 
         isOpen={isPricingOpen} 
-        onClose={() => setIsPricingOpen(false)} 
+        onClose={closePricing} 
+        onActivateLicense={handleActivateLicense}
         onActivated={handleEntitlementActivated}
         workstationId={workstation.deviceId}
         initialView={pricingIntent}

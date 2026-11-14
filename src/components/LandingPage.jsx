@@ -77,6 +77,7 @@ export default function LandingPage({
   onRestoreLicense,
   theme,
   onToggleTheme,
+  licenseSlot = null,
 }) {
   return (
     <main className="landing-page">
@@ -118,6 +119,7 @@ export default function LandingPage({
           </button>
         </div>
       </nav>
+      {licenseSlot && <div className="landing-license-slot">{licenseSlot}</div>}
 
       <section className="landing-hero" id="top">
         <div className="landing-hero-copy">

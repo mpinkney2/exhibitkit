@@ -55,6 +55,26 @@ describe('entitlement tokens', () => {
     expect(Date.parse(claims.issuedAt)).toBeGreaterThan(Date.now() - 5000);
     expect(isEntitlementTokenInForce(claims)).toBe(true);
     expect(entitlement.plan).toBe('case_pass');
+    expect(entitlement.licenseEmail).toBeNull();
+    expect(entitlement.licenseKey).toBeUndefined();
+  });
+
+  it('returns the license email and source to the activating device without a license key', () => {
+    useSigningKey();
+    const entitlement = entitlementFromDatabase({
+      plan: 'pro_perpetual',
+      license_id: 'lic_beta_1',
+      purchased_at: '2026-11-14T00:00:00.000Z',
+      expires_at: '2026-12-14T00:00:00.000Z',
+      customer_email: 'Owner@Example.com',
+      source: 'beta',
+      license_fingerprint: '••••-WXYZ',
+    }, 'activation-token-value', null, WORKSTATION_ID);
+
+    expect(entitlement.licenseEmail).toBe('owner@example.com');
+    expect(entitlement.licenseSource).toBe('beta');
+    expect(entitlement.licenseKey).toBeUndefined();
+    expect(JSON.stringify(entitlement)).not.toContain('EKIT-');
   });
 
   it('caps perpetual tokens with a signed expiry and a 7-day offline grace', () => {

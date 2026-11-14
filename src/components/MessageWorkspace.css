@@ -10,6 +10,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--color-border);

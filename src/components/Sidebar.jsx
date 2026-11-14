@@ -4,12 +4,16 @@ import MatterProfiles from './MatterProfiles';
 import BatesModeControl from './BatesModeControl';
 import { APP_VERSION } from '../utils/license';
 import { PRACTICE_AREAS, getPresetMeta, CUSTOM_TEMPLATE_TOKENS } from '../config/presets';
+import {
+  MAX_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  loadSidebarWidth,
+  nudgeSidebarWidth,
+  persistSidebarWidth,
+  resetSidebarWidth,
+} from '../utils/sidebarWidth';
 
-const SIDEBAR_WIDTH_KEY = 'exhibitkit_sidebar_width_v1';
 const SIDEBAR_SECTIONS_KEY = 'exhibitkit_sidebar_sections_v1';
-const DEFAULT_SIDEBAR_WIDTH = 240;
-const MIN_SIDEBAR_WIDTH = 200;
-const MAX_SIDEBAR_WIDTH = 480;
 
 const DEFAULT_SECTIONS = {
   preset: true,
@@ -19,17 +23,6 @@ const DEFAULT_SECTIONS = {
   custom: true,
   bates: true,
 };
-
-function loadSidebarWidth() {
-  try {
-    const raw = localStorage.getItem(SIDEBAR_WIDTH_KEY);
-    const value = Number(raw);
-    if (!Number.isFinite(value)) return DEFAULT_SIDEBAR_WIDTH;
-    return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, value));
-  } catch {
-    return DEFAULT_SIDEBAR_WIDTH;
-  }
-}
 
 function loadSectionState() {
   try {
@@ -103,6 +96,8 @@ export default function Sidebar({
   setBatesMode,
   showBatesSetting = false,
   batesSettingDisabled = false,
+  licenseView = null,
+  onOpenLicense,
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const [sectionsOpen, setSectionsOpen] = useState(loadSectionState);
@@ -146,11 +141,7 @@ export default function Sidebar({
   };
 
   useEffect(() => {
-    try {
-      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
-    } catch {
-      // ignore quota / private mode
-    }
+    persistSidebarWidth(sidebarWidth);
   }, [sidebarWidth]);
 
   useEffect(() => {
@@ -193,11 +184,8 @@ export default function Sidebar({
     const onMove = (event) => {
       const drag = dragRef.current;
       if (!drag) return;
-      const next = Math.min(
-        MAX_SIDEBAR_WIDTH,
-        Math.max(MIN_SIDEBAR_WIDTH, drag.startWidth + (event.clientX - drag.startX)),
-      );
-      setSidebarWidth(next);
+      const next = drag.startWidth + (event.clientX - drag.startX);
+      setSidebarWidth(Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, next)));
     };
 
     const onUp = () => {
@@ -218,8 +206,8 @@ export default function Sidebar({
 
   const startResize = useCallback((event) => {
     if (window.matchMedia('(max-width: 768px)').matches) return;
-    event.preventDefault();
-    event.stopPropagation();
+    // preventDefault on mousedown cancels focus, which blocks arrow-key resize.
+    event.currentTarget.focus({ preventScroll: true });
     dragRef.current = {
       startX: event.clientX,
       startWidth: sidebarWidth,
@@ -229,8 +217,29 @@ export default function Sidebar({
     document.body.classList.add('sidebar-resizing');
   }, [sidebarWidth]);
 
-  const resetSidebarWidth = () => {
-    setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+  const resetWidth = () => {
+    setSidebarWidth(resetSidebarWidth());
+  };
+
+  const resizeFromKeyboard = (event) => {
+    if (window.matchMedia('(max-width: 768px)').matches) return;
+    const larger = event.shiftKey;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSidebarWidth((width) => nudgeSidebarWidth(width, 'decrease', { large: larger }));
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSidebarWidth((width) => nudgeSidebarWidth(width, 'increase', { large: larger }));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setSidebarWidth(MIN_SIDEBAR_WIDTH);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setSidebarWidth(MAX_SIDEBAR_WIDTH);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      resetWidth();
+    }
   };
 
   const toggleSection = (id) => {
@@ -266,11 +275,16 @@ export default function Sidebar({
       <div
         className="sidebar-resizer"
         onMouseDown={startResize}
-        onDoubleClick={resetSidebarWidth}
-        title="Drag to resize sidebar · Double-click to reset"
+        onDoubleClick={resetWidth}
+        onKeyDown={resizeFromKeyboard}
+        title="Drag or use arrow keys to resize. Double-click or Enter to reset."
         role="separator"
+        tabIndex={0}
         aria-orientation="vertical"
         aria-label="Resize settings sidebar"
+        aria-valuemin={MIN_SIDEBAR_WIDTH}
+        aria-valuemax={MAX_SIDEBAR_WIDTH}
+        aria-valuenow={Math.round(sidebarWidth)}
       />
       <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -560,6 +574,24 @@ export default function Sidebar({
                   </>
                 )}
               </div>
+            )}
+
+            {licenseView && (
+              <button
+                type="button"
+                className="sidebar-license-status"
+                onClick={onOpenLicense}
+              >
+                <span className="sidebar-license-kicker">{licenseView.hasLicense ? 'Signed in as' : 'License'}</span>
+                <span className="sidebar-license-summary">
+                  {licenseView.hasLicense
+                    ? `${licenseView.planLabel} · ${licenseView.status}${licenseView.maskedEmail ? ` · ${licenseView.maskedEmail}` : ''}`
+                    : licenseView.summary}
+                </span>
+                {licenseView.sessionPhrase && (
+                  <span className="sidebar-license-meta">{licenseView.sessionPhrase}</span>
+                )}
+              </button>
             )}
 
             <button
