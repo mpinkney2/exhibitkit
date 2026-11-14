@@ -82,7 +82,8 @@ export async function recheckLicenseOnDevice(workstationId) {
   }
 
   const stored = readStoredEntitlement();
-  if (hasStoredLicense(stored, readDeviceSession())) {
+  // A failed, offline, or unverifiable check must not look like a fresh validation.
+  if (result.ok && hasStoredLicense(stored, readDeviceSession())) {
     noteLicenseChecked({ ...stored, ...(settled.entitlement || {}) });
   }
   return {
