@@ -12,6 +12,20 @@ export const EXHIBIT_PREFIX_LIST = Object.freeze([
   'PX', 'DX', 'EX', 'PLTF', 'DEFT', 'DEF', 'DEP', 'GFX', 'EXB', 'DOD', 'DOC', 'EXHIBIT',
 ]);
 
+/** Extensions the renamer ingests. Kept here so filename parsing and the file picker agree. */
+export const ACCEPTED_EXHIBIT_EXTENSIONS = Object.freeze([
+  '.pdf',
+  '.mp4',
+  '.mov',
+  '.m4v',
+  '.webm',
+  '.avi',
+  '.wmv',
+  '.mkv',
+  '.ppt',
+  '.pptx',
+]);
+
 const EXHIBIT_PREFIXES = EXHIBIT_PREFIX_LIST.join('|');
 
 /**
@@ -231,8 +245,11 @@ export function resolveExhibitIdentity({
  * @returns {object}
  */
 export function parseFilename(filename) {
-  // Strip extension and trim
-  const base = filename.replace(/\.pdf$/i, '').trim();
+  // Strip a supported exhibit extension. Leaving .mp4 or .pptx on the stem
+  // hides the exhibit number and copies the extension into the description.
+  const source = String(filename || '');
+  const extension = ACCEPTED_EXHIBIT_EXTENSIONS.find((ext) => source.toLowerCase().endsWith(ext));
+  const base = (extension ? source.slice(0, -extension.length) : source).trim();
 
   // 1. Structured DOD / patent document pattern (must run before generic DOD prefix match)
   let match = base.match(DOD_STRUCTURED_PATTERN);
@@ -658,6 +675,9 @@ export function validateProposedNames(items) {
   );
 
   items.forEach((item) => {
+    // Files left out of an outline are not renamed, so their proposed names
+    // must not mark the staged row as a duplicate.
+    if (item.included === false) return;
     const name = (item.proposedName || '').toLowerCase().trim();
     if (name) {
       nameCounts[name] = (nameCounts[name] || 0) + 1;

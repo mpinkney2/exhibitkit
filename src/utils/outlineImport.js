@@ -8,23 +8,12 @@
  * cited twice stays one staged file; both citations are kept.
  */
 
-import { EXHIBIT_PREFIX_LIST, sortItems } from './renamer.js';
+import { ACCEPTED_EXHIBIT_EXTENSIONS, EXHIBIT_PREFIX_LIST, sortItems } from './renamer.js';
+
+export { ACCEPTED_EXHIBIT_EXTENSIONS };
 
 const EXHIBIT_PREFIXES = EXHIBIT_PREFIX_LIST.join('|');
 const KNOWN_PREFIXES = new Set(EXHIBIT_PREFIX_LIST);
-
-export const ACCEPTED_EXHIBIT_EXTENSIONS = Object.freeze([
-  '.pdf',
-  '.mp4',
-  '.mov',
-  '.m4v',
-  '.webm',
-  '.avi',
-  '.wmv',
-  '.mkv',
-  '.ppt',
-  '.pptx',
-]);
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v', '.webm', '.avi', '.wmv', '.mkv']);
 const SLIDE_EXTENSIONS = new Set(['.ppt', '.pptx']);
@@ -237,12 +226,18 @@ export function parseExhibitId(body, extraPrefixes = new Set()) {
   const text = String(body || '').trim();
   if (!text) return null;
 
-  const numeric = /^0*(\d+)([A-Za-z]?)$/.exec(text);
+  const numeric = /^0*(\d+)([A-Za-z]?)(?:\s+(.+))?$/.exec(text);
   if (numeric) {
-    return {
-      key: `#-${parseInt(numeric[1], 10)}${(numeric[2] || '').toUpperCase()}`,
-      rest: '',
-    };
+    const digits = numeric[1];
+    const suffix = (numeric[2] || '').toUpperCase();
+    const rest = (numeric[3] || '').trim();
+    // "2019 Board Minutes" is a year plus a title, not exhibit 2019.
+    if (!(isCalendarYear(digits) && !suffix && rest)) {
+      return {
+        key: `#-${parseInt(digits, 10)}${suffix}`,
+        rest,
+      };
+    }
   }
 
   const match = /^([A-Za-z]{1,12})\s*([-_ ]?)\s*0*(\d+)([A-Za-z]?)\b\s*(.*)$/.exec(text);

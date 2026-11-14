@@ -202,6 +202,14 @@ test('generateProposedFilename applies area-specific preset aliases', () => {
   })).toBe('BK-0012 - Creditor Schedule.pdf');
 });
 
+test('parseFilename strips video and slide extensions before reading the exhibit id', () => {
+  expect(parseFilename('DX-0004.mp4')).toMatchObject({ prefix: 'DX', number: '0004', description: '' });
+  const described = parseFilename('DX-0004 Site inspection.mp4');
+  expect(described).toMatchObject({ prefix: 'DX', number: '0004' });
+  expect(described.description).toBe('Site inspection');
+  expect(parseFilename('Damages slides.pptx').description).toBe('Damages slides');
+});
+
 test('validateProposedNames blocks duplicate and occupied target names', () => {
   const duplicates = validateProposedNames([
     { originalName: 'one.pdf', proposedName: 'PX001.pdf' },
@@ -212,6 +220,21 @@ test('validateProposedNames blocks duplicate and occupied target names', () => {
   const occupied = validateProposedNames([
     { originalName: 'one.pdf', proposedName: 'two.pdf' },
     { originalName: 'two.pdf', proposedName: 'PX002.pdf' }
+  ]);
+  expect(occupied[0].status).toBe('warning');
+  expect(occupied[0].message).toMatch(/already used/i);
+});
+
+test('validateProposedNames ignores proposed names of files left out of an outline', () => {
+  const staged = validateProposedNames([
+    { originalName: 'PX-1 Memo.pdf', proposedName: '1_Memo.pdf', included: true },
+    { originalName: 'PX_1 Memo.pdf', proposedName: '1_Memo.pdf', included: false },
+  ]);
+  expect(staged.every((item) => item.status === 'success')).toBe(true);
+
+  const occupied = validateProposedNames([
+    { originalName: 'PX-1 Memo.pdf', proposedName: 'PX_1 Memo.pdf', included: true },
+    { originalName: 'PX_1 Memo.pdf', proposedName: 'other.pdf', included: false },
   ]);
   expect(occupied[0].status).toBe('warning');
   expect(occupied[0].message).toMatch(/already used/i);

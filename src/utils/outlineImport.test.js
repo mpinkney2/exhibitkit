@@ -130,6 +130,19 @@ describe('matchOutline', () => {
     expect(result.references[0]).toMatchObject({ status: 'matched', fileId: 'email' });
   });
 
+  it('matches an unprefixed number plus words by that number, not a longer number that contains the text', () => {
+    const onlyLonger = matchOutline('4 Photo', [
+      { id: 'fourteen', originalName: '14 - Photo.pdf', description: 'Photo', officialExhibitNo: '14' },
+    ]);
+    expect(onlyLonger.references[0]).toMatchObject({ status: 'missing', fileId: null });
+
+    const both = matchOutline('4 Photo', [
+      { id: 'fourteen', originalName: '14 - Photo.pdf', description: 'Photo', officialExhibitNo: '14' },
+      { id: 'four', originalName: '04 - Jones Photo.pdf', description: 'Jones Photo', officialExhibitNo: '04' },
+    ]);
+    expect(both.references[0]).toMatchObject({ status: 'matched', fileId: 'four', key: '#-4' });
+  });
+
   it('matches a unique number despite padding, case, and separator differences', () => {
     const result = matchOutline('dx 31', files());
     expect(result.references[0]).toMatchObject({ status: 'matched', fileId: 'minutes' });
