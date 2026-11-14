@@ -976,6 +976,10 @@ export default function App() {
     />
   );
   const endedKey = endedNoticeKey(licenseView);
+  const openUpgrade = () => {
+    setLicensePanelOpen(false);
+    openPricing('purchase');
+  };
   const licensePanel = (
     <>
       <LicenseDevicePanel
@@ -989,12 +993,12 @@ export default function App() {
         )}
         onRecheck={handleRecheckLicense}
         onRemove={handleRemoveLicense}
-        onUpgrade={() => openPricing('purchase')}
+        onUpgrade={openUpgrade}
       />
       {licenseView?.ended && dismissedEndedKey !== endedKey && (
         <LicenseEndedNotice
           view={licenseView}
-          onUpgrade={() => openPricing('purchase')}
+          onUpgrade={openUpgrade}
           onDismiss={() => {
             dismissEndedNotice(endedKey);
             setDismissedEndedKey(endedKey);
