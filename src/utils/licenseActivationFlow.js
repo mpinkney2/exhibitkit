@@ -8,6 +8,7 @@ import {
   deactivateCurrentWorkstation,
   getEntitlement,
   hasProFeatures,
+  keepExpiredLicense,
   readStoredEntitlement,
   refreshVerifiedEntitlementStatus,
   restoreFromLicenseKey,
@@ -77,6 +78,22 @@ export async function recheckLicenseOnDevice(workstationId) {
     return {
       ok: false,
       cleared: true,
+      expired: false,
+      view: currentDeviceLicenseView(workstationId),
+    };
+  }
+
+  if (settled.expired) {
+    keepExpiredLicense(settled.license);
+    const stored = readStoredEntitlement();
+    if (hasStoredLicense(stored, readDeviceSession())) {
+      noteLicenseChecked(stored);
+    }
+    return {
+      ok: false,
+      cleared: false,
+      expired: true,
+      entitlement: getEntitlement(),
       view: currentDeviceLicenseView(workstationId),
     };
   }

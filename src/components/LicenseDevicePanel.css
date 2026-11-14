@@ -46,8 +46,79 @@
   background: var(--color-success, #059669);
 }
 
+.license-status-chip.is-warning,
+.license-status-chip.is-ended,
+.sidebar-license-status.is-warning,
+.sidebar-license-status.is-ended {
+  border-color: #d97706;
+  background: rgba(217, 119, 6, 0.14);
+}
+
+.license-status-chip.is-warning .license-status-dot,
+.license-status-chip.is-ended .license-status-dot,
 .license-status-chip.is-expired .license-status-dot {
   background: #d97706;
+}
+
+.license-near-expiry {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(217, 119, 6, 0.45);
+  background: rgba(217, 119, 6, 0.1);
+  color: var(--color-text-primary, var(--text-primary));
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.license-near-expiry p {
+  margin: 0;
+}
+
+.license-near-expiry button {
+  margin-top: 8px;
+}
+
+.license-ended-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2800;
+  width: min(720px, calc(100% - 24px));
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(217, 119, 6, 0.5);
+  background: var(--color-surface-1, #fff);
+  color: var(--color-text-primary, #172033);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+
+.license-ended-banner h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.license-ended-banner p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--color-text-secondary, #48546a);
+}
+
+.license-ended-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.license-ended-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 
 .license-status-text {

@@ -13,6 +13,7 @@ import HowToBot from './components/HowToBot';
 import LimitsGuide from './components/LimitsGuide';
 import LicenseStatusCluster from './components/LicenseStatusCluster';
 import LicenseDevicePanel from './components/LicenseDevicePanel';
+import LicenseEndedNotice from './components/LicenseEndedNotice';
 import './components/MessageWorkspace.css';
 import './components/HowToBot.css';
 import JSZip from 'jszip';
@@ -49,6 +50,11 @@ import {
   recheckLicenseOnDevice,
   removeLicenseFromDevice,
 } from './utils/licenseActivationFlow';
+import {
+  dismissEndedNotice,
+  endedNoticeKey,
+  readDismissedEndedNotice,
+} from './utils/licenseDeviceStatus';
 import { RENAME_WORKFLOW_STEPS, getRenameWorkflowIndex } from './utils/workflowProgress';
 
 // Always available; production unlock is server-gated via /api/founder/unlock.
@@ -92,6 +98,7 @@ export default function App() {
   // Workstation Profile Info
   const [workstation] = useState(getWorkstationInfo);
   const [licensePanelOpen, setLicensePanelOpen] = useState(false);
+  const [dismissedEndedKey, setDismissedEndedKey] = useState(() => readDismissedEndedNotice());
   const [licenseEmailRevealed, setLicenseEmailRevealed] = useState(false);
   const [activationReplaceMessage, setActivationReplaceMessage] = useState('');
   const [activationSuccess, setActivationSuccess] = useState('');
@@ -236,6 +243,8 @@ export default function App() {
       setLicensePanelOpen(false);
       setAppRoute('landing');
       showNotification('This license is no longer active on this device.', 'warning');
+    } else if (result.expired) {
+      setEntitlement(getEntitlement());
     } else if (result.entitlement) {
       setEntitlement(result.entitlement);
     }
@@ -279,6 +288,8 @@ export default function App() {
       if (result.cleared) {
         setEntitlement(getEntitlement());
         setAppRoute('landing');
+      } else if (result.expired) {
+        setEntitlement(getEntitlement());
       } else if (result.entitlement) {
         setEntitlement(result.entitlement);
       }
@@ -964,19 +975,33 @@ export default function App() {
       onToggleReveal={() => setLicenseEmailRevealed((current) => !current)}
     />
   );
+  const endedKey = endedNoticeKey(licenseView);
   const licensePanel = (
-    <LicenseDevicePanel
-      isOpen={licensePanelOpen}
-      onClose={() => setLicensePanelOpen(false)}
-      view={licenseView}
-      onActivate={(key, options = {}) => handleActivateLicense(
-        key,
-        Boolean(options.confirmTransfer),
-        Boolean(options.confirmReplace),
+    <>
+      <LicenseDevicePanel
+        isOpen={licensePanelOpen}
+        onClose={() => setLicensePanelOpen(false)}
+        view={licenseView}
+        onActivate={(key, options = {}) => handleActivateLicense(
+          key,
+          Boolean(options.confirmTransfer),
+          Boolean(options.confirmReplace),
+        )}
+        onRecheck={handleRecheckLicense}
+        onRemove={handleRemoveLicense}
+        onUpgrade={() => openPricing('purchase')}
+      />
+      {licenseView?.ended && dismissedEndedKey !== endedKey && (
+        <LicenseEndedNotice
+          view={licenseView}
+          onUpgrade={() => openPricing('purchase')}
+          onDismiss={() => {
+            dismissEndedNotice(endedKey);
+            setDismissedEndedKey(endedKey);
+          }}
+        />
       )}
-      onRecheck={handleRecheckLicense}
-      onRemove={handleRemoveLicense}
-    />
+    </>
   );
   const closePricing = () => {
     setIsPricingOpen(false);

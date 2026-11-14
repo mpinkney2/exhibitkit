@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   createBetaInvite: vi.fn(),
+  createBetaInvites: vi.fn(),
   consumeRateLimit: vi.fn(async () => true),
 }));
 
 vi.mock('../_lib/beta-invite-service.js', () => ({
   createBetaInvite: mocks.createBetaInvite,
+  createBetaInvites: mocks.createBetaInvites,
 }));
 
 vi.mock('../_lib/rate-limit.js', async (importOriginal) => {
@@ -72,6 +74,15 @@ beforeEach(() => {
   mocks.consumeRateLimit.mockReset();
   mocks.consumeRateLimit.mockResolvedValue(true);
   mocks.createBetaInvite.mockResolvedValue(SAMPLE_INVITE);
+  mocks.createBetaInvites.mockResolvedValue({
+    days: 10,
+    duplicatesRemoved: 1,
+    results: [
+      { email: 'one@example.com', status: 'sent', key: 'EKIT-BETA-TEST-0001', days: 10, emailStatus: 'sent' },
+      { email: 'not-an-email', status: 'invalid' },
+      { email: 'two@example.com', status: 'already_active', expiresAt: '2026-12-01T00:00:00.000Z' },
+    ],
+  });
 });
 
 afterEach(() => {
@@ -269,5 +280,47 @@ describe('POST /api/founder/invite', () => {
     expect(body.emailError).toEqual({ name: 'provider_error', statusCode: 401 });
     expect(JSON.stringify(body.emailError)).not.toContain('re_');
     expect(JSON.stringify(body.emailError)).not.toContain('hidden');
+  });
+
+  it('sends a bulk list with one shared day count and returns per-address results', async () => {
+    const response = await invite.fetch(inviteRequest({
+      secret: founderSecret,
+      list: 'one@example.com, not-an-email\none@example.com',
+      note: 'round 2',
+      days: 10,
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.bulk).toBe(true);
+    expect(body.duplicatesRemoved).toBe(1);
+    expect(body.results.map((result) => result.status)).toEqual(['sent', 'invalid', 'already_active']);
+    expect(mocks.createBetaInvites).toHaveBeenCalledWith(expect.objectContaining({
+      emails: 'one@example.com, not-an-email\none@example.com',
+      days: 10,
+      note: 'round 2',
+      invitedBy: 'founder',
+    }));
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
+    expect(mocks.consumeRateLimit).toHaveBeenCalledWith('founder_invite_ip', '203.0.113.42', 30, 3600);
+  });
+
+  it('returns 429 when a bulk send cannot mint any address', async () => {
+    mocks.createBetaInvites.mockResolvedValueOnce({
+      days: 30,
+      duplicatesRemoved: 0,
+      results: [
+        { email: 'one@example.com', status: 'rate_limited' },
+        { email: 'two@example.com', status: 'rate_limited' },
+      ],
+    });
+    const response = await invite.fetch(inviteRequest({
+      secret: founderSecret,
+      emails: ['one@example.com', 'two@example.com'],
+    }));
+    expect(response.status).toBe(429);
+    const body = await response.json();
+    expect(body.code).toBe('RATE_LIMITED');
+    expect(body.results).toHaveLength(2);
+    expect(mocks.createBetaInvite).not.toHaveBeenCalled();
   });
 });

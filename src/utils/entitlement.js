@@ -495,10 +495,20 @@ export async function refreshVerifiedEntitlementStatus(entitlement = readStored(
     if (response.status >= 500) {
       return { ok: false, offline: true, entitlement: effectiveEntitlement(stored) };
     }
-    // A revoked seat is the only response that drops the local activation.
+    // A revoked or transferred seat is the only response that drops the local
+    // activation. An expired time-limited license stays on this device.
     // 403, 429, other 4xx, and a 200 without a token are transient.
     if (response.status === 401 && data.active === false) {
       return { ok: false, invalid: true, entitlement: effectiveEntitlement(stored) };
+    }
+    if (response.ok && data.active === false && data.reason === 'expired') {
+      return {
+        ok: false,
+        expired: true,
+        invalid: false,
+        license: data.license && typeof data.license === 'object' ? data.license : null,
+        entitlement: effectiveEntitlement(stored),
+      };
     }
     if (!response.ok || !data.active || !data.entitlement?.entitlementToken) {
       return { ok: false, offline: true, entitlement: effectiveEntitlement(stored) };
@@ -565,6 +575,33 @@ export function applyCasePassForTesting(purchasedAt = new Date().toISOString()) 
     purchasedVersion: APP_VERSION,
     migratedFromLegacy: false,
     developerOverride: true,
+  });
+}
+
+/**
+ * Founder helper: time-limited beta on this browser.
+ * `expired` writes the record without a developer override so Free limits apply.
+ */
+export function applyBetaForTesting({ days = 12, expired = false } = {}) {
+  const purchasedAt = new Date().toISOString();
+  const expiresAt = expired
+    ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    : new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  return applyEntitlementRecord({
+    plan: PLAN_IDS.PRO,
+    licenseKey: null,
+    licenseSource: 'beta',
+    licenseEmail: 'tester@example.com',
+    licenseFingerprint: '••••-BETA',
+    purchasedAt,
+    expiresAt,
+    casePassStatus: 'none',
+    updatesIncludedUntil: expiresAt,
+    updateRenewalStatus: 'included',
+    purchasedVersion: APP_VERSION,
+    migratedFromLegacy: false,
+    developerOverride: !expired,
+    serverVerified: false,
   });
 }
 
@@ -643,15 +680,45 @@ export function applyFounderUnlimitedPro() {
 
 /**
  * How a status refresh should update the workstation.
- * Only a 401 with active:false clears the stored activation. Other errors
- * keep it for the offline grace window. A local verification failure keeps
- * it and surfaces a misconfigured state.
+ * Only a 401 with active:false clears the stored activation. An explicit
+ * expiry keeps the license record and drops paid access. Other errors keep
+ * it for the offline grace window. A local verification failure keeps it
+ * and surfaces a misconfigured state.
  */
 export function settleLicenseRefresh(result) {
-  if (result?.invalid) return { clear: true, entitlement: null };
-  if (result?.misconfigured) return { clear: false, entitlement: result.entitlement || null };
-  if (result?.ok && result.entitlement) return { clear: false, entitlement: result.entitlement };
-  return { clear: false, entitlement: null };
+  if (result?.invalid) return { clear: true, expired: false, entitlement: null };
+  if (result?.expired) {
+    return { clear: false, expired: true, license: result.license || null, entitlement: null };
+  }
+  if (result?.misconfigured) return { clear: false, expired: false, entitlement: result.entitlement || null };
+  if (result?.ok && result.entitlement) return { clear: false, expired: false, entitlement: result.entitlement };
+  return { clear: false, expired: false, entitlement: null };
+}
+
+/**
+ * Keep a time-limited license visible after it expires and stop treating the
+ * signed token as paid access. Files and matter profiles are not touched.
+ */
+export function keepExpiredLicense(license = null) {
+  const stored = readStored() || emptyEntitlement();
+  const incoming = license && typeof license === 'object' ? license : {};
+  const plan = ['case_pass', 'pro_perpetual', 'firm'].includes(incoming.plan) ? incoming.plan : stored.plan;
+  const next = normalizeEntitlement({
+    ...stored,
+    plan: plan || stored.plan,
+    licenseSource: incoming.licenseSource || stored.licenseSource || null,
+    licenseEmail: incoming.licenseEmail || stored.licenseEmail || null,
+    licenseFingerprint: incoming.licenseFingerprint || stored.licenseFingerprint || null,
+    purchasedAt: incoming.purchasedAt || stored.purchasedAt || null,
+    expiresAt: incoming.expiresAt || stored.expiresAt || null,
+    casePassStatus: plan === PLAN_IDS.CASE_PASS ? 'expired' : (stored.casePassStatus || 'none'),
+    entitlementToken: null,
+    activationToken: stored.activationToken || null,
+    serverVerified: false,
+    developerOverride: false,
+  });
+  writeStored(next);
+  return next;
 }
 
 /**
