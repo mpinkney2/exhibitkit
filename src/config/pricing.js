@@ -41,6 +41,7 @@ export const PLANS = Object.freeze([
       { text: 'Parse, preview, and edit proposed filenames', available: true },
       { text: 'Basic sequential numbering', available: true },
       { text: 'Standard CSV/HTML export', available: true },
+      { text: 'Outline matching and a CSV/HTML crosswalk on the free batch', available: true },
       { text: 'Local processing — no account or watermark', available: true },
     ],
     clarification: null,

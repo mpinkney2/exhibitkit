@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Play, RotateCcw, Trash2, Files, CheckSquare, AlertCircle, FileSpreadsheet, ChevronDown, Printer, FileText } from 'lucide-react';
+import { crosswalkFields, exportUsesCrosswalk } from '../utils/crosswalk';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -31,6 +32,7 @@ export default function ActionPanel({
   const blockingIssueCount = warningCount + errorCount;
   const hasBlockingIssues = blockingIssueCount > 0;
   const hasItems = totalCount > 0;
+  const outlineActive = exportUsesCrosswalk(items);
 
   // Active Mode Badge
   const getModeBadge = () => {
@@ -69,24 +71,56 @@ export default function ActionPanel({
       : 'FREE MODE';
     const conflictCount = warningCount;
 
-    let rowsHtml = items.map((item, idx) => `
+    const cell = 'border-bottom: 1px solid #e5e7eb; padding: 10px;';
+    let rowsHtml = items.map((item, idx) => {
+      const fields = crosswalkFields(item);
+      if (outlineActive) {
+        return `
       <tr>
-        <td style="font-family: monospace; font-size: 11px; text-align: center; border-bottom: 1px solid #e5e7eb; padding: 10px;">${idx + 1}</td>
-        <td style="border-bottom: 1px solid #e5e7eb; padding: 10px; font-weight: 600; color: ${item.status === 'danger' ? '#ef4444' : item.status === 'warning' ? '#f59e0b' : '#10b981'}">
+        <td style="font-family: monospace; font-size: 11px; text-align: center; ${cell}">${escapeHtml(fields.outlineOrder || idx + 1)}</td>
+        <td style="font-family: monospace; font-size: 11px; font-weight: bold; ${cell}">${escapeHtml(fields.officialExhibitNo || '-')}</td>
+        <td style="${cell}">${escapeHtml(fields.designation || '-')}</td>
+        <td style="font-family: monospace; font-size: 11px; word-break: break-all; ${cell}">${escapeHtml(fields.citations || '-')}</td>
+        <td style="font-family: monospace; font-size: 11px; word-break: break-all; ${cell}">${escapeHtml(fields.originalName)}</td>
+        <td style="font-family: monospace; font-size: 11px; font-weight: bold; color: #6366f1; word-break: break-all; ${cell}">${escapeHtml(fields.proposedName)}</td>
+      </tr>`;
+      }
+      return `
+      <tr>
+        <td style="font-family: monospace; font-size: 11px; text-align: center; ${cell}">${idx + 1}</td>
+        <td style="${cell} font-weight: 600; color: ${item.status === 'danger' ? '#ef4444' : item.status === 'warning' ? '#f59e0b' : '#10b981'}">
           ● ${escapeHtml(item.status.toUpperCase())}
         </td>
-        <td style="font-family: monospace; font-size: 11px; word-break: break-all; border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.originalName)}</td>
-        <td style="font-family: monospace; font-size: 11px; font-weight: bold; border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.number || '-')}</td>
-        <td style="border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.description || '-')}</td>
-        <td style="font-family: monospace; font-size: 11px; font-weight: bold; color: #6366f1; word-break: break-all; border-bottom: 1px solid #e5e7eb; padding: 10px;">${escapeHtml(item.proposedName)}</td>
-      </tr>
-    `).join("");
+        <td style="font-family: monospace; font-size: 11px; word-break: break-all; ${cell}">${escapeHtml(item.originalName)}</td>
+        <td style="font-family: monospace; font-size: 11px; font-weight: bold; ${cell}">${escapeHtml(item.number || '-')}</td>
+        <td style="${cell}">${escapeHtml(item.description || '-')}</td>
+        <td style="font-family: monospace; font-size: 11px; font-weight: bold; color: #6366f1; word-break: break-all; ${cell}">${escapeHtml(item.proposedName)}</td>
+      </tr>`;
+    }).join("");
+
+    const tableHead = outlineActive
+      ? `<tr>
+                <th style="width: 70px; text-align: center;">Outline order</th>
+                <th>Official number</th>
+                <th>Designation</th>
+                <th>Citations</th>
+                <th>Original filename</th>
+                <th>New name</th>
+              </tr>`
+      : `<tr>
+                <th style="width: 40px; text-align: center;">#</th>
+                <th style="width: 90px;">Status</th>
+                <th>Original Filename</th>
+                <th style="width: 100px;">Exhibit ID</th>
+                <th>Description</th>
+                <th>Proposed Naming Scheme</th>
+              </tr>`;
 
     const documentHtml = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>ExhibitKIT | Session Audit Report</title>
+          <title>ExhibitKIT | ${outlineActive ? 'Exhibit crosswalk' : 'Session Audit Report'}</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111827; padding: 40px; margin: 0; line-height: 1.5; }
             h1 { font-size: 22px; margin: 0 0 4px 0; font-weight: 700; }
@@ -110,7 +144,7 @@ export default function ActionPanel({
         </head>
         <body>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h1>ExhibitKIT Session Audit Report</h1>
+            <h1>${outlineActive ? 'Exhibit crosswalk' : 'ExhibitKIT Session Audit Report'}</h1>
             <button class="print-btn" onclick="window.print()" style="padding: 8px 16px; background-color: #6366f1; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
               🖨️ Print Audit Trail
             </button>
@@ -151,14 +185,7 @@ export default function ActionPanel({
 
           <table>
             <thead>
-              <tr>
-                <th style="width: 40px; text-align: center;">#</th>
-                <th style="width: 90px;">Status</th>
-                <th>Original Filename</th>
-                <th style="width: 100px;">Exhibit ID</th>
-                <th>Description</th>
-                <th>Proposed Naming Scheme</th>
-              </tr>
+              ${tableHead}
             </thead>
             <tbody>
               ${rowsHtml}
@@ -192,14 +219,21 @@ export default function ActionPanel({
         conflicts: warningCount,
         errors: errorCount
       },
-      exhibits: items.map(item => ({
-        originalName: item.originalName,
-        proposedName: item.proposedName,
-        exhibitId: item.number,
-        description: item.description,
-        status: item.status,
-        message: item.message
-      }))
+      exhibits: items.map(item => {
+        const fields = crosswalkFields(item);
+        return {
+          originalName: item.originalName,
+          proposedName: item.proposedName,
+          exhibitId: item.number,
+          officialExhibitNo: fields.officialExhibitNo,
+          outlineOrder: fields.outlineOrder,
+          designation: fields.designation,
+          citations: fields.citations,
+          description: item.description,
+          status: item.status,
+          message: item.message
+        };
+      })
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -355,7 +389,7 @@ export default function ActionPanel({
               <button 
                 className="btn" 
                 onClick={onExportCsv}
-                title="Download CSV layout mapping"
+                title={outlineActive ? 'Download the outline crosswalk' : 'Download CSV layout mapping'}
                 style={{ 
                   fontSize: '13px', 
                   padding: '8px 12px', 
@@ -370,7 +404,7 @@ export default function ActionPanel({
                 }}
               >
                 <FileSpreadsheet size={13} style={{ marginRight: '4px' }} />
-                Export CSV ▾
+                {outlineActive ? 'Export crosswalk' : 'Export CSV'} ▾
               </button>
               <button 
                 className="btn" 
@@ -426,7 +460,7 @@ export default function ActionPanel({
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
                     <Printer size={12} style={{ color: 'var(--color-accent)' }} />
-                    Printable HTML Audit
+                    {outlineActive ? 'Printable crosswalk' : 'Printable HTML Audit'}
                   </button>
                   <button 
                     onClick={handleExportJson}
