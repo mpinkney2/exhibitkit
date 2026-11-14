@@ -5,6 +5,7 @@ const repository = vi.hoisted(() => ({
   activateLicense: vi.fn(),
   transferLicense: vi.fn(),
   getLicenseIdByKeyHash: vi.fn(),
+  getLicenseHolderProfile: vi.fn(),
 }));
 
 vi.mock('./license-repository.js', () => repository);
@@ -21,6 +22,7 @@ beforeEach(() => {
   repository.activateLicense.mockReset();
   repository.transferLicense.mockReset();
   repository.getLicenseIdByKeyHash.mockReset();
+  repository.getLicenseHolderProfile.mockReset();
 });
 
 describe('activateLicenseKey signing guard', () => {

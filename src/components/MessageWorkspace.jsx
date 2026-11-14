@@ -27,6 +27,7 @@ export default function MessageWorkspace({
   onBack,
   onOpenPricing,
   showNotification,
+  licenseSlot = null,
 }) {
   const [project, setProject] = useState(() => createEmptyProject());
   const [activeExhibitId, setActiveExhibitId] = useState(null);
@@ -241,6 +242,7 @@ export default function MessageWorkspace({
           </div>
         </div>
         <div className="message-workspace-bar-right">
+          {licenseSlot}
           <span className="message-privacy-chip">
             <FolderLock size={14} /> Evidence stays on this device
           </span>

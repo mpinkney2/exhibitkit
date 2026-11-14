@@ -23,6 +23,19 @@ export function entitlementFromDatabase(row, activationToken, fingerprint = null
     entitlementToken: signed.token,
     activationToken,
     licenseFingerprint: fingerprint || row.license_fingerprint || null,
+    licenseEmail: cleanLicenseEmail(row.customer_email),
+    licenseSource: cleanLicenseSource(row.source),
     migratedFromLegacy: false,
   };
+}
+
+function cleanLicenseEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return email;
+}
+
+function cleanLicenseSource(value) {
+  const source = String(value || '').trim().toLowerCase();
+  return /^[a-z0-9_-]{1,32}$/.test(source) ? source : null;
 }

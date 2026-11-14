@@ -20,12 +20,15 @@ export default function PricingModal({
   isOpen,
   onClose,
   onActivated,
+  onActivateLicense,
   workstationId,
   initialView = 'purchase',
 }) {
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [success, setSuccess] = useState('');
+  const [replaceMessage, setReplaceMessage] = useState('');
   const [isActivating, setIsActivating] = useState(false);
   const [needsTransfer, setNeedsTransfer] = useState(false);
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
@@ -83,28 +86,36 @@ export default function PricingModal({
 
   if (!isOpen) return null;
 
-  const activate = async (confirmTransfer = false) => {
+  const activate = async (confirmTransfer = false, confirmReplace = false) => {
     setIsActivating(true);
     setError('');
     setNotice('');
-    const result = await restoreFromLicenseKey(licenseKey, {
-      workstationId,
-      confirmTransfer,
-    });
+    setSuccess('');
+    const result = onActivateLicense
+      ? await onActivateLicense(licenseKey, confirmTransfer, confirmReplace)
+      : await restoreFromLicenseKey(licenseKey, { workstationId, confirmTransfer });
 
     setIsActivating(false);
+    if (result?.needsReplace) {
+      setNeedsTransfer(false);
+      setReplaceMessage(result.message);
+      return;
+    }
     if (result.notice) {
       setNeedsTransfer(false);
+      setReplaceMessage('');
       setNotice(result.notice);
       return;
     }
     if (result.ok) {
       setNeedsTransfer(false);
+      setReplaceMessage('');
+      setSuccess(result.successMessage || 'License activated on this device.');
       setLicenseKey('');
-      onActivated?.(result.entitlement);
       return;
     }
 
+    setReplaceMessage('');
     setNeedsTransfer(Boolean(result.needsTransfer));
     setError(result.error || 'That license key could not be restored.');
   };
@@ -201,6 +212,8 @@ export default function PricingModal({
                 setLicenseKey(event.target.value);
                 if (error) setError('');
                 if (notice) setNotice('');
+                if (success) setSuccess('');
+                if (replaceMessage) setReplaceMessage('');
                 if (needsTransfer) setNeedsTransfer(false);
               }}
               placeholder="EKIT-XXXX-XXXX-XXXX-XXXX"
@@ -213,6 +226,32 @@ export default function PricingModal({
               {isActivating ? 'Verifying…' : 'Activate'}
             </button>
           </div>
+
+          {success && (
+            <div className="pricing-license-notice" role="status" data-testid="license-activation-success">
+              <Check size={14} /> {success}
+              <button
+                type="button"
+                onClick={() => onActivated?.(undefined, { message: success })}
+              >
+                Continue
+              </button>
+            </div>
+          )}
+
+          {replaceMessage && (
+            <div className="pricing-transfer-panel" role="alert" data-testid="license-replace-notice">
+              <p>{replaceMessage}</p>
+              <button
+                type="button"
+                className="pricing-transfer-button"
+                disabled={isActivating}
+                onClick={() => activate(false, true)}
+              >
+                Replace it with the new key
+              </button>
+            </div>
+          )}
 
           {notice && (
             <div id="pricing-license-notice" className="pricing-license-notice" role="status">
@@ -233,7 +272,7 @@ export default function PricingModal({
                 type="button"
                 className="pricing-transfer-button"
                 disabled={isActivating}
-                onClick={() => activate(true)}
+                onClick={() => activate(true, true)}
               >
                 Transfer license to this workstation
               </button>
