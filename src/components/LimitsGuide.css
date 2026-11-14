@@ -1,0 +1,109 @@
+.limits-guide {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 28px 20px 64px;
+  background: var(--bg-primary, #f7f5f1);
+  color: var(--text-primary, #142033);
+  font-family: var(--font-sans, sans-serif);
+}
+
+.limits-guide-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 980px;
+  margin: 0 auto 12px;
+}
+
+.limits-guide h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.4px;
+}
+
+.limits-kicker {
+  margin: 0 0 4px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #667085);
+}
+
+.limits-lead,
+.limits-guide section,
+.limits-note {
+  max-width: 980px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.limits-lead,
+.limits-note,
+.limits-guide p,
+.limits-guide li {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary, #3d4a5c);
+}
+
+.limits-guide section {
+  margin-top: 28px;
+}
+
+.limits-guide h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.limits-guide table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface-1, #fff);
+  border: 1px solid var(--color-border, #e4e0d8);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.limits-guide th,
+.limits-guide td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border, #e4e0d8);
+}
+
+.limits-guide th {
+  background: var(--color-surface-2, #f3f1eb);
+  font-weight: 600;
+}
+
+.limits-guide tr:last-child td {
+  border-bottom: none;
+}
+
+.limits-guide code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.limits-back {
+  border: 1px solid var(--color-border, #d8d3cb);
+  background: var(--color-surface-1, #fff);
+  color: var(--text-primary, #142033);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font: 500 13px var(--font-sans, sans-serif);
+}
+
+.limits-guide {
+  overflow-x: auto;
+}
+
+@media (max-width: 720px) {
+  .limits-guide table {
+    display: block;
+    overflow-x: auto;
+  }
+}

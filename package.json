@@ -12,7 +12,8 @@
     "license:secrets": "node scripts/generate-license-secrets.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "benchmark": "vite-node scripts/benchmark-exhibits.mjs"
+    "benchmark": "vite-node scripts/benchmark-exhibits.mjs",
+    "test-packs": "node scripts/generate-test-packs.mjs"
   },
   "dependencies": {
     "@noble/curves": "^2.4.0",

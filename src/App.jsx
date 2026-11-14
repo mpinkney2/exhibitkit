@@ -10,6 +10,7 @@ import LegalModals from './components/LegalModals';
 import MessageWorkspace from './components/MessageWorkspace';
 import WorkflowProgress from './components/WorkflowProgress';
 import HowToBot from './components/HowToBot';
+import LimitsGuide from './components/LimitsGuide';
 import './components/MessageWorkspace.css';
 import './components/HowToBot.css';
 import JSZip from 'jszip';
@@ -36,8 +37,13 @@ import {
   formatCase,
   sortItems,
   resolveExhibitNumber,
+  resolveExhibitIdentity,
+  resolveIngestYear,
   extractYear,
 } from './utils/renamer';
+import { readBatesMode, writeBatesMode } from './utils/batesMode';
+import { pdfFilesFromZipBytes } from './utils/testPackClient';
+import { PREPARED_BATCH_ZIP_NAME } from './config/limitsFacts';
 import { getPresetRuleDefaults } from './config/presets';
 import { PRO_PRICE_LABEL } from './utils/payment';
 import { RENAME_WORKFLOW_STEPS, getRenameWorkflowIndex } from './utils/workflowProgress';
@@ -95,6 +101,9 @@ export default function App() {
   const [useYearAsNumber, setUseYearAsNumber] = useState(false);
   const [shortenDesc, setShortenDesc] = useState(false);
   const [maxDescLength, setMaxDescLength] = useState(48);
+  const [batesMode, setBatesMode] = useState(() => readBatesMode());
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [showLimits, setShowLimits] = useState(() => window.location.hash === '#limits');
 
   // Ingested Items State
   const [items, setItems] = useState([]);
@@ -128,6 +137,24 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(null);
 
   const isDirectoryApiSupported = 'showDirectoryPicker' in window;
+
+  useEffect(() => {
+    const syncLimits = () => setShowLimits(window.location.hash === '#limits');
+    window.addEventListener('hashchange', syncLimits);
+    window.addEventListener('popstate', syncLimits);
+    return () => {
+      window.removeEventListener('hashchange', syncLimits);
+      window.removeEventListener('popstate', syncLimits);
+    };
+  }, []);
+
+  const closeLimits = () => {
+    if (window.location.hash === '#limits') {
+      const next = `${window.location.pathname}${window.location.search}`;
+      window.history.pushState(null, '', next);
+    }
+    setShowLimits(false);
+  };
 
   // Clear Stripe status params after the initial route has been derived.
   useEffect(() => {
@@ -247,28 +274,46 @@ export default function App() {
       useYearAsNumber,
       shortenDesc,
       maxDescLength,
+      batesMode,
       ...overrides
     };
 
     const sorted = sortItems(itemsList, rules.sortMode);
 
     const updated = sorted.map((item, idx) => {
-      const year = item.year || extractYear(item.description) || extractYear(item.originalName);
-      let currentNumber;
-      if (rules.useYearAsNumber && year) {
-        currentNumber = String(year);
-      } else if (item.isNumberManuallyEdited) {
-        currentNumber = item.number;
-      } else {
-        currentNumber = String(rules.startNumber + idx);
-      }
+      const sourceDescription = item.sourceDescription ?? item.description ?? '';
+      const year = resolveIngestYear({
+        bates: item.bates,
+        sourceDescription,
+        description: item.description,
+        userEditedDescription: item.userEditedDescription,
+        existingYear: item.year,
+        originalName: item.originalName,
+      });
+      const identity = resolveExhibitIdentity({
+        bates: item.bates || null,
+        sourceDescription,
+        description: item.description,
+        number: item.number,
+        isNumberManuallyEdited: item.isNumberManuallyEdited,
+        userEditedNumber: item.userEditedNumber,
+        userEditedDescription: item.userEditedDescription,
+        sequenceOverride: item.sequenceOverride,
+        year,
+        index: idx,
+        prefix: rules.prefix,
+        startNumber: rules.startNumber,
+        useYearAsNumber: rules.useYearAsNumber,
+        batesMode: rules.batesMode,
+      });
 
       const proposed = generateProposedFilename({
-        prefix: rules.prefix,
-        number: currentNumber,
-        description: item.description,
+        prefix: identity.prefix,
+        number: identity.number,
+        description: identity.prose,
+        descriptionLead: identity.descriptionLead,
         year: year || null,
-        docId: item.docId || item.number || currentNumber,
+        docId: item.docId || identity.number,
         author: item.author || '',
         title: item.title || '',
         preset: rules.preset,
@@ -282,13 +327,15 @@ export default function App() {
       return {
         ...item,
         year: year || null,
-        number: currentNumber,
-        isNumberManuallyEdited: (rules.useYearAsNumber && year)
-          ? true
-          : item.isNumberManuallyEdited,
+        number: identity.number,
+        description: identity.description,
+        sourceDescription,
+        isNumberManuallyEdited: item.bates
+          ? Boolean(item.isNumberManuallyEdited)
+          : ((rules.useYearAsNumber && year) ? true : item.isNumberManuallyEdited),
         proposedName: proposed,
         preset: rules.preset,
-        prefix: rules.prefix
+        prefix: identity.prefix
       };
     });
 
@@ -297,23 +344,35 @@ export default function App() {
 
   const buildIngestedItem = (name, file = null, handle = null, rulesOverride = {}) => {
     const parsed = parseFilename(name);
-    const year = parsed.year || extractYear(parsed.description) || extractYear(name);
     const useYear = rulesOverride.useYearAsNumber ?? useYearAsNumber;
     const shouldClean = rulesOverride.cleanDesc ?? cleanDesc;
-    const number = resolveExhibitNumber({
-      parsedNumber: parsed.number,
-      year,
-      useYearAsNumber: useYear,
-    });
+    const sourceDescription = shouldClean
+      ? cleanDescription(parsed.description)
+      : (parsed.description || '');
+    const year = parsed.bates
+      ? (extractYear(sourceDescription) || null)
+      : (parsed.year || extractYear(parsed.description) || extractYear(name));
+    const number = parsed.bates
+      ? ''
+      : resolveExhibitNumber({
+        parsedNumber: parsed.number,
+        year,
+        useYearAsNumber: useYear,
+      });
     return {
       originalName: name,
       year: year || null,
       number,
-      docId: parsed.docId || parsed.number || '',
+      docId: parsed.bates ? '' : (parsed.docId || parsed.number || ''),
       author: parsed.author || '',
       title: parsed.title || '',
-      description: shouldClean ? cleanDescription(parsed.description) : parsed.description,
-      isNumberManuallyEdited: Boolean(number),
+      sourceDescription,
+      description: sourceDescription,
+      bates: parsed.bates || null,
+      isNumberManuallyEdited: parsed.bates ? false : Boolean(number),
+      userEditedNumber: false,
+      userEditedDescription: false,
+      sequenceOverride: false,
       file,
       handle,
     };
@@ -321,6 +380,20 @@ export default function App() {
 
   const handleRuleChange = (ruleName, value) => {
     if (isPreviewFreezed) return;
+
+    if (ruleName === 'batesMode') {
+      const saved = writeBatesMode(value);
+      setBatesMode(saved);
+      setItems((prevItems) => (
+        prevItems.length > 0
+          ? updateProposedNames(
+            prevItems.map((item) => ({ ...item, sequenceOverride: false })),
+            { batesMode: saved },
+          )
+          : prevItems
+      ));
+      return;
+    }
 
     const setters = {
       preset: setPreset,
@@ -373,27 +446,37 @@ export default function App() {
     ));
   };
 
-  // Load sample data exhibits for interactive demo workflow
-  const handleLoadSampleData = () => {
-    if (isPreviewFreezed) return;
-    setDirectoryHandle(null);
-    setDirectoryName("Mock Legal Exhibits Dataset");
-
-    const sampleFiles = [
-      { name: "PX-1 - Contract.pdf" },
-      { name: "DX_2_Invoice.pdf" },
-      { name: "DEP Jones Exhibit 3.pdf" },
-      { name: "DOD - 12 - 2012 - Smith - Report.pdf" },
-      { name: "04 - Jones Photo.pdf" },
-      { name: "Unstructured Document.pdf" },
-      { name: "Jones 2015 Expert Report.pdf" },
-      { name: "2019 - Board Minutes.pdf" },
-      { name: "Smith 2021 Settlement Agreement Long Title.pdf" },
-    ];
-
-    const parsedSamples = sampleFiles.map(file => buildIngestedItem(file.name));
-    setItems(updateProposedNames(parsedSamples));
-    showNotification("📊 Mock exhibit dataset loaded. Test presets and sequences above.", "success");
+  // Load the generated Starter pack as real PDF File objects (preview and ZIP).
+  const handleLoadSampleData = async () => {
+    if (isPreviewFreezed || sampleLoading) return;
+    setSampleLoading(true);
+    try {
+      const response = await fetch('/test-packs/starter.zip');
+      if (!response.ok) {
+        throw new Error('Starter test pack is not available. Restart the dev server or run npm run test-packs.');
+      }
+      const files = await pdfFilesFromZipBytes(await response.arrayBuffer());
+      if (files.length === 0) {
+        throw new Error('Starter test pack did not contain any PDFs.');
+      }
+      if (!isWithinFreeFileLimit(files.length, entitlement)) {
+        showNotification(
+          `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
+          "danger"
+        );
+        setIsPricingOpen(true);
+        return;
+      }
+      setDirectoryHandle(null);
+      setDirectoryName("Starter test pack");
+      const parsedSamples = files.map((file) => buildIngestedItem(file.name, file, null));
+      setItems(updateProposedNames(parsedSamples));
+      showNotification(`Loaded ${files.length} sample PDFs from the Starter test pack.`, "success");
+    } catch (err) {
+      showNotification(err.message || "Could not load the Starter test pack.", "danger");
+    } finally {
+      setSampleLoading(false);
+    }
   };
 
   // Handle native folder picking
@@ -465,12 +548,15 @@ export default function App() {
       updated[index] = {
         ...updated[index],
         number: value,
-        isNumberManuallyEdited: true
+        isNumberManuallyEdited: true,
+        userEditedNumber: true,
+        sequenceOverride: false,
       };
     } else if (key === 'description') {
       updated[index] = {
         ...updated[index],
-        description: value
+        description: value,
+        userEditedDescription: true,
       };
     }
 
@@ -482,7 +568,8 @@ export default function App() {
     if (isPreviewFreezed) return;
     const updated = items.map(item => ({
       ...item,
-      description: formatCase(item.description, style)
+      sourceDescription: formatCase(item.sourceDescription ?? item.description, style),
+      description: item.userEditedDescription ? formatCase(item.description, style) : item.description,
     }));
     setItems(updateProposedNames(updated));
     showNotification(`✨ Converted all descriptions to ${style} case.`, "success");
@@ -492,7 +579,8 @@ export default function App() {
     if (isPreviewFreezed) return;
     const updated = items.map(item => ({
       ...item,
-      description: cleanDescription(item.description)
+      sourceDescription: cleanDescription(item.sourceDescription ?? item.description),
+      description: item.userEditedDescription ? cleanDescription(item.description) : item.description,
     }));
     setItems(updateProposedNames(updated));
     showNotification("✨ Standardized and cleaned all exhibit descriptions.", "success");
@@ -502,7 +590,9 @@ export default function App() {
     if (isPreviewFreezed) return;
     const updated = items.map(item => ({
       ...item,
-      isNumberManuallyEdited: false
+      isNumberManuallyEdited: false,
+      userEditedNumber: false,
+      sequenceOverride: true,
     }));
     setItems(updateProposedNames(updated));
     showNotification("✨ Auto-sequenced all exhibits starting from " + startNumber + ".", "success");
@@ -580,7 +670,7 @@ export default function App() {
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `exhibit_batch_prepared.zip`;
+        a.download = PREPARED_BATCH_ZIP_NAME;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -834,6 +924,10 @@ export default function App() {
     showNotification('Message exhibit workspace ready. Evidence stays on this device.', 'info');
   };
 
+  if (showLimits) {
+    return <LimitsGuide onBack={closeLimits} />;
+  }
+
   // Layout Renderings
   const founderAdmin = (
     <Suspense fallback={null}>
@@ -1050,6 +1144,10 @@ export default function App() {
         onShowNotification={showNotification}
         className={isMobileSidebarOpen ? 'mobile-open' : ''}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        batesMode={batesMode}
+        setBatesMode={(value) => handleRuleChange('batesMode', value)}
+        showBatesSetting={items.some((item) => item.bates)}
+        batesSettingDisabled={isPreviewFreezed}
       />
 
       {isMobileSidebarOpen && (
@@ -1179,6 +1277,7 @@ export default function App() {
               >
                 Feedback
               </button>
+              <a className="top-bar-link" href="#limits">Limits & sizes</a>
             </nav>
 
             <button
@@ -1248,6 +1347,16 @@ export default function App() {
                     >
                       Feedback
                     </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMobileNavOpen(false);
+                        window.location.hash = 'limits';
+                      }}
+                    >
+                      Limits & sizes
+                    </button>
                   </div>
                 </>
               )}
@@ -1284,19 +1393,20 @@ export default function App() {
                   </span>
                 )}
                 <button 
-                  onClick={handleLoadSampleData} 
+                  onClick={handleLoadSampleData}
+                  disabled={sampleLoading}
                   style={{ 
                     background: 'transparent',
                     border: 'none',
                     color: 'var(--color-accent)', 
                     fontSize: '13px',
                     fontWeight: '500',
-                    cursor: 'pointer',
+                    cursor: sampleLoading ? 'wait' : 'pointer',
                     textDecoration: 'underline',
                     padding: '4px 8px'
                   }}
                 >
-                  Load Sample Exhibits
+                  {sampleLoading ? 'Loading sample exhibits…' : 'Load Sample Exhibits'}
                 </button>
               </div>
             </div>
@@ -1309,6 +1419,9 @@ export default function App() {
                 onBulkClean={handleBulkClean}
                 onAutoSequence={handleAutoSequence}
                 onResolveConflicts={handleResolveConflicts}
+                batesMode={batesMode}
+                onBatesModeChange={(value) => handleRuleChange('batesMode', value)}
+                batesSettingDisabled={isPreviewFreezed}
               />
               
               <ActionPanel 

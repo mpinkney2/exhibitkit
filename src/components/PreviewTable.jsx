@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Table } from 'lucide-react';
+import BatesModeControl from './BatesModeControl';
 
 const COLUMN_STORAGE_KEY = 'exhibitkit_preview_column_widths_v1';
 
@@ -38,7 +39,10 @@ export default function PreviewTable({
   onBulkCaseChange,
   onBulkClean,
   onAutoSequence,
-  onResolveConflicts
+  onResolveConflicts,
+  batesMode = 'sequential',
+  onBatesModeChange,
+  batesSettingDisabled = false,
 }) {
   const [columns, setColumns] = useState(buildInitialColumns);
   const dragRef = useRef(null);
@@ -194,7 +198,15 @@ export default function PreviewTable({
           <span>Interactive Renaming Preview Grid</span>
         </div>
 
-        <div className="table-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="table-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {items.some((item) => item.bates) && onBatesModeChange && (
+            <BatesModeControl
+              mode={batesMode}
+              onChange={onBatesModeChange}
+              disabled={batesSettingDisabled}
+              name="bates-mode-review"
+            />
+          )}
           <button
             type="button"
             onClick={resetColumnWidths}
@@ -345,6 +357,7 @@ export default function PreviewTable({
                 <td>{getStatusBadge(item.status, item.message)}</td>
                 <td>
                   <div className="original-filename-cell" title={item.originalName}>
+                    {item.bates ? <span className="badge-bates">Bates</span> : null}
                     {item.originalName}
                   </div>
                 </td>

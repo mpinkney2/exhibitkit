@@ -8,7 +8,28 @@ import { resolvePresetEngine } from '../config/presets.js';
 /** Calendar years commonly found in exhibit titles (1900–2099). */
 export const YEAR_PATTERN = /\b((?:19|20)\d{2})\b/;
 
-const EXHIBIT_PREFIXES = 'PX|DX|EX|PLTF|DEFT|DEF|DEP|GFX|EXB|DOD|DOC|EXHIBIT';
+export const EXHIBIT_PREFIX_LIST = Object.freeze([
+  'PX', 'DX', 'EX', 'PLTF', 'DEFT', 'DEF', 'DEP', 'GFX', 'EXB', 'DOD', 'DOC', 'EXHIBIT',
+]);
+
+const EXHIBIT_PREFIXES = EXHIBIT_PREFIX_LIST.join('|');
+
+/**
+ * Sequential keeps the preset exhibit ID (PX-1, PX-2, …) and leaves the Bates
+ * control number in the description. Using the Bates number as the exhibit ID
+ * replaces that prefix and number, which OnCue, TrialDirector, and Patent DOD
+ * templates are built around, so it stays opt-in.
+ */
+export const BATES_MODE_SEQUENTIAL = 'sequential';
+export const BATES_MODE_AS_EXHIBIT_ID = 'as-exhibit-id';
+export const DEFAULT_BATES_MODE = BATES_MODE_SEQUENTIAL;
+
+const KNOWN_EXHIBIT_PREFIXES = new Set(EXHIBIT_PREFIX_LIST);
+
+const WORDY_EXHIBIT_PATTERN = new RegExp(
+  `^(${EXHIBIT_PREFIXES})\\s+(.+?)\\s+Exhibit\\s+(\\d+[A-Z]?)(?:\\s*[-_–—]+\\s*(.+))?$`,
+  'i',
+);
 
 /**
  * Structured DOD / patent document pattern (run before generic exhibit prefix matching).
@@ -28,6 +49,27 @@ export function extractYear(text) {
   if (!text) return null;
   const match = String(text).match(YEAR_PATTERN);
   return match ? match[1] : null;
+}
+
+/**
+ * Year used for sorting and year-as-ID.
+ * Bates control numbers stay out of this, including names like ACME-2019.pdf.
+ * A description the user typed is read before the original filename.
+ * @param {object} input
+ * @returns {string|null}
+ */
+export function resolveIngestYear({
+  bates = null,
+  sourceDescription = '',
+  description = '',
+  userEditedDescription = false,
+  existingYear = null,
+  originalName = '',
+} = {}) {
+  const text = userEditedDescription ? description : sourceDescription;
+  const fromText = extractYear(text);
+  if (bates) return fromText || null;
+  return fromText || existingYear || extractYear(originalName) || null;
 }
 
 /**
@@ -52,6 +94,133 @@ function withStructuredFields({
     docId: resolvedDocId,
     author,
     title,
+  };
+}
+
+export function batesLabel(bates) {
+  if (!bates?.prefix || !bates?.start) return '';
+  const start = `${bates.prefix}${bates.start}`;
+  if (!bates.end) return start;
+  return `${start}-${bates.prefix}${bates.end}`;
+}
+
+function isCalendarYear(digits) {
+  return /^(?:19|20)\d{2}$/.test(digits);
+}
+
+/**
+ * Bates-style stem: 2–12 letters, optional "-" / "_" / space, then 4–10 digits,
+ * an optional same-prefix range, and an optional trailing description.
+ * Returns null for known exhibit prefixes and for a spaced 4-digit calendar year.
+ * @param {string} base filename without extension
+ * @returns {object|null}
+ */
+export function matchBatesFilename(base) {
+  const head = /^([A-Za-z]{2,12})([-_ ]?)(\d{4,10})([\s\S]*)$/.exec(String(base || ''));
+  if (!head) return null;
+
+  const rawPrefix = head[1];
+  const separator = head[2];
+  const start = head[3];
+  let rest = head[4] || '';
+  const prefix = rawPrefix.toUpperCase();
+
+  if (KNOWN_EXHIBIT_PREFIXES.has(prefix)) return null;
+  if (separator === ' ' && isCalendarYear(start)) return null;
+
+  let end = null;
+  const range = /^\s*-\s*([A-Za-z]{2,12})([-_ ]?)(\d{4,10})([\s\S]*)$/.exec(rest);
+  if (range && range[1].toUpperCase() === prefix && range[2] === separator) {
+    end = range[3];
+    rest = range[4] || '';
+  }
+
+  let description = '';
+  if (rest.length > 0) {
+    const described = /^(?:\s*[-_–—]+\s*|\s+)(.+)$/.exec(rest);
+    if (!described || !described[1].trim()) return null;
+    description = described[1].trim();
+  }
+
+  const bates = { prefix, separator, start, end };
+  return { ...bates, label: batesLabel(bates), description };
+}
+
+/**
+ * Stable label for which naming rule recognized a parsed filename.
+ * @param {object} parsed
+ * @returns {string}
+ */
+export function filenamePatternKind(parsed) {
+  if (parsed?.bates?.end) return 'bates-range';
+  if (parsed?.bates) return 'bates';
+  if (parsed?.exhibitStyle === 'wordy') return 'wordy';
+  if (parsed?.prefix && parsed?.author && parsed?.title) return 'dod';
+  if (parsed?.author && parsed?.year && !parsed?.prefix) return 'author-year';
+  if (!parsed?.prefix && !parsed?.number && parsed?.year) return 'leading-year';
+  if (!parsed?.prefix && parsed?.number) return 'leading-number';
+  if (parsed?.prefix && parsed?.number) return 'prefix';
+  return 'unstructured';
+}
+
+/**
+ * Choose the exhibit prefix, number, and description for one ingested file.
+ * Manual number and description edits win over both Bates modes.
+ * @param {object} input
+ */
+export function resolveExhibitIdentity({
+  bates = null,
+  sourceDescription = '',
+  description = '',
+  number = '',
+  isNumberManuallyEdited = false,
+  userEditedNumber = false,
+  userEditedDescription = false,
+  sequenceOverride = false,
+  year = null,
+  index = 0,
+  prefix = 'PX',
+  startNumber = 1,
+  useYearAsNumber = false,
+  batesMode = DEFAULT_BATES_MODE,
+} = {}) {
+  const sequentialNumber = String(Number(startNumber) + Number(index));
+  const yearReplacesNumber = Boolean(useYearAsNumber && year) && !userEditedNumber;
+  const modeUsesBatesId = Boolean(bates)
+    && batesMode === BATES_MODE_AS_EXHIBIT_ID
+    && !sequenceOverride;
+
+  let resolvedPrefix = prefix;
+  let resolvedNumber;
+  if (userEditedNumber) {
+    resolvedNumber = number;
+  } else if (yearReplacesNumber) {
+    resolvedNumber = String(year);
+  } else if (sequenceOverride) {
+    resolvedNumber = sequentialNumber;
+  } else if (modeUsesBatesId) {
+    resolvedPrefix = '';
+    resolvedNumber = batesLabel(bates);
+  } else if (isNumberManuallyEdited && !bates) {
+    resolvedNumber = number;
+  } else {
+    resolvedNumber = sequentialNumber;
+  }
+
+  const prose = userEditedDescription ? description : sourceDescription;
+  const descriptionLead = !userEditedDescription && bates && (!modeUsesBatesId || yearReplacesNumber)
+    ? batesLabel(bates)
+    : '';
+  const displayDescription = userEditedDescription
+    ? description
+    : [descriptionLead, prose].filter(Boolean).join(' ');
+
+  return {
+    prefix: resolvedPrefix,
+    number: resolvedNumber,
+    description: displayDescription,
+    descriptionLead: userEditedDescription ? '' : descriptionLead,
+    prose: userEditedDescription ? description : prose,
   };
 }
 
@@ -130,7 +299,8 @@ export function parseFilename(filename) {
     });
   }
 
-  // 5. Author + year + title fallback from original Patent Preppers scripts
+  // 5. Author + year + title fallback from original Patent Preppers scripts.
+  // Runs before Bates detection so "Smith 2012 Memo" is not a Bates number.
   const fallbackPattern = /^([A-Za-z]+)[\s_,-]+(19\d{2}|20\d{2})[\s_.-]+(.+)$/;
   match = base.match(fallbackPattern);
   if (match) {
@@ -147,7 +317,45 @@ export function parseFilename(filename) {
     });
   }
 
-  // 6. Default fallback: treat the entire filename as description
+  // 6. Prefix + words + "Exhibit" + number (e.g. "DEP Jones Exhibit 3")
+  match = base.match(WORDY_EXHIBIT_PATTERN);
+  if (match) {
+    const description = cleanDescription([match[2], match[4]].filter(Boolean).join(' '));
+    return {
+      ...withStructuredFields({
+        prefix: match[1].toUpperCase(),
+        number: match[3],
+        description,
+        year: extractYear(description),
+      }),
+      exhibitStyle: 'wordy',
+    };
+  }
+
+  // 7. Bates-style control numbers (SMITH000123, ACME-000456, ACME000123-ACME000140).
+  // Known exhibit prefixes are already consumed above, and this step refuses to
+  // claim PX / DX / DOD names or a spaced calendar year.
+  const bates = matchBatesFilename(base);
+  if (bates) {
+    const description = cleanDescription(bates.description);
+    return {
+      ...withStructuredFields({
+        prefix: '',
+        number: '',
+        description,
+        year: extractYear(description),
+      }),
+      bates: {
+        prefix: bates.prefix,
+        separator: bates.separator,
+        start: bates.start,
+        end: bates.end,
+        label: bates.label,
+      },
+    };
+  }
+
+  // 8. Default fallback: treat the entire filename as description
   const description = cleanDescription(base);
   return withStructuredFields({
     prefix: '',
@@ -309,23 +517,32 @@ export function generateProposedFilename({
   customTemplate = '{Prefix}{Number} - {Description}',
   shortenDesc = false,
   maxDescLength = 48,
+  descriptionLead = '',
 }) {
   const cleanPrefix = prefix.trim();
+  const lead = String(descriptionLead || '').trim();
   let formattedDesc = formatCase(cleanDescription(description), caseStyle);
   if (shortenDesc) {
     formattedDesc = shortenDescription(formattedDesc, maxDescLength);
   }
-  const formattedNum = padNumber(number, padLength);
-  const resolvedDocId = padNumber(docId || number, padLength);
-  const formattedAuthor = formatCase(cleanDescription(author), caseStyle);
   let formattedTitle = title
     ? formatCase(cleanDescription(title), caseStyle)
     : formattedDesc;
   if (shortenDesc && formattedTitle) {
     formattedTitle = shortenDescription(formattedTitle, maxDescLength);
   }
+  if (lead) {
+    formattedDesc = [lead, formattedDesc].filter(Boolean).join(' ');
+    formattedTitle = title
+      ? [lead, formattedTitle].filter(Boolean).join(' ')
+      : formattedDesc;
+  }
+  const formattedNum = padNumber(number, padLength);
+  const resolvedDocId = padNumber(docId || number, padLength);
+  const formattedAuthor = formatCase(cleanDescription(author), caseStyle);
   const yearToken = year ? String(year) : 'n.d.';
   const engine = resolvePresetEngine(preset);
+  const batesLabelAsId = !cleanPrefix && /^[A-Z]{2,12}\d{4,10}(?:-[A-Z]{2,12}\d{4,10})?$/.test(formattedNum);
 
   if (engine === 'oncue') {
     const id = `${cleanPrefix}${formattedNum}`.trim();
@@ -354,6 +571,13 @@ export function generateProposedFilename({
   }
 
   if (preset === 'patent-dod') {
+    if (batesLabelAsId) {
+      const titlePart = formattedTitle || formattedDesc || 'Document';
+      if (formattedAuthor) {
+        return `${formattedNum} - ${yearToken} - ${formattedAuthor} - ${titlePart}.pdf`;
+      }
+      return `${formattedNum} - ${yearToken} - ${titlePart}.pdf`;
+    }
     const prefixPart = cleanPrefix || 'DOC';
     const docPart = resolvedDocId || formattedNum || '0';
     const titlePart = formattedTitle || formattedDesc || 'Document';

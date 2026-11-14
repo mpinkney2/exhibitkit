@@ -230,7 +230,7 @@ export default function LegalModals({ activeModal, onClose }) {
                   <div>
                     <h5 style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>Ingest Target Exhibits</h5>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: 0 }}>
-                      Click <strong>Select Local Folder</strong> to pull in exhibits in-place. If using Demo mode, click <strong>Load Sample Exhibits</strong> to work with fake, safe files.
+                      Click <strong>Select Local Folder</strong> to pull in exhibits in-place. Click <strong>Load Sample Exhibits</strong> to work with the fictional Starter PDFs, or download a test pack from the same screen.
                     </p>
                   </div>
                 </div>

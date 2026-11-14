@@ -1,15 +1,24 @@
 import { expect, test } from 'vitest';
 import {
+  BATES_MODE_AS_EXHIBIT_ID,
+  BATES_MODE_SEQUENTIAL,
+  DEFAULT_BATES_MODE,
   applyTemplateTokens,
+  batesLabel,
   extractYear,
+  filenamePatternKind,
   generateProposedFilename,
+  matchBatesFilename,
   parseFilename,
   resolveDuplicates,
+  resolveExhibitIdentity,
   resolveExhibitNumber,
+  resolveIngestYear,
   shortenDescription,
   sortItems,
   validateProposedNames,
 } from '../src/utils/renamer.js';
+import { FILENAME_PATTERN_GUIDE } from '../src/config/limitsFacts.js';
 
 test('parseFilename recognizes common exhibit conventions', () => {
   expect(parseFilename('PX-1 - Contract.pdf')).toEqual({
@@ -184,6 +193,185 @@ test('validateProposedNames blocks duplicate and occupied target names', () => {
   ]);
   expect(occupied[0].status).toBe('warning');
   expect(occupied[0].message).toMatch(/already used/i);
+});
+
+test('parseFilename keeps existing patterns ahead of Bates-style names', () => {
+  expect(parseFilename('PX-1 - Contract.pdf')).toMatchObject({ prefix: 'PX', number: '1' });
+  expect(parseFilename('PX-1 - Contract.pdf').bates).toBeUndefined();
+  expect(parseFilename('DX_2_Invoice.pdf')).toMatchObject({ prefix: 'DX', number: '2' });
+  expect(parseFilename('PX-0001.pdf').bates).toBeUndefined();
+  expect(parseFilename('PX000123.pdf')).toMatchObject({ prefix: 'PX', number: '000123' });
+  expect(parseFilename('DX_0002.pdf')).toMatchObject({ prefix: 'DX', number: '0002' });
+  expect(filenamePatternKind(parseFilename('DOD - 12 - 2012 - Smith - Report.pdf'))).toBe('dod');
+  expect(filenamePatternKind(parseFilename('Jones 2015 Expert Report.pdf'))).toBe('author-year');
+  expect(filenamePatternKind(parseFilename('2019 - Board Minutes.pdf'))).toBe('leading-year');
+  expect(matchBatesFilename('2019 - Board Minutes')).toBeNull();
+  expect(matchBatesFilename('Smith 2012 Memo')).toBeNull();
+  expect(matchBatesFilename('PX-0001')).toBeNull();
+});
+
+test('parseFilename reads prefix words Exhibit number', () => {
+  expect(parseFilename('DEP Jones Exhibit 3.pdf')).toMatchObject({
+    prefix: 'DEP',
+    number: '3',
+    description: 'Jones',
+    exhibitStyle: 'wordy',
+  });
+  expect(filenamePatternKind(parseFilename('DEP Jones Exhibit 3 - Transcript.pdf'))).toBe('wordy');
+  expect(parseFilename('DEP Jones Exhibit 3 - Transcript.pdf').description).toBe('Jones Transcript');
+});
+
+test('parseFilename detects Bates-style names, ranges, and separators', () => {
+  expect(parseFilename('SMITH000123.pdf').bates).toMatchObject({
+    prefix: 'SMITH',
+    separator: '',
+    start: '000123',
+    end: null,
+    label: 'SMITH000123',
+  });
+  expect(parseFilename('ACME-000456.pdf').bates).toMatchObject({
+    prefix: 'ACME',
+    separator: '-',
+    start: '000456',
+    end: null,
+  });
+  expect(parseFilename('ACME_000789 - Supply Agreement.pdf').bates).toMatchObject({
+    prefix: 'ACME',
+    separator: '_',
+    start: '000789',
+  });
+  expect(parseFilename('ACME_000789 - Supply Agreement.pdf').description).toBe('Supply Agreement');
+  expect(parseFilename('ACME 001234 Deposition Excerpt.pdf').bates).toMatchObject({
+    prefix: 'ACME',
+    separator: ' ',
+    start: '001234',
+  });
+  expect(parseFilename('ACME000123-ACME000140.pdf').bates).toMatchObject({
+    prefix: 'ACME',
+    start: '000123',
+    end: '000140',
+    label: 'ACME000123-ACME000140',
+  });
+  expect(filenamePatternKind(parseFilename('ACME000123-ACME000140.pdf'))).toBe('bates-range');
+  expect(parseFilename('ACME-000123-ACME-000140.pdf').bates.label).toBe('ACME000123-ACME000140');
+  expect(batesLabel(parseFilename('WIDGET0001001-WIDGET0001018.pdf').bates)).toBe('WIDGET0001001-WIDGET0001018');
+});
+
+test('filename guide examples match the parser', () => {
+  for (const pattern of FILENAME_PATTERN_GUIDE) {
+    for (const example of pattern.examples) {
+      expect(filenamePatternKind(parseFilename(example)), example).toBe(pattern.id);
+    }
+  }
+});
+
+test('Bates mode defaults to sequential and manual edits win', () => {
+  expect(DEFAULT_BATES_MODE).toBe(BATES_MODE_SEQUENTIAL);
+  const bates = parseFilename('ACME-000456.pdf').bates;
+
+  const sequential = resolveExhibitIdentity({
+    bates,
+    sourceDescription: '',
+    index: 0,
+    prefix: 'PX',
+    startNumber: 1,
+    batesMode: BATES_MODE_SEQUENTIAL,
+  });
+  expect(sequential.number).toBe('1');
+  expect(sequential.descriptionLead).toBe('ACME000456');
+  expect(generateProposedFilename({
+    prefix: sequential.prefix,
+    number: sequential.number,
+    description: sequential.prose,
+    descriptionLead: sequential.descriptionLead,
+    preset: 'oncue',
+    padLength: 3,
+    caseStyle: 'title',
+  })).toBe('PX001 ACME000456.pdf');
+
+  const asId = resolveExhibitIdentity({
+    bates,
+    sourceDescription: 'Supply Agreement',
+    prefix: 'PX',
+    batesMode: BATES_MODE_AS_EXHIBIT_ID,
+  });
+  expect(asId.prefix).toBe('');
+  expect(asId.number).toBe('ACME000456');
+  expect(asId.descriptionLead).toBe('');
+  expect(asId.description).toBe('Supply Agreement');
+
+  const manual = resolveExhibitIdentity({
+    bates,
+    sourceDescription: 'Supply Agreement',
+    description: 'Kept by hand',
+    number: '99',
+    userEditedNumber: true,
+    userEditedDescription: true,
+    batesMode: BATES_MODE_AS_EXHIBIT_ID,
+  });
+  expect(manual.number).toBe('99');
+  expect(manual.description).toBe('Kept by hand');
+  expect(manual.descriptionLead).toBe('');
+
+  const ranged = resolveExhibitIdentity({
+    bates: parseFilename('ACME000123-ACME000140.pdf').bates,
+    sourceDescription: '',
+    batesMode: BATES_MODE_AS_EXHIBIT_ID,
+  });
+  expect(generateProposedFilename({
+    prefix: ranged.prefix,
+    number: ranged.number,
+    description: ranged.prose,
+    preset: 'trialdirector',
+    padLength: 3,
+  })).toBe('ACME000123-ACME000140.pdf');
+  expect(generateProposedFilename({
+    prefix: '',
+    number: 'ACME000123',
+    description: 'Notes',
+    preset: 'patent-dod',
+  })).toBe('ACME000123 - n.d. - Notes.pdf');
+});
+
+test('resolveIngestYear keeps Bates control numbers out of the year field', () => {
+  expect(resolveIngestYear({
+    bates: { prefix: 'ACME', start: '2019' },
+    sourceDescription: '',
+    originalName: 'ACME-2019.pdf',
+    existingYear: null,
+  })).toBe(null);
+  expect(resolveIngestYear({
+    bates: { prefix: 'ACME', start: '2019' },
+    sourceDescription: 'Hearing 2018',
+    originalName: 'ACME-2019.pdf',
+  })).toBe('2018');
+});
+
+test('resolveIngestYear reads a year typed into the description', () => {
+  expect(resolveIngestYear({
+    sourceDescription: 'Meeting Notes',
+    description: 'Board Minutes 2020',
+    userEditedDescription: true,
+    originalName: 'Meeting Notes.pdf',
+    existingYear: null,
+  })).toBe('2020');
+  expect(resolveIngestYear({
+    sourceDescription: 'Smith 2012 Memo',
+    originalName: 'Smith 2012 Memo.pdf',
+    existingYear: '2012',
+  })).toBe('2012');
+});
+
+test('descriptionLead keeps a Bates range hyphen', () => {
+  expect(generateProposedFilename({
+    prefix: 'PX',
+    number: '2',
+    description: 'Supply Agreement',
+    descriptionLead: 'ACME000123-ACME000140',
+    preset: 'oncue',
+    padLength: 3,
+    caseStyle: 'title',
+  })).toBe('PX002 ACME000123-ACME000140 Supply Agreement.pdf');
 });
 
 test('resolveDuplicates produces unique valid output names', () => {
