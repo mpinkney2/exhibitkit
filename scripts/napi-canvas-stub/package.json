@@ -1,7 +1,0 @@
-{
-  "name": "@napi-rs/canvas",
-  "version": "1.1.1",
-  "private": true,
-  "description": "Empty stand-in. ExhibitKit reads PDF text and does not render pages, so the native Skia build is not installed.",
-  "main": "index.js"
-}
