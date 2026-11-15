@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import './OutlineImport.css';
 
 const STATUS_LABEL = {
@@ -21,10 +22,21 @@ export default function OutlineImport({
   onClear,
   onUseStagingNames,
   onChoose,
+  onOutlineFile = () => {},
+  drafts = null,
+  onDraftEdit = () => {},
+  onDraftRemove = () => {},
+  onConfirmDrafts = () => {},
+  fileMessage = '',
+  fileTone = 'info',
+  fileBusy = false,
   disabled = false,
   isPro = false,
   excluded = [],
 }) {
+  const fileInputRef = useRef(null);
+  const reviewRows = Array.isArray(drafts) ? drafts : [];
+  const canConfirm = reviewRows.some((row) => String(row.cite || '').trim());
   const counts = match?.counts;
   const references = match?.references || [];
 
@@ -34,20 +46,40 @@ export default function OutlineImport({
         <div>
           <h2>Outline order</h2>
           <p>
-            Paste the exhibits in the order the outline cites them, one per line or separated by commas.
-            Matching stays in this browser. A repeated exhibit stays one file and keeps every citation.
+            Paste citations, or upload the attorney&apos;s outline as a Word .docx or a text-based PDF.
+            The file is read in this browser and is not uploaded. A repeated exhibit stays one file and keeps every citation.
           </p>
         </div>
         <div className="outline-actions">
           <button type="button" onClick={onUseStagingNames} disabled={disabled}>
             Use staging names
           </button>
-          <button type="button" onClick={onClear} disabled={disabled || (!text && !match)}>
+          <button type="button" onClick={onClear} disabled={disabled || (!text && !match && !drafts && !fileMessage)}>
             Clear outline
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || fileBusy}
+          >
+            {fileBusy ? 'Reading outline…' : 'Upload outline'}
           </button>
           <button type="button" className="outline-primary" onClick={onMatch} disabled={disabled || !text.trim()}>
             Match outline
           </button>
+          <input
+            ref={fileInputRef}
+            className="outline-file-input"
+            type="file"
+            accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            aria-label="Upload a Word or PDF outline"
+            disabled={disabled || fileBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) onOutlineFile(file);
+            }}
+          />
         </div>
       </div>
 
@@ -65,6 +97,92 @@ export default function OutlineImport({
           }
         }}
       />
+
+      {fileMessage ? (
+        <p className={fileTone === 'error' ? 'outline-file-message' : 'outline-note'} role={fileTone === 'error' ? 'alert' : 'status'}>
+          {fileMessage}
+        </p>
+      ) : null}
+
+      {Array.isArray(drafts) ? (
+        <div className="outline-review" aria-label="Review extracted citations">
+          <div className="outline-review-head">
+            <h3>Review extracted citations</h3>
+            <p className="outline-note">
+              These cites were read from the outline in order. Edit or remove a row, then match.
+              Nothing is renamed until you confirm the rename.
+            </p>
+          </div>
+          {reviewRows.length === 0 ? (
+            <p className="outline-note">No citations left in this review.</p>
+          ) : (
+            <div className="outline-review-scroll">
+              <table className="outline-review-table">
+                <thead>
+                  <tr>
+                    <th>Citation</th>
+                    <th>Description</th>
+                    <th>Designation</th>
+                    <th>Context</th>
+                    <th><span className="outline-sr">Remove</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviewRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <input
+                          aria-label={`Citation ${row.id}`}
+                          value={row.cite}
+                          disabled={disabled}
+                          onChange={(event) => onDraftEdit(row.id, 'cite', event.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label={`Description for ${row.cite || row.id}`}
+                          value={row.description}
+                          disabled={disabled}
+                          onChange={(event) => onDraftEdit(row.id, 'description', event.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label={`Designation for ${row.cite || row.id}`}
+                          value={row.designation}
+                          disabled={disabled}
+                          onChange={(event) => onDraftEdit(row.id, 'designation', event.target.value)}
+                        />
+                      </td>
+                      <td className="outline-context">{row.context}</td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => onDraftRemove(row.id)}
+                          disabled={disabled}
+                          aria-label={`Remove ${row.cite || 'citation'}`}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="outline-actions">
+            <button
+              type="button"
+              className="outline-primary"
+              onClick={onConfirmDrafts}
+              disabled={disabled || !canConfirm}
+            >
+              Match these citations
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <p className="outline-note">
         Staging names use {'{Seq}_{ExhibitNo}_{ShortDesc}'}. Seq is the outline order, padded with the zero-padding setting.

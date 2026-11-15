@@ -179,7 +179,7 @@ export default function LimitsGuide({ onBack }) {
       <section>
         <h2>Outline order</h2>
         <p>
-          Paste citations in outline order to stage just those files. The match runs locally. Free can do this inside the {FREE_MAX_FILES_PER_BATCH}-file batch, including the CSV and HTML crosswalk. Case Pass or Pro covers a larger folder, saves the Outline staging pattern as a Matter Profile, and writes the staged copies with ZIP or in-place rename.
+          Paste citations, or upload a Word .docx or text-based PDF outline, to stage just those files. The file is read in this browser and is not uploaded. Review the extracted rows before matching. A scanned PDF with no extractable text is reported as such. OCR is not available. Free can do this inside the {FREE_MAX_FILES_PER_BATCH}-file batch, including the CSV and HTML crosswalk. Case Pass or Pro covers a larger folder, saves the Outline staging pattern as a Matter Profile, and writes the staged copies with ZIP or in-place rename.
         </p>
         <table>
           <thead>
