@@ -28,6 +28,19 @@ Optional Updates & Support (informational until renewal checkout is implemented)
 
 The public launch offer is Free or $149 Pro, with Firm licenses handled by contact. The entitlement model retains Case Pass support for a possible future offer. Central pricing values live in [`src/config/pricing.js`](src/config/pricing.js).
 
+### Outline order
+
+A hot-seat operator can paste exhibit citations in outline order and stage just those files. Matching runs in the browser.
+
+- One reference per line, or several separated by commas.
+- The official exhibit number matches across zero-padding, spacing, prefix case, and hyphen, underscore, or no separator. A letter suffix still distinguishes `PX-0142A` from `PX-0142`.
+- A trailing page, page range, or page:line (`at 3`, `p. 12-14`, `45:3-46:10`) becomes an editable Designation. It is not written into the filename.
+- The same file cited twice stays one staged file at its first position, and both citations are kept.
+- Ambiguous references wait for a choice. Missing references are listed. Files that were not cited stay loaded and are left out of rename, ZIP, and the crosswalk.
+- The Outline staging preset uses `{Seq}_{ExhibitNo}_{ShortDesc}`. `{Type}` adds `V` for video and `D` for a demonstrative. The pattern is saved with Matter Profiles.
+
+Free includes matching, designation edits, and the CSV/HTML crosswalk on batches of up to 5 files. Case Pass or Pro is required for a larger folder, for saving the pattern as a Matter Profile, and for ZIP or in-place rename of the staged copies. Those are the same gates as the rest of the renamer.
+
 ### License restoration
 
 Restore access with your **license key** (current format `EKIT-XXXX-XXXX-XXXX-XXXX`; legacy keys remain supported). New keys are verified by the Vercel licensing service and reserve one workstation. Existing customers who activated an older build are migrated automatically to Pro perpetual access on that workstation.

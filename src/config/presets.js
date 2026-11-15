@@ -37,6 +37,13 @@ export const PRACTICE_AREAS = [
         guideline: 'TrialDirector emphasizes leading zero padding for clean alphabetical sorting.',
         example: 'PX-0001 - Memo.pdf',
       },
+      {
+        id: 'outline-staging',
+        label: 'Outline staging',
+        description: '001_PX-0142_Email from Smith.pdf — outline order, official number, short title',
+        guideline: '{Seq} is the outline order, using the zero-padding setting (at least two digits). {ExhibitNo} keeps the official number exactly as written. {ShortDesc} trims the description at Max title length. {Type} adds V for video and D for a demonstrative when you include it.',
+        example: '001_PX-0142_Email from Smith.pdf',
+      },
     ],
   },
   {
@@ -125,7 +132,7 @@ export const PRACTICE_AREAS = [
         id: 'custom',
         label: 'Custom Template',
         description: 'Build any pattern with template tokens',
-        guideline: 'Use tokens like {Prefix}, {Number}, {Year}, {Author}, {Title}, and {DocId}.',
+        guideline: 'Use tokens like {Prefix}, {Number}, {Year}, {Author}, {Title}, {DocId}, {Seq}, {ExhibitNo}, {ShortDesc}, and {Type}.',
         example: '{Prefix}{Number} - {Description}.pdf',
       },
     ],
@@ -176,6 +183,15 @@ export function getPresetRuleDefaults(presetId) {
       return { prefix: 'PX', padLength: 3 };
     case 'oncue':
       return { prefix: 'PX', padLength: 3 };
+    case 'outline-staging':
+      return {
+        prefix: 'PX',
+        padLength: 3,
+        caseStyle: 'as-is',
+        shortenDesc: true,
+        sortMode: 'outline',
+        customTemplate: '{Seq}_{ExhibitNo}_{ShortDesc}',
+      };
     case 'custom':
       return {
         customTemplate: '{Prefix}{Number} - {Description}',
@@ -193,4 +209,10 @@ export const CUSTOM_TEMPLATE_TOKENS = [
   '{Author}',
   '{Title}',
   '{DocId}',
+  '{Seq}',
+  '{ExhibitNo}',
+  '{ShortDesc}',
+  '{Type}',
 ];
+
+export const OUTLINE_STAGING_TEMPLATE = '{Seq}_{ExhibitNo}_{ShortDesc}';

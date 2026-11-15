@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FolderOpen, AlertCircle } from 'lucide-react';
 import { FREE_MAX_FILES_PER_BATCH } from '../config/pricing';
+import { acceptAttribute, isAcceptedExhibitName } from '../utils/outlineImport';
 import { PUBLISHED_PACKS, packStats } from '../config/testPacks';
 import { fetchTestPackIndex, formatByteSize } from '../utils/testPackClient';
 
@@ -40,9 +41,9 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const filesArray = Array.from(e.dataTransfer.files).filter(file => 
-        file.name.toLowerCase().endsWith('.pdf')
-      );
+      const filesArray = Array.from(e.dataTransfer.files).filter((file) => (
+        isAcceptedExhibitName(file.name)
+      ));
       if (filesArray.length > 0) {
         onFilesDrop(filesArray);
       }
@@ -51,9 +52,9 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
 
   const handleFileInput = (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      const filesArray = Array.from(e.target.files).filter(file => 
-        file.name.toLowerCase().endsWith('.pdf')
-      );
+      const filesArray = Array.from(e.target.files).filter((file) => (
+        isAcceptedExhibitName(file.name)
+      ));
       if (filesArray.length > 0) {
         onFilesDrop(filesArray);
       }
@@ -97,11 +98,11 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
         </div>
         
         <h2 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--color-text-primary)', marginBottom: '12px', fontFamily: 'var(--font-sans)', letterSpacing: '-0.4px' }}>
-          Ingest PDF Exhibits
+          Ingest exhibits
         </h2>
         
         <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', maxWidth: '380px', margin: '0 auto 32px auto', lineHeight: '1.6', fontFamily: 'var(--font-sans)' }}>
-          Select a local folder to rename files directly on your hard drive, or select a batch of PDF exhibits to parse and prepare them.
+          Select a local folder to rename files directly on your hard drive, or select PDFs, video, and slides to parse and prepare them. Slide decks exported to PDF stay PDFs; mark those rows Demonstrative when you want a D prefix.
         </p>
 
         {/* Directory Access Mode warning/info */}
@@ -163,11 +164,11 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
               cursor: 'pointer'
             }}
           >
-            Select PDF Files
+            Select Exhibit Files
             <input 
               type="file" 
               multiple 
-              accept=".pdf" 
+              accept={acceptAttribute()} 
               onChange={handleFileInput} 
               style={{ display: 'none' }} 
             />
@@ -192,7 +193,7 @@ export default function Dropzone({ onDirectorySelect, onFilesDrop, isSupported }
             })}
           </div>
           <p>
-            On iPhone: download a pack, save it to Files or iCloud Drive, unzip it, then tap Select PDF Files.
+            On iPhone: download a pack, save it to Files or iCloud Drive, unzip it, then tap Select Exhibit Files.
             Starter matches the Free limit of {FREE_MAX_FILES_PER_BATCH} PDFs. Standard and Large contain more files than Free allows.
           </p>
           <a className="test-pack-limits" href="#limits">Limits and sizes</a>

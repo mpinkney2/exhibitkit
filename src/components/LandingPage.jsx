@@ -400,10 +400,11 @@ export default function LandingPage({
           <article className="landing-price-card landing-price-card-free">
             <div className="landing-price-topline"><span>Free</span><em>No account</em></div>
             <div className="landing-price"><strong>$0</strong><span>USD<br />to evaluate</span></div>
-            <p className="landing-price-description">Use the full preview workflow with sample data or real-file batches of up to {FREE_MAX_FILES_PER_BATCH} PDFs.</p>
+            <p className="landing-price-description">Use the full preview workflow with sample data or real-file batches of up to {FREE_MAX_FILES_PER_BATCH} files.</p>
             <ul>
               <li><Check size={15} /> Unlimited interactive demo workflow</li>
-              <li><Check size={15} /> Up to {FREE_MAX_FILES_PER_BATCH} real PDFs per batch</li>
+              <li><Check size={15} /> Up to {FREE_MAX_FILES_PER_BATCH} real files per batch</li>
+              <li><Check size={15} /> Outline matching and a CSV/HTML crosswalk</li>
               <li><Check size={15} /> Practice-area presets & year-aware preview</li>
               <li><Check size={15} /> Local processing with no account</li>
             </ul>

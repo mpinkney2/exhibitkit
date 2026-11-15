@@ -3,6 +3,7 @@ import { ShieldAlert, Info, AlertTriangle, ShieldCheck, ArrowLeft, Menu, Sun, Mo
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
 import PreviewTable from './components/PreviewTable';
+import OutlineImport from './components/OutlineImport';
 import ActionPanel from './components/ActionPanel';
 import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
@@ -33,7 +34,6 @@ import {
   resolveDuplicates, 
   cleanDescription,
   formatCase,
-  sortItems,
   resolveExhibitNumber,
   resolveExhibitIdentity,
   resolveIngestYear,
@@ -43,6 +43,20 @@ import { readBatesMode, writeBatesMode } from './utils/batesMode';
 import { pdfFilesFromZipBytes } from './utils/testPackClient';
 import { PREPARED_BATCH_ZIP_NAME } from './config/limitsFacts';
 import { getPresetRuleDefaults } from './config/presets';
+import { buildRenameExportCsv, exportUsesCrosswalk } from './utils/crosswalk';
+import {
+  applyOutlineResult,
+  assignOutlineCandidate,
+  clearOutlineFields,
+  descriptionAfterOfficialNumber,
+  extractOfficialExhibitNumber,
+  fileExtension,
+  inferMediaKind,
+  isAcceptedExhibitName,
+  matchOutline,
+  orderStagedItems,
+  typePrefixForKind,
+} from './utils/outlineImport';
 import { PRO_PRICE_LABEL } from './utils/payment';
 import {
   activateLicenseOnDevice,
@@ -67,10 +81,9 @@ function getInitialAppRoute() {
   return hasProFeatures(getEntitlement()) ? 'workspace' : 'landing';
 }
 
-function escapeCsvCell(value) {
-  let text = String(value ?? '');
-  if (/^[=+@-]/.test(text)) text = `'${text}`;
-  return `"${text.replace(/"/g, '""')}"`;
+function newItemId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `item-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export default function App() {
@@ -117,6 +130,8 @@ export default function App() {
   const [shortenDesc, setShortenDesc] = useState(false);
   const [maxDescLength, setMaxDescLength] = useState(48);
   const [batesMode, setBatesMode] = useState(() => readBatesMode());
+  const [outlineText, setOutlineText] = useState('');
+  const [outlineMatch, setOutlineMatch] = useState(null);
   const [sampleLoading, setSampleLoading] = useState(false);
   const [showLimits, setShowLimits] = useState(() => window.location.hash === '#limits');
 
@@ -321,7 +336,7 @@ export default function App() {
       ...overrides
     };
 
-    const sorted = sortItems(itemsList, rules.sortMode);
+    const sorted = orderStagedItems(itemsList, rules.sortMode);
 
     const updated = sorted.map((item, idx) => {
       const sourceDescription = item.sourceDescription ?? item.description ?? '';
@@ -365,6 +380,11 @@ export default function App() {
         customTemplate: rules.customTemplate,
         shortenDesc: rules.shortenDesc,
         maxDescLength: rules.maxDescLength,
+        seq: item.outlineOrder || (item.included === false ? '' : idx + 1),
+        exhibitNo: item.officialExhibitNo || '',
+        typePrefix: typePrefixForKind(item.mediaKind),
+        extension: fileExtension(item.originalName) || '.pdf',
+        shortDescription: item.userEditedDescription ? '' : (item.rawDescription || ''),
       });
 
       return {
@@ -402,8 +422,18 @@ export default function App() {
         year,
         useYearAsNumber: useYear,
       });
+    const officialExhibitNo = extractOfficialExhibitNumber(name);
     return {
+      id: newItemId(),
       originalName: name,
+      officialExhibitNo,
+      rawDescription: descriptionAfterOfficialNumber(name, officialExhibitNo),
+      mediaKind: inferMediaKind(name, parsed.prefix),
+      included: true,
+      outlineOrder: null,
+      designation: '',
+      designationUserEdited: false,
+      outlineReferences: [],
       year: year || null,
       number,
       docId: parsed.bates ? '' : (parsed.docId || parsed.number || ''),
@@ -512,6 +542,7 @@ export default function App() {
       }
       setDirectoryHandle(null);
       setDirectoryName("Starter test pack");
+      setOutlineMatch(null);
       const parsedSamples = files.map((file) => buildIngestedItem(file.name, file, null));
       setItems(updateProposedNames(parsedSamples));
       showNotification(`Loaded ${files.length} sample PDFs from the Starter test pack.`, "success");
@@ -529,14 +560,14 @@ export default function App() {
       
       const files = [];
       for await (const entry of handle.values()) {
-        if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.pdf')) {
+        if (entry.kind === 'file' && isAcceptedExhibitName(entry.name)) {
           const file = await entry.getFile();
           files.push(buildIngestedItem(entry.name, file, entry));
         }
       }
 
       if (files.length === 0) {
-        showNotification("⚠️ No PDF files found in the selected directory.", "warning");
+        showNotification("No exhibit files found in the selected directory.", "warning");
         return;
       }
 
@@ -552,6 +583,7 @@ export default function App() {
 
       setDirectoryHandle(handle);
       setDirectoryName(handle.name);
+      setOutlineMatch(null);
 
       const itemsWithProposed = updateProposedNames(files);
       setItems(itemsWithProposed);
@@ -577,33 +609,116 @@ export default function App() {
 
     setDirectoryHandle(null);
     setDirectoryName("Batch Ingestion (Download Mode)");
+    setOutlineMatch(null);
 
     const newItems = filesList.map(file => buildIngestedItem(file.name, file, null));
     setItems(updateProposedNames(newItems));
-    showNotification(`Added ${newItems.length} PDF files for batch preparation.`, "success");
+    showNotification(`Added ${newItems.length} files for batch preparation.`, "success");
   };
 
   // Inline edit callback for individual cells
   const handleUpdateItem = (index, key, value) => {
     if (isPreviewFreezed) return;
     const updated = [...items];
+    const target = typeof index === 'string'
+      ? updated.findIndex((item) => item.id === index)
+      : index;
+    if (target < 0 || !updated[target]) return;
     if (key === 'number') {
-      updated[index] = {
-        ...updated[index],
+      updated[target] = {
+        ...updated[target],
         number: value,
         isNumberManuallyEdited: true,
         userEditedNumber: true,
         sequenceOverride: false,
       };
     } else if (key === 'description') {
-      updated[index] = {
-        ...updated[index],
+      updated[target] = {
+        ...updated[target],
         description: value,
         userEditedDescription: true,
       };
+    } else if (key === 'designation') {
+      updated[target] = {
+        ...updated[target],
+        designation: value,
+        designationUserEdited: true,
+      };
+    } else if (key === 'mediaKind') {
+      updated[target] = {
+        ...updated[target],
+        mediaKind: value,
+      };
+    } else {
+      return;
     }
 
     setItems(updateProposedNames(updated));
+  };
+
+  const applyStagingPreset = () => {
+    const overrides = {
+      ...getPresetRuleDefaults('outline-staging'),
+      preset: 'outline-staging',
+    };
+    setPreset(overrides.preset);
+    if (overrides.prefix) setPrefix(overrides.prefix);
+    if (overrides.padLength) setPadLength(overrides.padLength);
+    if (overrides.caseStyle) setCaseStyle(overrides.caseStyle);
+    if (typeof overrides.shortenDesc === 'boolean') setShortenDesc(overrides.shortenDesc);
+    if (overrides.sortMode) setSortMode(overrides.sortMode);
+    if (overrides.customTemplate) setCustomTemplate(overrides.customTemplate);
+    return overrides;
+  };
+
+  const handleUseStagingNames = () => {
+    if (isPreviewFreezed) return;
+    const overrides = applyStagingPreset();
+    setItems((prev) => (prev.length > 0 ? updateProposedNames(prev, overrides) : prev));
+    showNotification('Staging names use the outline order, the official exhibit number, and a short description.', 'success');
+  };
+
+  const handleMatchOutline = () => {
+    if (isPreviewFreezed) return;
+    const trimmed = outlineText.trim();
+    if (!trimmed) return;
+    const match = matchOutline(trimmed, items.map((item) => ({
+      id: item.id,
+      originalName: item.originalName,
+      description: item.description || '',
+      officialExhibitNo: item.officialExhibitNo,
+    })));
+    setOutlineMatch(match);
+    const templateHasStaging = /\{(?:seq|exhibitno)\}/i.test(customTemplate);
+    const shouldApplyStaging = preset !== 'custom' && preset !== 'outline-staging' && !templateHasStaging;
+    const overrides = shouldApplyStaging ? applyStagingPreset() : { sortMode: 'outline' };
+    if (!shouldApplyStaging) setSortMode('outline');
+    const reset = items.map((item) => ({ ...item, designationUserEdited: false }));
+    setItems(updateProposedNames(applyOutlineResult(reset, match), overrides));
+    const { files, ambiguous, missing } = match.counts;
+    showNotification(
+      `Staged ${files} file${files === 1 ? '' : 's'}. ${ambiguous} ambiguous, ${missing} missing.`,
+      ambiguous || missing ? 'warning' : 'success',
+    );
+  };
+
+  const handleOutlineChoice = (referenceId, fileId) => {
+    if (!outlineMatch || !fileId || isPreviewFreezed) return;
+    const next = assignOutlineCandidate(outlineMatch, referenceId, fileId);
+    setOutlineMatch(next);
+    setItems((prev) => updateProposedNames(applyOutlineResult(prev, next), { sortMode: 'outline' }));
+  };
+
+  const handleClearOutline = () => {
+    if (isPreviewFreezed) return;
+    setOutlineText('');
+    setOutlineMatch(null);
+    setSortMode('filename');
+    setItems((prev) => (
+      prev.length > 0
+        ? updateProposedNames(clearOutlineFields(prev), { sortMode: 'filename' })
+        : prev
+    ));
   };
 
   // Bulk operations
@@ -650,11 +765,15 @@ export default function App() {
 
   // Trigger Backup Dialog check first
   const handleRenameTrigger = () => {
-    if (items.length === 0) return;
+    const batch = items.filter((item) => item.included !== false);
+    if (batch.length === 0) {
+      showNotification('Nothing is staged. Match an outline, or clear it to include every loaded file.', 'warning');
+      return;
+    }
 
     // In-place rename and ZIP batch export require Case Pass or Pro
     if (!isPro) {
-      const hasRealFiles = items.some((item) => item.file || item.handle);
+      const hasRealFiles = batch.some((item) => item.file || item.handle);
       if (hasRealFiles) {
         showNotification(
           "In-place renaming and ZIP export require a Case Pass or ExhibitKit Pro. Free includes preview and CSV/HTML export (up to 5 files per batch).",
@@ -674,7 +793,13 @@ export default function App() {
   const handleRenameExecute = async () => {
     setShowBackupModal(false);
 
-    if (items.some(item => item.status !== 'success')) {
+    const batch = items.filter((item) => item.included !== false);
+    if (batch.length === 0) {
+      showNotification('Nothing is staged. Match an outline, or clear it to include every loaded file.', 'warning');
+      return;
+    }
+
+    if (batch.some(item => item.status !== 'success')) {
       showNotification("⚠️ The batch changed and now contains filename issues. Review the preview before trying again.", "warning");
       return;
     }
@@ -682,31 +807,22 @@ export default function App() {
     // Freeze preview state before renaming to block mid-operation changes
     setIsPreviewFreezed(true);
 
-    const conflictCount = items.filter(item => item.status === 'warning').length;
+    const conflictCount = batch.filter(item => item.status === 'warning').length;
     const startTime = performance.now();
-    const renameMap = items.map(item => ({
-      originalName: item.originalName,
-      number: item.number,
-      proposedName: item.proposedName
-    }));
+    const reportCsv = buildRenameExportCsv(batch, { preset });
+    const reportName = exportUsesCrosswalk(batch) ? 'exhibit_crosswalk.csv' : 'exhibit_rename_report.csv';
 
     if (!directoryHandle) {
       // Fallback: Zipped batch download since there is no local folder handle
       try {
         const zip = new JSZip();
         
-        // Add all renamed PDF files to the zip archive
-        for (const item of items) {
+        for (const item of batch) {
           if (!item.file) continue;
           zip.file(item.proposedName, item.file);
         }
 
-        // Add CSV Rename Report to the zip archive
-        const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
-        const rows = renameMap.map(item => {
-          return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
-        }).join("\n");
-        zip.file("exhibit_rename_report.csv", headers + rows);
+        zip.file(reportName, reportCsv);
 
         // Compress and trigger a single download package
         const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -726,7 +842,7 @@ export default function App() {
 
         // Trigger Success Stats Popup
         setRenameStats({
-          count: items.length,
+          count: batch.length,
           conflicts: conflictCount,
           time: `${elapsedSeconds}s`
         });
@@ -744,8 +860,8 @@ export default function App() {
       const history = [];
       const updatedItems = [...items];
 
-      // Fail before changing any files if a target name already exists.
-      for (const item of updatedItems) {
+      // Fail before changing any staged file if a target name already exists.
+      for (const item of batch) {
         if (item.originalName.toLowerCase() === item.proposedName.toLowerCase()) continue;
 
         try {
@@ -756,7 +872,9 @@ export default function App() {
         }
       }
 
-      for (let i = 0; i < updatedItems.length; i++) {
+      for (const stagedItem of batch) {
+        const i = updatedItems.findIndex((candidate) => candidate.id === stagedItem.id);
+        if (i < 0) continue;
         const item = updatedItems[i];
         const entry = item.handle;
         const oldName = item.originalName;
@@ -793,15 +911,9 @@ export default function App() {
 
       // Automatically write CSV Rename Report directly inside the local folder
       try {
-        const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
-        const rows = renameMap.map(item => {
-          return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
-        }).join("\n");
-        const reportContent = headers + rows;
-
-        const reportFileHandle = await directoryHandle.getFileHandle("_exhibit_rename_report.csv", { create: true });
+        const reportFileHandle = await directoryHandle.getFileHandle(`_${reportName}`, { create: true });
         const writableReport = await reportFileHandle.createWritable();
-        await writableReport.write(reportContent);
+        await writableReport.write(reportCsv);
         await writableReport.close();
       } catch (reportErr) {
         console.error("Failed to write local directory rename report", reportErr);
@@ -817,7 +929,7 @@ export default function App() {
 
       // Trigger Success Stats Popup
       setRenameStats({
-        count: updatedItems.length,
+        count: batch.length,
         conflicts: conflictCount,
         time: `${elapsedSeconds}s`
       });
@@ -888,30 +1000,35 @@ export default function App() {
     setDirectoryHandle(null);
     setDirectoryName("");
     setLastRenameHistory([]);
+    setOutlineText('');
+    setOutlineMatch(null);
     showNotification("🧹 Ingestion cleared successfully.", "success");
   };
 
   // CSV Map Export utility (available on Free, including real files within the Free batch limit)
   const handleExportCsv = () => {
-    if (items.length === 0) return;
+    const batch = items.filter((item) => item.included !== false);
+    if (batch.length === 0) return;
 
     try {
-      const headers = "Original Filename,Exhibit ID,Proposed Filename,Preset Type\n";
-      const rows = items.map(item => {
-        return `${escapeCsvCell(item.originalName)},${escapeCsvCell(item.number)},${escapeCsvCell(item.proposedName)},${escapeCsvCell(preset)}`;
-      }).join("\n");
-
-      const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
+      const csv = buildRenameExportCsv(batch, { preset });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `exhibit_rename_map_${directoryName || 'batch'}.csv`;
+      const prefix = exportUsesCrosswalk(batch) ? 'exhibit_crosswalk' : 'exhibit_rename_map';
+      a.download = `${prefix}_${directoryName || 'batch'}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      showNotification("📊 CSV exhibits mapping log exported successfully!", "success");
+      showNotification(
+        exportUsesCrosswalk(batch)
+          ? 'Crosswalk exported. It lists outline order, official number, designation, original filename, and new name.'
+          : '📊 CSV exhibits mapping log exported successfully!',
+        'success',
+      );
     } catch (err) {
       showNotification("❌ CSV export failed: " + err.message, "danger");
     }
@@ -1522,9 +1639,25 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'auto' }}>
+              <OutlineImport
+                text={outlineText}
+                onTextChange={setOutlineText}
+                match={outlineMatch}
+                filesById={Object.fromEntries(items.map((item) => [item.id, {
+                  originalName: item.originalName,
+                  officialExhibitNo: item.officialExhibitNo,
+                }]))}
+                onMatch={handleMatchOutline}
+                onClear={handleClearOutline}
+                onUseStagingNames={handleUseStagingNames}
+                onChoose={handleOutlineChoice}
+                disabled={isPreviewFreezed}
+                isPro={isPro}
+                excluded={outlineMatch ? items.filter((item) => item.included === false) : []}
+              />
               <PreviewTable 
-                items={items}
+                items={items.filter((item) => item.included !== false)}
                 onUpdateItem={handleUpdateItem}
                 onBulkCaseChange={handleBulkCaseChange}
                 onBulkClean={handleBulkClean}
@@ -1533,10 +1666,11 @@ export default function App() {
                 batesMode={batesMode}
                 onBatesModeChange={(value) => handleRuleChange('batesMode', value)}
                 batesSettingDisabled={isPreviewFreezed}
+                showOutline={Boolean(outlineMatch) || preset === 'outline-staging'}
               />
               
               <ActionPanel 
-                items={items}
+                items={items.filter((item) => item.included !== false)}
                 onRenameExecute={handleRenameTrigger}
                 onUndo={handleUndo}
                 canUndo={lastRenameHistory.length > 0}

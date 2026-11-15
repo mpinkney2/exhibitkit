@@ -433,6 +433,7 @@ export default function Sidebar({
               >
                 <option value="filename">Filename (A–Z)</option>
                 <option value="year">Year in title (oldest first)</option>
+                <option value="outline">Outline order</option>
               </select>
             </div>
 
@@ -516,10 +517,10 @@ export default function Sidebar({
             )}
           </CollapsibleSection>
 
-          {preset === 'custom' && (
+          {(preset === 'custom' || preset === 'outline-staging') && (
             <CollapsibleSection
               id="custom"
-              title="Custom Pattern"
+              title={preset === 'outline-staging' ? 'Staging pattern' : 'Custom Pattern'}
               open={sectionsOpen.custom}
               onToggle={toggleSection}
               style={{ animation: 'slideIn 0.2s ease' }}

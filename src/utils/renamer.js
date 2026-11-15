@@ -12,6 +12,20 @@ export const EXHIBIT_PREFIX_LIST = Object.freeze([
   'PX', 'DX', 'EX', 'PLTF', 'DEFT', 'DEF', 'DEP', 'GFX', 'EXB', 'DOD', 'DOC', 'EXHIBIT',
 ]);
 
+/** Extensions the renamer ingests. Kept here so filename parsing and the file picker agree. */
+export const ACCEPTED_EXHIBIT_EXTENSIONS = Object.freeze([
+  '.pdf',
+  '.mp4',
+  '.mov',
+  '.m4v',
+  '.webm',
+  '.avi',
+  '.wmv',
+  '.mkv',
+  '.ppt',
+  '.pptx',
+]);
+
 const EXHIBIT_PREFIXES = EXHIBIT_PREFIX_LIST.join('|');
 
 /**
@@ -231,8 +245,11 @@ export function resolveExhibitIdentity({
  * @returns {object}
  */
 export function parseFilename(filename) {
-  // Strip extension and trim
-  const base = filename.replace(/\.pdf$/i, '').trim();
+  // Strip a supported exhibit extension. Leaving .mp4 or .pptx on the stem
+  // hides the exhibit number and copies the extension into the description.
+  const source = String(filename || '');
+  const extension = ACCEPTED_EXHIBIT_EXTENSIONS.find((ext) => source.toLowerCase().endsWith(ext));
+  const base = (extension ? source.slice(0, -extension.length) : source).trim();
 
   // 1. Structured DOD / patent document pattern (must run before generic DOD prefix match)
   let match = base.match(DOD_STRUCTURED_PATTERN);
@@ -499,9 +516,32 @@ export function resolveExhibitNumber({ parsedNumber = '', year = null, useYearAs
 }
 
 /**
+ * Outline sequence, zero-padded. Width follows the sidebar padding and is at least 2.
+ * @param {string|number} seq
+ * @param {number} padLength
+ * @returns {string}
+ */
+export function formatSequenceToken(seq, padLength) {
+  const match = String(seq ?? '').match(/\d+/);
+  if (!match) return '';
+  const width = Math.max(2, Number(padLength) || 0);
+  return String(parseInt(match[0], 10)).padStart(width, '0');
+}
+
+function outputExtension(extension) {
+  const raw = String(extension ?? '.pdf').trim().toLowerCase();
+  if (!raw || raw === '.') return '.pdf';
+  const withDot = raw.startsWith('.') ? raw : `.${raw}`;
+  if (!/^\.[a-z0-9]{1,8}$/.test(withDot)) return '.pdf';
+  return withDot;
+}
+
+/**
  * Standardizes and generates a proposed filename according to presets and custom rules.
+ * Custom templates also accept {Seq}, {ExhibitNo}, {ShortDesc}, and {Type}.
+ * {ExhibitNo} is inserted exactly. {ShortDesc} trims the description at maxDescLength.
  * @param {object} params
- * @returns {string} Proposed filename with .pdf extension
+ * @returns {string} Proposed filename, keeping the source extension (PDF by default)
  */
 export function generateProposedFilename({
   prefix = '',
@@ -518,13 +558,22 @@ export function generateProposedFilename({
   shortenDesc = false,
   maxDescLength = 48,
   descriptionLead = '',
+  seq = '',
+  exhibitNo = '',
+  typePrefix = '',
+  extension = '.pdf',
+  shortDescription = '',
 }) {
+  const ext = outputExtension(extension);
+  const named = (stem) => `${stem}${ext}`;
   const cleanPrefix = prefix.trim();
   const lead = String(descriptionLead || '').trim();
-  let formattedDesc = formatCase(cleanDescription(description), caseStyle);
-  if (shortenDesc) {
-    formattedDesc = shortenDescription(formattedDesc, maxDescLength);
-  }
+  const casedDescription = formatCase(cleanDescription(description), caseStyle);
+  const shortSource = String(shortDescription || '').trim()
+    ? formatCase(String(shortDescription).replace(/["'<>|\\:*?]/g, '').replace(/\s+/g, ' ').trim(), caseStyle)
+    : casedDescription;
+  const shortDesc = shortenDescription(shortSource, maxDescLength);
+  let formattedDesc = shortenDesc ? shortDesc : casedDescription;
   let formattedTitle = title
     ? formatCase(cleanDescription(title), caseStyle)
     : formattedDesc;
@@ -547,12 +596,12 @@ export function generateProposedFilename({
   if (engine === 'oncue') {
     const id = `${cleanPrefix}${formattedNum}`.trim();
     if (id && formattedDesc) {
-      return `${id} ${formattedDesc}.pdf`;
+      return named(`${id} ${formattedDesc}`);
     }
     if (id) {
-      return `${id}.pdf`;
+      return named(id);
     }
-    return `${formattedDesc || 'Exhibit'}.pdf`;
+    return named(formattedDesc || 'Exhibit');
   }
 
   if (engine === 'trialdirector') {
@@ -562,31 +611,32 @@ export function generateProposedFilename({
     const id = idParts.join('-');
 
     if (id && formattedDesc) {
-      return `${id} - ${formattedDesc}.pdf`;
+      return named(`${id} - ${formattedDesc}`);
     }
     if (id) {
-      return `${id}.pdf`;
+      return named(id);
     }
-    return `${formattedDesc || 'Exhibit'}.pdf`;
+    return named(formattedDesc || 'Exhibit');
   }
 
   if (preset === 'patent-dod') {
     if (batesLabelAsId) {
       const titlePart = formattedTitle || formattedDesc || 'Document';
       if (formattedAuthor) {
-        return `${formattedNum} - ${yearToken} - ${formattedAuthor} - ${titlePart}.pdf`;
+        return named(`${formattedNum} - ${yearToken} - ${formattedAuthor} - ${titlePart}`);
       }
-      return `${formattedNum} - ${yearToken} - ${titlePart}.pdf`;
+      return named(`${formattedNum} - ${yearToken} - ${titlePart}`);
     }
     const prefixPart = cleanPrefix || 'DOC';
     const docPart = resolvedDocId || formattedNum || '0';
     const titlePart = formattedTitle || formattedDesc || 'Document';
     if (formattedAuthor) {
-      return `${prefixPart} - ${docPart} - ${yearToken} - ${formattedAuthor} - ${titlePart}.pdf`;
+      return named(`${prefixPart} - ${docPart} - ${yearToken} - ${formattedAuthor} - ${titlePart}`);
     }
-    return `${prefixPart} - ${docPart} - ${yearToken} - ${titlePart}.pdf`;
+    return named(`${prefixPart} - ${docPart} - ${yearToken} - ${titlePart}`);
   }
 
+  const typeToken = String(typePrefix || '').trim();
   let result = applyTemplateTokens(customTemplate, {
     Prefix: cleanPrefix,
     Number: formattedNum,
@@ -595,6 +645,11 @@ export function generateProposedFilename({
     Author: formattedAuthor,
     Title: formattedTitle,
     DocId: resolvedDocId || formattedNum,
+    Seq: formatSequenceToken(seq, padLength),
+    ExhibitNo: String(exhibitNo || '').trim(),
+    ShortDesc: shortDesc,
+    Type: typeToken,
+    TypePrefix: typeToken,
   });
 
   result = result
@@ -605,7 +660,7 @@ export function generateProposedFilename({
     .trim()
     .replace(/^[-_\s]+|[-_\s]+$/g, '');
 
-  return `${result || 'Exhibit'}.pdf`;
+  return named(result || 'Exhibit');
 }
 
 /**
@@ -620,6 +675,9 @@ export function validateProposedNames(items) {
   );
 
   items.forEach((item) => {
+    // Files left out of an outline are not renamed, so their proposed names
+    // must not mark the staged row as a duplicate.
+    if (item.included === false) return;
     const name = (item.proposedName || '').toLowerCase().trim();
     if (name) {
       nameCounts[name] = (nameCounts[name] || 0) + 1;
@@ -633,7 +691,8 @@ export function validateProposedNames(items) {
     let status = 'success';
     let message = 'Ready to rename';
 
-    if (!proposed || proposed === '.pdf') {
+    const stem = proposed.replace(/\.[^.]+$/i, '');
+    if (!stem || proposed === '.pdf') {
       status = 'danger';
       message = 'Filename cannot be empty';
     } else if (nameCounts[nameLower] > 1) {
@@ -645,7 +704,7 @@ export function validateProposedNames(items) {
     ) {
       status = 'warning';
       message = 'Proposed filename is already used by another file in this batch';
-    } else if (/[\\/:*?"<>|]/.test(proposed.replace('.pdf', ''))) {
+    } else if (/[\\/:*?"<>|]/.test(stem)) {
       status = 'danger';
       message = 'Filename contains forbidden characters (\\ / : * ? " < > |)';
     } else if (resolvePresetEngine(item.preset) === 'oncue' && !proposed.includes(' ') && (item.prefix || item.number) && item.description) {
@@ -672,13 +731,15 @@ export function resolveDuplicates(items) {
 
   items.forEach((item) => {
     const baseProposed = item.proposedName || 'Exhibit.pdf';
-    const baseName = baseProposed.replace(/\.pdf$/i, '').trim();
+    const extensionMatch = /\.[^.]+$/i.exec(baseProposed);
+    const extension = extensionMatch ? extensionMatch[0] : '.pdf';
+    const baseName = baseProposed.slice(0, baseProposed.length - (extensionMatch ? extension.length : 0)).trim() || 'Exhibit';
     let uniqueName = baseProposed;
     let counter = 1;
 
     while (nameCounts[uniqueName.toLowerCase().trim()]) {
       counter += 1;
-      uniqueName = `${baseName}_v${counter}.pdf`;
+      uniqueName = `${baseName}_v${counter}${extension}`;
     }
 
     nameCounts[uniqueName.toLowerCase().trim()] = true;

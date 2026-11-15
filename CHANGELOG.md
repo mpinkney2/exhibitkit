@@ -7,6 +7,8 @@ All notable changes to **ExhibitKit** will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Outline-order staging. Paste citations, match them to loaded files, edit page or page:line designations, and export a crosswalk. The Outline staging preset names copies `{Seq}_{ExhibitNo}_{ShortDesc}`, with an optional `{Type}` prefix for video and demonstratives.
+- Outline matching treats a leading number plus words, such as `4 Photo`, as that exhibit number. Video and slide extensions are removed before the filename is parsed. Files left out of the outline do not mark a staged name as a duplicate.
 - Fictional Starter, Standard, and Large exhibit test packs, generated at build time, with a download control and a Limits and sizes page.
 - Optional Bates-style filename detection. The default keeps sequential exhibit numbers and puts the Bates number in the description.
 
