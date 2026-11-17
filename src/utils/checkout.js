@@ -13,6 +13,9 @@
  */
 
 import { PLAN_IDS, getPlanById, SUPPORT_EMAIL } from '../config/pricing.js';
+import { campaignParamsForCheckout, readCheckoutAttribution } from './attribution.js';
+import { recordProCheckoutStarted } from './campaignEvents.js';
+import { sanitizeClientReference } from './payment.js';
 
 /**
  * Read Vite env safely (undefined outside Vite).
@@ -109,20 +112,64 @@ export function getPlanCta(planId, config = getCheckoutConfig()) {
 }
 
 /**
- * Start Checkout Session via server. Throws if not configured.
- * Intentionally not wired to a working endpoint in this static deployment.
+ * Return URL Stripe should use after Checkout. The success marker is what the
+ * site uses to fire the purchase conversion. It does not unlock a license.
  */
-export async function startCheckout(planId, config = getCheckoutConfig()) {
+export function buildStripeReturnUrl(origin, status) {
+  const url = new URL('/', origin);
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error('Checkout return origin must be http or https.');
+  }
+  url.searchParams.set('stripe_status', status);
+  if (status === 'success') url.searchParams.set('ek_conversion', 'pro_purchase');
+  return url.toString();
+}
+
+/**
+ * Body for server Checkout Session creation. Campaign metadata is the stored
+ * UTM set and li_fat_id only. client_reference_id stays a separate workstation
+ * reference. File names and document contents are not accepted.
+ */
+export function buildCheckoutSessionRequest(planId, {
+  attribution,
+  clientReferenceId = '',
+  origin,
+} = {}) {
+  const reference = sanitizeClientReference(clientReferenceId);
+  const metadata = campaignParamsForCheckout(
+    attribution === undefined ? readCheckoutAttribution() : attribution,
+  );
+  return {
+    planId,
+    ...(reference ? { clientReferenceId: reference } : {}),
+    metadata,
+    successUrl: buildStripeReturnUrl(origin, 'success'),
+    cancelUrl: buildStripeReturnUrl(origin, 'cancel'),
+  };
+}
+
+/**
+ * Start Checkout Session via server. Throws if not configured.
+ * The request carries campaign metadata and a return URL with the purchase marker.
+ */
+export async function startCheckout(planId, config = getCheckoutConfig(), options = {}) {
   if (!canPurchasePlan(planId, config)) {
     throw new Error(
       config.reason || 'Checkout is not configured for this plan.'
     );
   }
 
+  const payload = buildCheckoutSessionRequest(planId, {
+    attribution: options.attribution,
+    clientReferenceId: options.clientReferenceId || options.workstationId || '',
+    origin: options.origin || window.location.origin,
+  });
+  recordProCheckoutStarted();
+
   const res = await fetch(`${config.checkoutApiUrl}/checkout-session`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ planId }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

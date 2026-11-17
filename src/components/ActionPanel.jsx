@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Play, RotateCcw, Trash2, Files, CheckSquare, AlertCircle, FileSpreadsheet, ChevronDown, Printer, FileText } from 'lucide-react';
 import { crosswalkFields, exportUsesCrosswalk } from '../utils/crosswalk';
+import { recordFreeTierStart } from '../utils/campaignEvents';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -201,6 +202,7 @@ export default function ActionPanel({
 
     reportWindow.document.write(documentHtml);
     reportWindow.document.close();
+    if (!isPro) recordFreeTierStart();
     setShowExportMenu(false);
   };
 
@@ -245,6 +247,7 @@ export default function ActionPanel({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    if (!isPro) recordFreeTierStart();
     setShowExportMenu(false);
   };
 

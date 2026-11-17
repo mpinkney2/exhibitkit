@@ -5,9 +5,9 @@ ExhibitKIT uses a Stripe-hosted Payment Link for the checkout surface. This keep
 ## Current client flow
 
 1. ExhibitKIT builds the configured HTTPS Payment Link.
-2. The workstation ID is attached as `client_reference_id` for reconciliation.
+2. The workstation ID is attached as `client_reference_id` for reconciliation. Stored `utm_*` parameters and `li_fat_id` are appended when present. An existing campaign value is kept. Exhibit filenames are not included.
 3. Stripe hosts and processes checkout.
-4. Stripe redirects the buyer back to the ExhibitKIT completion screen.
+4. Stripe redirects the buyer back to the ExhibitKIT completion screen. The redirect should include `stripe_status=success` and `ek_conversion=pro_purchase`.
 5. The buyer enters the license key delivered through the fulfillment process.
 
 The redirect is a convenience screen, not payment verification. Anyone can construct a success URL, so it must never unlock Pro access by itself.
@@ -45,7 +45,7 @@ These values must never appear in `.env` variables prefixed with `VITE_`, becaus
 
 - Set the Payment Link product to the intended one-time $149 price.
 - Collect the customer email used for license delivery and recovery.
-- Configure the post-payment redirect with `{CHECKOUT_SESSION_ID}`.
+- Configure the post-payment redirect to `/?stripe_status=success&ek_conversion=pro_purchase&session_id={CHECKOUT_SESSION_ID}`. The marker does not unlock Pro.
 - Add the refund policy, terms, privacy link, and support contact to Checkout.
 - Configure branding and a statement descriptor customers will recognize.
 - Use Stripe test mode and the Stripe CLI before enabling live webhook fulfillment.

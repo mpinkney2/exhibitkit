@@ -50,7 +50,7 @@ In Stripe live mode:
 4. Reveal and copy that endpoint's signing secret (`whsec_...`).
 5. Ensure the Payment Link collects the buyer's email.
 6. Set its after-payment redirect to:
-   `https://exhibitkit.patentpreppers.com/?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`
+   `https://exhibitkit.patentpreppers.com/?stripe_status=success&ek_conversion=pro_purchase&session_id={CHECKOUT_SESSION_ID}`
 
 Use the Price ID behind the new $149 Payment Link, not the old $150 Price.
 
