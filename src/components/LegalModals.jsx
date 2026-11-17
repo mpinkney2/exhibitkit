@@ -96,6 +96,14 @@ export default function LegalModals({ activeModal, onClose }) {
                 <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>4. Future Hosted Features</h4>
                 <p style={{ color: 'var(--text-secondary)' }}>Should cloud sync or hosted database connections be introduced in future enterprise tiers, they will require explicit opt-in agreements and will be governed by updated security riders.</p>
               </div>
+
+              <div className="legal-block">
+                <h4 style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '4px' }}>5. Advertising measurement</h4>
+                <p style={{ color: 'var(--text-secondary)' }}>
+                  ExhibitKIT uses LinkedIn&apos;s Insight Tag to measure advertising. The tag does not receive exhibit file names or file contents, and exhibit files still never leave your computer.{' '}
+                  <a href="https://www.linkedin.com/mypreferences/g/guest-cookies" target="_blank" rel="noopener noreferrer">Opt out on LinkedIn</a>.
+                </p>
+              </div>
             </div>
           </>
         );

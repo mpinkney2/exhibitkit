@@ -58,6 +58,7 @@ import {
   typePrefixForKind,
 } from './utils/outlineImport';
 import { PRO_PRICE_LABEL } from './utils/payment';
+import { proPurchaseReturnId, recordFreeTierStart, recordProPurchaseCompleted } from './utils/campaignEvents';
 import {
   activateLicenseOnDevice,
   currentDeviceLicenseView,
@@ -75,8 +76,8 @@ import { RENAME_WORKFLOW_STEPS, getRenameWorkflowIndex } from './utils/workflowP
 const FounderAdmin = lazy(() => import('./components/FounderAdmin'));
 
 function getInitialAppRoute() {
+  if (proPurchaseReturnId(window.location.search)) return 'stripe_success';
   const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
-  if (stripeStatus === 'success') return 'stripe_success';
   if (stripeStatus === 'cancel') return 'stripe_cancel';
   return hasProFeatures(getEntitlement()) ? 'workspace' : 'landing';
 }
@@ -186,11 +187,20 @@ export default function App() {
     setShowLimits(false);
   };
 
-  // Clear Stripe status params after the initial route has been derived.
+  // Fire the purchase conversion from the Stripe return marker, then drop only
+  // those marker params so a refresh does not count the purchase again.
   useEffect(() => {
-    const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
-    if (stripeStatus === 'success' || stripeStatus === 'cancel') {
-      window.history.replaceState({}, document.title, window.location.pathname);
+    const params = new URLSearchParams(window.location.search);
+    const purchaseId = proPurchaseReturnId(window.location.search);
+    if (purchaseId) recordProPurchaseCompleted(purchaseId);
+    const stripeStatus = params.get('stripe_status');
+    if (stripeStatus === 'success' || stripeStatus === 'cancel' || params.get('ek_conversion') === 'pro_purchase') {
+      params.delete('stripe_status');
+      params.delete('session_id');
+      params.delete('ek_conversion');
+      const query = params.toString();
+      const next = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, document.title, next);
     }
   }, []);
 
@@ -839,6 +849,7 @@ export default function App() {
         const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
 
         showNotification("Successfully exported prepared exhibits ZIP.", "success");
+        if (!isPro) recordFreeTierStart();
 
         // Trigger Success Stats Popup
         setRenameStats({
@@ -926,6 +937,7 @@ export default function App() {
       const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
 
       showNotification(`Successfully renamed ${history.length} exhibits inside "${directoryName}".`, "success");
+      if (!isPro) recordFreeTierStart();
 
       // Trigger Success Stats Popup
       setRenameStats({
@@ -1029,6 +1041,7 @@ export default function App() {
           : '📊 CSV exhibits mapping log exported successfully!',
         'success',
       );
+      if (!isPro) recordFreeTierStart();
     } catch (err) {
       showNotification("❌ CSV export failed: " + err.message, "danger");
     }

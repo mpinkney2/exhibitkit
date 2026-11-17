@@ -22,6 +22,7 @@ import { PRIVACY_PAYMENT_NOTICE } from '../utils/pricing';
 import { assessProjectCapacity, CAPACITY } from '../utils/capacity';
 import WorkflowProgress from './WorkflowProgress';
 import { MESSAGE_WORKFLOW_STEPS, getMessageWorkflowIndex } from '../utils/workflowProgress';
+import { recordFreeTierStart } from '../utils/campaignEvents';
 
 export default function MessageWorkspace({
   onBack,
@@ -196,6 +197,7 @@ export default function MessageWorkspace({
       } else if (result.files[0]) {
         downloadBytes(result.files[0].bytes, result.files[0].name);
       }
+      if (!isPro && (result.zip || result.files?.[0])) recordFreeTierStart();
       const timingNote = result.timing?.elapsedMs
         ? ` (${(result.timing.elapsedMs / 1000).toFixed(1)}s)`
         : '';

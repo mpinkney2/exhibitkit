@@ -7,6 +7,7 @@ import {
   DEV_TEST_KEY,
 } from '../utils/entitlement';
 import { buildStripePaymentLink, PRO_PRICE_LABEL } from '../utils/payment';
+import { recordProCheckoutStarted } from '../utils/campaignEvents';
 import './PricingModal.css';
 
 const benefits = [
@@ -183,7 +184,7 @@ export default function PricingModal({
           </ul>
 
           {stripeLink ? (
-            <a className="pricing-checkout" href={stripeLink}>
+            <a className="pricing-checkout" href={stripeLink} onClick={() => recordProCheckoutStarted()}>
               <CreditCard size={17} /> Buy Pro — {PRO_PRICE_LABEL} <ExternalLink size={14} />
             </a>
           ) : (

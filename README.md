@@ -50,8 +50,8 @@ Restore access with your **license key** (current format `EKIT-XXXX-XXXX-XXXX-XX
 ## Stripe Purchase & License Fulfillment
 
 - **Pricing:** $149 USD one-time Pro workstation license. The purchased version remains licensed; 12 months of updates and support are included.
-- **Checkout Flow:** Users transition to a Stripe-hosted Payment Link. ExhibitKIT adds the local workstation ID as Stripe's `client_reference_id` so a future webhook can reconcile payment and fulfillment without receiving exhibit data.
-- **Return Flow:** Configure the Payment Link's post-payment redirect in Stripe to return to `https://YOUR_DOMAIN/?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`.
+- **Checkout Flow:** Users transition to a Stripe-hosted Payment Link. ExhibitKIT adds the local workstation ID as Stripe's `client_reference_id`. Stored campaign parameters (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, and `li_fat_id`) are added to that link and are not replaced when they are already present. Exhibit filenames are not included.
+- **Return Flow:** Configure the Payment Link's post-payment redirect in Stripe to return to `https://YOUR_DOMAIN/?stripe_status=success&ek_conversion=pro_purchase&session_id={CHECKOUT_SESSION_ID}`. That return marker is what fires the purchase conversion. It does not unlock Pro.
 - **License Fulfillment:** A verified Stripe webhook issues an encrypted-at-rest license record and emails the key through Resend.
 - **Manual Activation:** The return URL never unlocks Pro. The emailed key must be verified by the server and activated on a workstation.
 - **Recovery & Transfer:** Buyers can recover a key by purchase email and deliberately transfer a one-workstation license.
@@ -87,6 +87,13 @@ Copy `.env.example` to `.env` and configure the public Payment Link:
 # Public Stripe Payment Link only. Never put a Stripe secret key in Vite variables.
 VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/dRm4gze2Ob4c4NF3mKg7e01
 ```
+
+Optional advertising measurement. Leave these unset to load no tag and fire no conversion events. Set the names only; the values are public partner and conversion ids, not secrets:
+
+- `VITE_LINKEDIN_PARTNER_ID`
+- `VITE_LINKEDIN_CONVERSION_FREE_START`
+- `VITE_LINKEDIN_CONVERSION_PRO_CHECKOUT`
+- `VITE_LINKEDIN_CONVERSION_PRO_PURCHASE`
 
 Stripe secret keys and webhook secrets must remain server-side only. Do not place them in `VITE_*` variables. The full server environment is documented in [`docs/LICENSE_BACKEND_SETUP.md`](docs/LICENSE_BACKEND_SETUP.md).
 
