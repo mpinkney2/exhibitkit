@@ -33,6 +33,17 @@ describe('campaign conversion events', () => {
     expect(window.lintrk).toHaveBeenCalledWith('track', { conversion_id: 111 });
   });
 
+  it('keeps the free-start marker unset until a conversion is sent', () => {
+    window.lintrk = vi.fn();
+    const storage = memoryStorage();
+    const unset = { VITE_LINKEDIN_PARTNER_ID: '1234567' };
+
+    expect(recordFreeTierStart({ storage, env: unset })).toBe(false);
+    expect(recordFreeTierStart({ storage, env })).toBe(true);
+    expect(recordFreeTierStart({ storage, env })).toBe(false);
+    expect(window.lintrk).toHaveBeenCalledTimes(1);
+  });
+
   it('records checkout start and one purchase per return session', () => {
     window.lintrk = vi.fn();
     const storage = memoryStorage();
@@ -46,5 +57,15 @@ describe('campaign conversion events', () => {
       ['track', { conversion_id: 222 }],
       ['track', { conversion_id: 333 }],
     ]);
+  });
+
+  it('does not keep a purchase marker when the conversion is not sent', () => {
+    window.lintrk = vi.fn();
+    const storage = memoryStorage();
+
+    expect(recordProPurchaseCompleted('cs_test_123', storage, { VITE_LINKEDIN_PARTNER_ID: '1234567' })).toBe(false);
+    expect(recordProPurchaseCompleted('cs_test_123', storage, env)).toBe(true);
+    expect(window.lintrk).toHaveBeenCalledTimes(1);
+    expect(window.lintrk).toHaveBeenCalledWith('track', { conversion_id: 333 });
   });
 });

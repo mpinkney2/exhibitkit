@@ -25,11 +25,16 @@ export function recordFreeTierStart({ paid = false, storage = globalThis.localSt
   if (paid) return false;
   try {
     if (storage?.getItem(FREE_START_STORAGE_KEY)) return false;
-    storage?.setItem(FREE_START_STORAGE_KEY, '1');
   } catch {
     return false;
   }
-  return trackLinkedInConversion('free_start', env);
+  if (!trackLinkedInConversion('free_start', env)) return false;
+  try {
+    storage?.setItem(FREE_START_STORAGE_KEY, '1');
+  } catch {
+    // The conversion already fired. A later export may send it again if storage is blocked.
+  }
+  return true;
 }
 
 export function recordProCheckoutStarted(env) {
@@ -41,9 +46,14 @@ export function recordProPurchaseCompleted(sessionId, storage = globalThis.sessi
   const key = PURCHASE_STORAGE_PREFIX + safeId(sessionId);
   try {
     if (storage?.getItem(key)) return false;
+  } catch {
+    // Storage unavailable; still try to report this return.
+  }
+  if (!trackLinkedInConversion('pro_purchase', env)) return false;
+  try {
     storage?.setItem(key, '1');
   } catch {
-    // Still attempt the event when storage is blocked.
+    // The conversion already fired.
   }
-  return trackLinkedInConversion('pro_purchase', env);
+  return true;
 }
