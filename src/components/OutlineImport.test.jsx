@@ -81,6 +81,81 @@ describe('OutlineImport', () => {
     expect(view.container.querySelector('[data-status="missing"]').textContent).toContain('No loaded file');
     expect(text).toContain('Not in this outline (1)');
     expect(text).toContain('Unrelated cover.pdf');
+    expect(view.container.querySelector('input[type="file"]').getAttribute('accept')).toContain('.docx');
+    expect(view.container.querySelector('input[type="file"]').getAttribute('accept')).toContain('.pdf');
+    view.unmount();
+  });
+
+  it('reviews extracted cites and does not match until the review is confirmed', () => {
+    let matched = 0;
+    let confirmed = 0;
+    let removed = '';
+    let edited = null;
+    const view = renderPanel({
+      text: '',
+      onTextChange: () => {},
+      onMatch: () => { matched += 1; },
+      onClear: () => {},
+      onUseStagingNames: () => {},
+      onChoose: () => {},
+      onConfirmDrafts: () => { confirmed += 1; },
+      onDraftRemove: (id) => { removed = id; },
+      onDraftEdit: (id, field, value) => { edited = { id, field, value }; },
+      filesById: {},
+      fileMessage: 'Found 1 citation in this browser. Review them before matching. The file was not uploaded.',
+      fileTone: 'info',
+      drafts: [{
+        id: 'c1',
+        cite: 'PX-0142',
+        description: 'Pricing email',
+        designation: '42:5-43:10',
+        context: 'Ask about PX-0142 (Pricing email) at 42:5-43:10.',
+      }],
+    });
+
+    const text = view.container.textContent;
+    expect(text).toContain('Review extracted citations');
+    expect(text).toContain('Pricing email');
+    expect(text).toContain('Ask about PX-0142');
+    expect(text).toContain('was not uploaded');
+
+    const description = view.container.querySelector('[aria-label="Description for PX-0142"]');
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    act(() => {
+      nativeSetter.call(description, 'Pricing memo');
+      description.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(edited).toEqual({ id: 'c1', field: 'description', value: 'Pricing memo' });
+
+    act(() => {
+      view.container.querySelector('[aria-label="Remove PX-0142"]').click();
+    });
+    expect(removed).toBe('c1');
+
+    act(() => {
+      [...view.container.querySelectorAll('button')].find((button) => button.textContent === 'Match these citations').click();
+    });
+    expect(confirmed).toBe(1);
+    expect(matched).toBe(0);
+    view.unmount();
+  });
+
+  it('shows a scanned PDF message and does not list citations', () => {
+    const view = renderPanel({
+      text: '',
+      onTextChange: () => {},
+      onMatch: () => {},
+      onClear: () => {},
+      onUseStagingNames: () => {},
+      onChoose: () => {},
+      filesById: {},
+      fileTone: 'error',
+      fileMessage: 'This PDF has no extractable text. It looks scanned or image-only. ExhibitKit does not run OCR.',
+    });
+    const alert = view.container.querySelector('[role="alert"]');
+    expect(alert.textContent).toContain('no extractable text');
+    expect(alert.textContent).toContain('OCR');
+    expect(view.container.querySelector('.outline-review')).toBeNull();
     view.unmount();
   });
 });

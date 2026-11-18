@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ShieldAlert, Info, AlertTriangle, ShieldCheck, ArrowLeft, Menu, Sun, Moon, MoreHorizontal } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dropzone from './components/Dropzone';
@@ -57,6 +57,7 @@ import {
   orderStagedItems,
   typePrefixForKind,
 } from './utils/outlineImport';
+import { draftsToOutlineText, extractOutlineCites } from './utils/outlineExtract';
 import { PRO_PRICE_LABEL } from './utils/payment';
 import { proPurchaseReturnId, recordFreeTierStart, recordProPurchaseCompleted } from './utils/campaignEvents';
 import {
@@ -133,6 +134,11 @@ export default function App() {
   const [batesMode, setBatesMode] = useState(() => readBatesMode());
   const [outlineText, setOutlineText] = useState('');
   const [outlineMatch, setOutlineMatch] = useState(null);
+  const [outlineDrafts, setOutlineDrafts] = useState(null);
+  const [outlineFileMessage, setOutlineFileMessage] = useState('');
+  const [outlineFileTone, setOutlineFileTone] = useState('info');
+  const [outlineFileBusy, setOutlineFileBusy] = useState(false);
+  const outlineReadRef = useRef(0);
   const [sampleLoading, setSampleLoading] = useState(false);
   const [showLimits, setShowLimits] = useState(() => window.location.hash === '#limits');
 
@@ -282,6 +288,7 @@ export default function App() {
     setItems([]);
     setDirectoryHandle(null);
     setDirectoryName('');
+    clearOutlineUi();
     setLicensePanelOpen(false);
     setAppRoute('landing');
     showNotification(
@@ -349,10 +356,10 @@ export default function App() {
     const sorted = orderStagedItems(itemsList, rules.sortMode);
 
     const updated = sorted.map((item, idx) => {
-      const sourceDescription = item.sourceDescription ?? item.description ?? '';
+      const filenameDescription = item.sourceDescription ?? item.description ?? '';
       const year = resolveIngestYear({
         bates: item.bates,
-        sourceDescription,
+        sourceDescription: filenameDescription,
         description: item.description,
         userEditedDescription: item.userEditedDescription,
         existingYear: item.year,
@@ -360,7 +367,9 @@ export default function App() {
       });
       const identity = resolveExhibitIdentity({
         bates: item.bates || null,
-        sourceDescription,
+        sourceDescription: (!item.userEditedDescription && item.outlineDescription)
+          ? item.outlineDescription
+          : filenameDescription,
         description: item.description,
         number: item.number,
         isNumberManuallyEdited: item.isNumberManuallyEdited,
@@ -394,7 +403,9 @@ export default function App() {
         exhibitNo: item.officialExhibitNo || '',
         typePrefix: typePrefixForKind(item.mediaKind),
         extension: fileExtension(item.originalName) || '.pdf',
-        shortDescription: item.userEditedDescription ? '' : (item.rawDescription || ''),
+        shortDescription: item.userEditedDescription || item.outlineDescription
+          ? ''
+          : (item.rawDescription || ''),
       });
 
       return {
@@ -402,7 +413,7 @@ export default function App() {
         year: year || null,
         number: identity.number,
         description: identity.description,
-        sourceDescription,
+        sourceDescription: filenameDescription,
         isNumberManuallyEdited: item.bates
           ? Boolean(item.isNumberManuallyEdited)
           : ((rules.useYearAsNumber && year) ? true : item.isNumberManuallyEdited),
@@ -443,6 +454,7 @@ export default function App() {
       outlineOrder: null,
       designation: '',
       designationUserEdited: false,
+      outlineDescription: '',
       outlineReferences: [],
       year: year || null,
       number,
@@ -688,16 +700,24 @@ export default function App() {
     showNotification('Staging names use the outline order, the official exhibit number, and a short description.', 'success');
   };
 
-  const handleMatchOutline = () => {
-    if (isPreviewFreezed) return;
-    const trimmed = outlineText.trim();
-    if (!trimmed) return;
-    const match = matchOutline(trimmed, items.map((item) => ({
-      id: item.id,
-      originalName: item.originalName,
-      description: item.description || '',
-      officialExhibitNo: item.officialExhibitNo,
-    })));
+  const outlineRecords = () => items.map((item) => ({
+    id: item.id,
+    originalName: item.originalName,
+    description: item.description || '',
+    officialExhibitNo: item.officialExhibitNo,
+  }));
+
+  const clearOutlineUi = () => {
+    outlineReadRef.current += 1;
+    setOutlineText('');
+    setOutlineMatch(null);
+    setOutlineDrafts(null);
+    setOutlineFileMessage('');
+    setOutlineFileTone('info');
+    setOutlineFileBusy(false);
+  };
+
+  const commitOutlineMatch = (match) => {
     setOutlineMatch(match);
     const templateHasStaging = /\{(?:seq|exhibitno)\}/i.test(customTemplate);
     const shouldApplyStaging = preset !== 'custom' && preset !== 'outline-staging' && !templateHasStaging;
@@ -712,6 +732,75 @@ export default function App() {
     );
   };
 
+  const handleMatchOutline = () => {
+    if (isPreviewFreezed) return;
+    const trimmed = outlineText.trim();
+    if (!trimmed) return;
+    commitOutlineMatch(matchOutline(trimmed, outlineRecords()));
+  };
+
+  const handleOutlineFile = async (file) => {
+    if (isPreviewFreezed || !file) return;
+    const readId = outlineReadRef.current + 1;
+    outlineReadRef.current = readId;
+    setOutlineFileBusy(true);
+    setOutlineFileMessage('');
+    setOutlineFileTone('info');
+    try {
+      const { readOutlineText } = await import('./utils/outlineFile');
+      const text = await readOutlineText(file);
+      if (readId !== outlineReadRef.current) return;
+      const cites = extractOutlineCites(text);
+      if (cites.length === 0) {
+        setOutlineDrafts(null);
+        setOutlineFileTone('error');
+        setOutlineFileMessage('No exhibit citations were found in this outline. Paste the citations instead.');
+        return;
+      }
+      setOutlineDrafts(cites);
+      setOutlineFileTone('info');
+      setOutlineFileMessage(
+        `Found ${cites.length} citation${cites.length === 1 ? '' : 's'} in this browser. Review them before matching. The file was not uploaded.`,
+      );
+    } catch (error) {
+      if (readId !== outlineReadRef.current) return;
+      setOutlineDrafts(null);
+      setOutlineFileTone('error');
+      setOutlineFileMessage(error?.message || 'This outline could not be read.');
+    } finally {
+      if (readId === outlineReadRef.current) setOutlineFileBusy(false);
+    }
+  };
+
+  const handleDraftEdit = (id, field, value) => {
+    if (isPreviewFreezed) return;
+    if (field !== 'cite' && field !== 'description' && field !== 'designation') return;
+    setOutlineDrafts((current) => (current || []).map((draft) => (
+      draft.id === id ? { ...draft, [field]: value } : draft
+    )));
+  };
+
+  const handleDraftRemove = (id) => {
+    if (isPreviewFreezed) return;
+    setOutlineDrafts((current) => (current || []).filter((draft) => draft.id !== id));
+  };
+
+  const handleConfirmDrafts = () => {
+    if (isPreviewFreezed) return;
+    const usable = (outlineDrafts || []).filter((draft) => String(draft.cite || '').trim());
+    if (usable.length === 0) return;
+    const text = draftsToOutlineText(usable);
+    setOutlineText(text);
+    const match = matchOutline(text, outlineRecords(), { splitCommas: false });
+    commitOutlineMatch({
+      ...match,
+      references: match.references.map((reference, index) => ({
+        ...reference,
+        draftDescription: String(usable[index]?.description || '').trim(),
+      })),
+    });
+  };
+
   const handleOutlineChoice = (referenceId, fileId) => {
     if (!outlineMatch || !fileId || isPreviewFreezed) return;
     const next = assignOutlineCandidate(outlineMatch, referenceId, fileId);
@@ -721,8 +810,7 @@ export default function App() {
 
   const handleClearOutline = () => {
     if (isPreviewFreezed) return;
-    setOutlineText('');
-    setOutlineMatch(null);
+    clearOutlineUi();
     setSortMode('filename');
     setItems((prev) => (
       prev.length > 0
@@ -1012,8 +1100,7 @@ export default function App() {
     setDirectoryHandle(null);
     setDirectoryName("");
     setLastRenameHistory([]);
-    setOutlineText('');
-    setOutlineMatch(null);
+    clearOutlineUi();
     showNotification("🧹 Ingestion cleared successfully.", "success");
   };
 
@@ -1085,6 +1172,7 @@ export default function App() {
     setItems([]);
     setDirectoryHandle(null);
     setDirectoryName("");
+    clearOutlineUi();
     setAppRoute('workspace');
     showNotification(
       `Free workspace ready — up to ${FREE_MAX_FILES_PER_BATCH} files per batch, or load sample exhibits.`,
@@ -1665,6 +1753,14 @@ export default function App() {
                 onClear={handleClearOutline}
                 onUseStagingNames={handleUseStagingNames}
                 onChoose={handleOutlineChoice}
+                onOutlineFile={handleOutlineFile}
+                drafts={outlineDrafts}
+                onDraftEdit={handleDraftEdit}
+                onDraftRemove={handleDraftRemove}
+                onConfirmDrafts={handleConfirmDrafts}
+                fileMessage={outlineFileMessage}
+                fileTone={outlineFileTone}
+                fileBusy={outlineFileBusy}
                 disabled={isPreviewFreezed}
                 isPro={isPro}
                 excluded={outlineMatch ? items.filter((item) => item.included === false) : []}

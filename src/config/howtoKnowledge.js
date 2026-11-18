@@ -88,7 +88,7 @@ export const HOWTO_KNOWLEDGE = [
     question: 'Are my files uploaded?',
     keywords: ['upload', 'cloud', 'privacy', 'local', 'server', 'offline', 'confidential', 'data'],
     answer:
-      'No. Parsing, preview, and renaming run in your browser on this device. ExhibitKit does not upload PDFs, folders, or filenames. Checkout never receives exhibit data.',
+      'No. Parsing, preview, outline reading, and renaming run in your browser on this device. ExhibitKit does not upload exhibit files, folders, filenames, or Word or PDF outlines. Checkout never receives exhibit data.',
   },
   {
     id: 'inplace',
@@ -128,8 +128,8 @@ export const HOWTO_KNOWLEDGE = [
   {
     id: 'outline-order',
     question: 'How do I stage exhibits in outline order?',
-    keywords: ['outline', 'hot', 'seat', 'designation', 'crosswalk', 'paste', 'staging', 'page', 'line', 'citation'],
+    keywords: ['outline', 'hot', 'seat', 'designation', 'crosswalk', 'paste', 'upload', 'docx', 'pdf', 'word', 'staging', 'page', 'line', 'citation', 'scan', 'ocr'],
     answer:
-      'Load the exhibit folder, then paste citations in outline order and click Match outline. ExhibitKit matches the official number and tolerates padding, spacing, case, and hyphen variants. Ambiguous rows let you pick a file. Missing citations are listed. A file cited twice stays one row and keeps both citations. Page, page range, and page:line text become an editable Designation. Use staging names for {Seq}_{ExhibitNo}_{ShortDesc}. The CSV and HTML export is the crosswalk. Matching stays on this device. Free covers a batch of 5 files. Case Pass or Pro covers a larger folder, Matter Profiles, and ZIP or in-place rename of the staged copies.',
+      'Load the exhibit folder, then paste citations or upload the attorney outline as a Word .docx or a text-based PDF. The outline is read only in this browser and is not uploaded. Review the extracted citations, edit the description or designation, remove a row, then match. Nothing is renamed until you confirm the rename. ExhibitKit matches the official number and tolerates padding, spacing, case, and hyphen variants. Ambiguous rows let you pick a file. Missing citations are listed. A file cited twice stays one row and keeps both citations. Page, page range, and page:line text, including 42:5-43:10 and p. 42:5, become an editable Designation. A scanned PDF with no extractable text is reported as such. OCR is not available. Use staging names for {Seq}_{ExhibitNo}_{ShortDesc}. The CSV and HTML export is the crosswalk. Free covers a batch of 5 files. Case Pass or Pro covers a larger folder, Matter Profiles, and ZIP or in-place rename of the staged copies.',
   },
 ];

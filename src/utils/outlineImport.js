@@ -18,7 +18,12 @@ const KNOWN_PREFIXES = new Set(EXHIBIT_PREFIX_LIST);
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v', '.webm', '.avi', '.wmv', '.mkv']);
 const SLIDE_EXTENSIONS = new Set(['.ppt', '.pptx']);
 
-const PAGE_MARKER_SUFFIX = /\s+(?:at\s+)?(?:pp\.?|pages?|p\.?)\s+(\d{1,4}(?:\s*[-–—]\s*\d{1,4})?)\s*$/i;
+const PAGE_LINE_BODY = String.raw`\d{1,4}:\d{1,3}(?:\s*[-–—]\s*(?:\d{1,4}:)?\d{1,3})?`;
+const PAGE_SPAN_BODY = String.raw`\d{1,4}(?![\d:])(?:\s*[-–—]\s*\d{1,4}(?![\d:]))?`;
+const PAGE_MARKER_SUFFIX = new RegExp(
+  String.raw`\s+(?:at\s+)?(?:pp\.?|pages?|p\.?)\s*(${PAGE_LINE_BODY}|${PAGE_SPAN_BODY})\s*$`,
+  'i',
+);
 const AT_PAGE_SUFFIX = /\s+at\s+(\d{1,4}(?:\s*[-–—]\s*\d{1,4})?)\s*$/i;
 const PAGE_LINE_SUFFIXES = [
   /\s+(\d{1,4}:\d{1,3}\s*[-–—]\s*\d{1,4}:\d{1,3})\s*$/,
@@ -366,10 +371,12 @@ function withCounts(references) {
  * @param {string} text
  * @param {Array<{ id: string, originalName: string, description?: string, officialExhibitNo?: string }>} files
  */
-export function matchOutline(text, files) {
+export function matchOutline(text, files, options = {}) {
   const records = (files || []).map(fileRecord);
   const extraPrefixes = prefixesInFiles(records);
-  const entries = splitOutlineList(text);
+  const entries = options.splitCommas === false
+    ? String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    : splitOutlineList(text);
 
   const references = entries.map((entry, index) => {
     const parsed = parseOutlineReference(entry, extraPrefixes);
@@ -445,8 +452,12 @@ export function applyOutlineResult(items, match) {
       order: reference.outlineOrder,
       designations: [],
       raws: [],
+      description: '',
     };
     if (reference.designation) current.designations.push(reference.designation);
+    if (!current.description && reference.draftDescription) {
+      current.description = String(reference.draftDescription).trim();
+    }
     current.raws.push(reference.raw);
     if (reference.outlineOrder) current.order = reference.outlineOrder;
     groups.set(reference.fileId, current);
@@ -460,6 +471,7 @@ export function applyOutlineResult(items, match) {
         included: false,
         outlineOrder: null,
         designation: item.designationUserEdited ? item.designation : '',
+        outlineDescription: item.userEditedDescription ? (item.outlineDescription || '') : '',
         outlineReferences: [],
       };
     }
@@ -470,6 +482,9 @@ export function applyOutlineResult(items, match) {
       designation: item.designationUserEdited
         ? item.designation
         : uniqueJoin(group.designations, '; '),
+      outlineDescription: item.userEditedDescription
+        ? (item.outlineDescription || '')
+        : (group.description || ''),
       outlineReferences: group.raws,
     };
   });
@@ -482,6 +497,7 @@ export function clearOutlineFields(items) {
     outlineOrder: null,
     designation: '',
     designationUserEdited: false,
+    outlineDescription: '',
     outlineReferences: [],
   }));
 }
@@ -518,6 +534,11 @@ export const OUTLINE_MATCH_GUIDE = Object.freeze([
     detail: 'One reference per line, or several references on a line separated by commas. A comma inside a title needs its own line.',
   },
   {
+    id: 'upload',
+    label: 'Word or PDF outline',
+    detail: 'Upload a .docx file or a text-based PDF. The file is read in this browser and is not uploaded. Citations stay in document order, with a draft description from the same line or a parenthetical, and a page or page:line designation when one sits next to the cite. Edit or remove rows, then match. A PDF with no extractable text is reported as scanned or image-only. OCR is not available. Free still covers a batch of up to 5 exhibit files.',
+  },
+  {
     id: 'number',
     label: 'Exhibit number',
     detail: 'The reference matches the official number on a loaded file. Zero-padding, spacing, prefix case, and hyphen, underscore, or no separator are ignored. A letter suffix still counts, so PX-0142A does not match PX-0142.',
@@ -530,7 +551,7 @@ export const OUTLINE_MATCH_GUIDE = Object.freeze([
   {
     id: 'designation',
     label: 'Page and page:line',
-    detail: 'A trailing at 3, p. 12-14, pp. 12-14, page 12, or 45:3-46:10 becomes the Designation. It is editable and is not written into the filename. Page:line is kept when it follows a name; it is not peeled off a bare prefix.',
+    detail: 'A trailing at 3, p. 12-14, pp. 12-14, page 12, p. 42:5, or 45:3-46:10 becomes the Designation. It is editable and is not written into the filename. Page:line is kept when it follows a name; it is not peeled off a bare prefix.',
   },
   {
     id: 'repeat',

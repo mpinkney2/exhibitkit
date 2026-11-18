@@ -91,6 +91,14 @@ describe('outline reference parsing', () => {
     });
     expect(parseOutlineReference('Smith Depo 45:3-10')).toMatchObject({ designation: '45:3-10' });
     expect(parseOutlineReference('Smith Depo 45:3')).toMatchObject({ designation: '45:3' });
+    expect(parseOutlineReference('PX-0142 p. 42:5')).toMatchObject({
+      key: 'PX-142',
+      body: 'PX-0142',
+      designation: '42:5',
+    });
+    expect(parseOutlineReference('PX-0142 p. 42:5-43:10')).toMatchObject({ designation: '42:5-43:10' });
+    expect(parseOutlineReference('PX-0142 p. 42:5–43:10')).toMatchObject({ designation: '42:5-43:10' });
+    expect(parseOutlineReference('JX-3 p.42:5')).toMatchObject({ key: 'JX-3', designation: '42:5' });
   });
 });
 
