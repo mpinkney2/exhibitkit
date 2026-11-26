@@ -7,6 +7,8 @@ import OutlineImport from './components/OutlineImport';
 import ActionPanel from './components/ActionPanel';
 import PricingModal from './components/PricingModal';
 import LandingPage from './components/LandingPage';
+import RetirementPage from './components/RetirementPage';
+import { isLegacyWorkspaceEntry, isSuiteRetired, SUITE_MODULES_URL } from './config/suiteRetirement';
 import LegalModals from './components/LegalModals';
 import MessageWorkspace from './components/MessageWorkspace';
 import WorkflowProgress from './components/WorkflowProgress';
@@ -75,10 +77,20 @@ import { RENAME_WORKFLOW_STEPS, getRenameWorkflowIndex } from './utils/workflowP
 // Always available; production unlock is server-gated via /api/founder/unlock.
 const FounderAdmin = lazy(() => import('./components/FounderAdmin'));
 
+function storefrontRoute() {
+  return isSuiteRetired() ? 'retirement' : 'landing';
+}
+
 function getInitialAppRoute() {
   if (proPurchaseReturnId(window.location.search)) return 'stripe_success';
   const stripeStatus = new URLSearchParams(window.location.search).get('stripe_status');
   if (stripeStatus === 'cancel') return 'stripe_cancel';
+  if (isSuiteRetired()) {
+    if (isLegacyWorkspaceEntry(window.location.search) || hasProFeatures(getEntitlement())) {
+      return 'workspace';
+    }
+    return 'retirement';
+  }
   return hasProFeatures(getEntitlement()) ? 'workspace' : 'landing';
 }
 
@@ -88,7 +100,7 @@ function newItemId() {
 }
 
 export default function App() {
-  // Application Mode Routing: 'landing' | 'workspace' | 'stripe_success' | 'stripe_cancel'
+  // Application Mode Routing: 'landing' | 'retirement' | 'workspace' | 'stripe_success' | 'stripe_cancel'
   const [appRoute, setAppRoute] = useState(getInitialAppRoute);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -160,6 +172,13 @@ export default function App() {
   const [activationNeedsTransfer, setActivationNeedsTransfer] = useState(false);
 
   const openPricing = (intent = 'purchase') => {
+    if (isSuiteRetired() && intent === 'purchase') {
+      window.location.assign(SUITE_MODULES_URL);
+      return;
+    }
+    if (isSuiteRetired() && intent !== 'restore') {
+      return;
+    }
     setPricingIntent(intent);
     setIsPricingOpen(true);
   };
@@ -266,7 +285,7 @@ export default function App() {
     if (result.cleared) {
       setEntitlement(getEntitlement());
       setLicensePanelOpen(false);
-      setAppRoute('landing');
+      setAppRoute(storefrontRoute());
       showNotification('This license is no longer active on this device.', 'warning');
     } else if (result.expired) {
       setEntitlement(getEntitlement());
@@ -283,7 +302,7 @@ export default function App() {
     setDirectoryHandle(null);
     setDirectoryName('');
     setLicensePanelOpen(false);
-    setAppRoute('landing');
+    setAppRoute(storefrontRoute());
     showNotification(
       result.offline
         ? 'License removed from this browser. The license itself was not deleted. This device’s seat may still be reserved until the service can be reached.'
@@ -312,7 +331,7 @@ export default function App() {
 
       if (result.cleared) {
         setEntitlement(getEntitlement());
-        setAppRoute('landing');
+        setAppRoute(storefrontRoute());
       } else if (result.expired) {
         setEntitlement(getEntitlement());
       } else if (result.entitlement) {
@@ -1167,6 +1186,28 @@ export default function App() {
     </Suspense>
   );
 
+  if (appRoute === 'retirement') {
+    return (
+      <>
+        {configurationNotice}
+        <RetirementPage
+          licenseSlot={licenseCluster}
+          onOpenLegacyWorkspace={() => setAppRoute('workspace')}
+        />
+        {licensePanel}
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={closePricing}
+          onActivateLicense={handleActivateLicense}
+          onActivated={handleEntitlementActivated}
+          workstationId={workstation.deviceId}
+          initialView="restore"
+        />
+        {founderAdmin}
+      </>
+    );
+  }
+
   if (appRoute === 'landing') {
     return (
       <>
@@ -1199,7 +1240,7 @@ export default function App() {
       <>
         {configurationNotice}
         <MessageWorkspace
-          onBack={() => setAppRoute('landing')}
+          onBack={() => setAppRoute(storefrontRoute())}
           onOpenPricing={() => openPricing('purchase')}
           showNotification={showNotification}
           licenseSlot={licenseCluster}
@@ -1336,16 +1377,31 @@ export default function App() {
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Checkout Canceled</h2>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-            Checkout was canceled. You can continue with Free (up to 5 files per batch) or return to pricing when you are ready.
+            {isSuiteRetired()
+              ? 'Checkout was canceled. ExhibitKit is now part of the PatentPreppers suite — use the suite catalog or built-in Exhibit Renamer.'
+              : 'Checkout was canceled. You can continue with Free (up to 5 files per batch) or return to pricing when you are ready.'}
           </p>
           
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn btn-primary" onClick={() => openPricing('purchase')} style={{ flex: 1, fontSize: '13px' }}>
-              Buy Pro — {PRO_PRICE_LABEL}
-            </button>
-            <button className="btn btn-secondary" onClick={handleLaunchFree} style={{ flex: 1, fontSize: '13px' }}>
-              Rename exhibits free
-            </button>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {isSuiteRetired() ? (
+              <>
+                <a className="btn btn-primary" href={SUITE_MODULES_URL} style={{ flex: 1, fontSize: '13px', textAlign: 'center' }}>
+                  Suite modules
+                </a>
+                <button type="button" className="btn btn-secondary" onClick={() => setAppRoute(storefrontRoute())} style={{ flex: 1, fontSize: '13px' }}>
+                  Back
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="btn btn-primary" onClick={() => openPricing('purchase')} style={{ flex: 1, fontSize: '13px' }}>
+                  Buy Pro — {PRO_PRICE_LABEL}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={handleLaunchFree} style={{ flex: 1, fontSize: '13px' }}>
+                  Rename exhibits free
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1437,7 +1493,7 @@ export default function App() {
               <button
                 type="button"
                 className="top-bar-logo-home"
-                onClick={() => setAppRoute('landing')}
+                onClick={() => setAppRoute(storefrontRoute())}
                 title="Go to Landing Page"
                 aria-label="Go to Landing Page"
               >
@@ -1450,7 +1506,7 @@ export default function App() {
                 <button
                   type="button"
                   className="top-bar-logo-text"
-                  onClick={() => setAppRoute('landing')}
+                  onClick={() => setAppRoute(storefrontRoute())}
                   title="Go to Landing Page"
                 >
                   ExhibitKit
@@ -1500,7 +1556,7 @@ export default function App() {
                 type="button"
                 id="nav-home-btn"
                 className="top-bar-link text-link-hover"
-                onClick={() => setAppRoute('landing')}
+                onClick={() => setAppRoute(storefrontRoute())}
               >
                 Home
               </button>
@@ -1563,7 +1619,7 @@ export default function App() {
                       role="menuitem"
                       onClick={() => {
                         setIsMobileNavOpen(false);
-                        setAppRoute('landing');
+                        setAppRoute(storefrontRoute());
                       }}
                     >
                       Home

@@ -2,7 +2,7 @@
 
 PatentPreppers ExhibitKit is local-first exhibit renaming and management for trial teams. It prepares **OnCue**- and **TrialDirector**-ready exhibit sets in the browser, with additional practice-area presets for patent DOD, family, employment, and bankruptcy matters.
 
-Canonical site: [https://exhibitkit.patentpreppers.com/](https://exhibitkit.patentpreppers.com/). Part of the [PatentPreppers](https://patentpreppers.com) litigation suite.
+Standalone storefront at [https://exhibitkit.patentpreppers.com/](https://exhibitkit.patentpreppers.com/) is **retired**; visitors are directed to the [PatentPreppers suite](https://patentpreppers.com/modules). See [`docs/SUITE_CONSOLIDATION.md`](docs/SUITE_CONSOLIDATION.md). Legacy workspace: `?legacy=workspace`.
 
 ---
 
