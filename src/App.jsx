@@ -566,7 +566,7 @@ export default function App() {
           `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
           "danger"
         );
-        setIsPricingOpen(true);
+        openPricing('purchase');
         return;
       }
       setDirectoryHandle(null);
@@ -606,7 +606,7 @@ export default function App() {
           `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
           "danger"
         );
-        setIsPricingOpen(true);
+        openPricing('purchase');
         return;
       }
 
@@ -632,7 +632,7 @@ export default function App() {
         `Free includes up to ${FREE_MAX_FILES_PER_BATCH} files per batch. Reduce this batch or upgrade for unlimited batches.`,
         "danger"
       );
-      setIsPricingOpen(true);
+      openPricing('purchase');
       return;
     }
 
@@ -808,7 +808,7 @@ export default function App() {
           "In-place renaming and ZIP export require a Case Pass or ExhibitKit Pro. Free includes preview and CSV/HTML export (up to 5 files per batch).",
           "warning"
         );
-        setIsPricingOpen(true);
+        openPricing('purchase');
         return;
       }
     }
@@ -977,7 +977,7 @@ export default function App() {
   const handleUndo = async () => {
     if (!isPro) {
       showNotification("Reverting renames requires a Case Pass or ExhibitKit Pro.", "warning");
-      setIsPricingOpen(true);
+      openPricing('purchase');
       return;
     }
 
