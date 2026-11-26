@@ -7,6 +7,7 @@ All notable changes to **ExhibitKit** will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Suite consolidation retirement page (`RetirementPage`) and `docs/SUITE_CONSOLIDATION.md`, including unique-engine inventory for future PatentPreppers Exhibit Renamer parity.
 - Outline-order staging. Paste citations, match them to loaded files, edit page or page:line designations, and export a crosswalk. The Outline staging preset names copies `{Seq}_{ExhibitNo}_{ShortDesc}`, with an optional `{Type}` prefix for video and demonstratives.
 - Outline matching treats a leading number plus words, such as `4 Photo`, as that exhibit number. Video and slide extensions are removed before the filename is parsed. Files left out of the outline do not mark a staged name as a duplicate.
 - Fictional Starter, Standard, and Large exhibit test packs, generated at build time, with a download control and a Limits and sizes page.
@@ -21,6 +22,7 @@ All notable changes to **ExhibitKit** will be documented in this file.
 - License activation checks that signing is configured before a seat is written. Known founder-secret placeholders are compared as hashes.
 - Public title, hero, and metadata now position **PatentPreppers ExhibitKit** as local-first exhibit renaming and management for OnCue and TrialDirector.
 - Tamper-evident message exhibits stay available as a secondary feature. The page title and hero no longer lead with that workflow.
+- Production builds default to the retirement storefront (no separate ExhibitKit purchase CTAs). Legacy workspace remains at `?legacy=workspace` for license activation and export.
 
 ---
 
