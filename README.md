@@ -8,7 +8,7 @@ Standalone storefront at [https://exhibitkit.patentpreppers.com/](https://exhibi
 
 ## Trust Architecture: Local-First & Confidential
 
-- **Zero Document Uploads:** Filename parsing, sequencing, and directory restructuring run in your browser.
+- **Zero Document Uploads:** Filename parsing, outline reading, sequencing, and directory restructuring run in your browser.
 - **Offline Operations:** Live renaming uses browser File System Access APIs on your workstation.
 - **Metadata Protection:** Legal document content is not sent to ExhibitKit servers. Payment checkout never receives filenames, matter names, or export data.
 
@@ -30,11 +30,12 @@ The public launch offer is Free or $149 Pro, with Firm licenses handled by conta
 
 ### Outline order
 
-A hot-seat operator can paste exhibit citations in outline order and stage just those files. Matching runs in the browser.
+A hot-seat operator can paste exhibit citations, or upload the attorney's outline as a Word `.docx` or a text-based PDF, and stage just those files. The outline is read in the browser and is not uploaded.
 
-- One reference per line, or several separated by commas.
+- One pasted reference per line, or several separated by commas.
+- A `.docx` or text-based PDF is read on this device. ExhibitKit lists the citations in document order, with a draft description from the same line or a parenthetical and a page or page:line designation such as `42:5-43:10` or `p. 42:5`. Edit or remove rows before matching. A scanned PDF with no extractable text is reported as such. OCR is not available.
 - The official exhibit number matches across zero-padding, spacing, prefix case, and hyphen, underscore, or no separator. A letter suffix still distinguishes `PX-0142A` from `PX-0142`.
-- A trailing page, page range, or page:line (`at 3`, `p. 12-14`, `45:3-46:10`) becomes an editable Designation. It is not written into the filename.
+- A trailing page, page range, or page:line (`at 3`, `p. 12-14`, `42:5-43:10`, `p. 42:5`) becomes an editable Designation. It is not written into the filename.
 - The same file cited twice stays one staged file at its first position, and both citations are kept.
 - Ambiguous references wait for a choice. Missing references are listed. Files that were not cited stay loaded and are left out of rename, ZIP, and the crosswalk.
 - The Outline staging preset uses `{Seq}_{ExhibitNo}_{ShortDesc}`. `{Type}` adds `V` for video and `D` for a demonstrative. The pattern is saved with Matter Profiles.

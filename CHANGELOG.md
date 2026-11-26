@@ -9,6 +9,7 @@ All notable changes to **ExhibitKit** will be documented in this file.
 ### Added
 - Suite consolidation retirement page (`RetirementPage`) and `docs/SUITE_CONSOLIDATION.md`, including unique-engine inventory for future PatentPreppers Exhibit Renamer parity.
 - Outline-order staging. Paste citations, match them to loaded files, edit page or page:line designations, and export a crosswalk. The Outline staging preset names copies `{Seq}_{ExhibitNo}_{ShortDesc}`, with an optional `{Type}` prefix for video and demonstratives.
+- Upload a Word `.docx` or text-based PDF outline. ExhibitKit reads it in the browser, lists the citations with a draft description and any page:line designation, and matches only after review. A scanned PDF with no extractable text is reported as such. OCR is not included.
 - Outline matching treats a leading number plus words, such as `4 Photo`, as that exhibit number. Video and slide extensions are removed before the filename is parsed. Files left out of the outline do not mark a staged name as a duplicate.
 - Fictional Starter, Standard, and Large exhibit test packs, generated at build time, with a download control and a Limits and sizes page.
 - Optional Bates-style filename detection. The default keeps sequential exhibit numbers and puts the Bates number in the description.
